@@ -1,43 +1,98 @@
-<!DOCTYPE HTML>
-<html lang="en-US">
+<html lang="en">
     <head>
-        <title>Torvos.ca - Main page</title>
-        <meta charset='utf-8'>
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width,maximum-scale=2">
-        <link rel="stylesheet" type="text/css" media="screen" href="/assets/css/style.css">
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="">
+        <!-- Page Title -->
+        <title>Welcome to Torvos.ca</title>
+
+        <link rel="stylesheet" href="https://early.webawesome.com/webawesome@3.0.0-alpha.2/dist/themes/default.css" />
+        <link rel="stylesheet" href="/fontawesome/css/all.css"/>
+        <link rel="stylesheet" href="/style/docs.css"/>
+
+        <script type="module" src="https://early.webawesome.com/webawesome@3.0.0-alpha.2/dist/webawesome.loader.js"></script>
+        <script type="module" src="/assets/scripts/color-scheme.js"></script>
+        <script>
+            document.documentElement.classList.toggle(
+              'wa-theme-default-dark',
+              sessionStorage.getItem('colorScheme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches
+            );
+        </script>
+
     </head>
-    <body>
-        <!-- HEADER -->
-        <div id="header_wrap" class="outer">
-            <header class="inner">
-                <div class="container" style="width:100%;">
-                    <div class="Icon" style="float:left;width:100px;">
-                        <img src="/assets/images/icon.jpeg" width="80px">
-                    </div>
-                    <div class="Text" style="margin:0 auto;width:auto;">
-                        <h1 id="project_title">Torvos.ca</h1>
-                        <h3 id="project_tagline">I break things but also help fix them</h3>        
-                    </div>
-                  </div>
+    <body class="layout-page-outline">
+        <wa-page view="desktop">
+            <header slot="header">
+                <div id="docs-branding">
+                    <wa-button appearance="text" data-toggle-nav>
+                        <wa-icon name="bars" label="Toggle navigation" style="padding-top: 12.5px;"></wa-icon>
+                    </wa-button>
+                    <a href="/" style="text-decoration:none;">
+                        <wa-avatar image="\images\icontorvo.png" shape="rounded" label="stylized portrait of ne with purple hair and my two previous cats"></wa-avatar>
+                        <span style="vertical-align:middle; font-size: 30px; font-weight: bold;">Torvos.ca</span>
+                    </a>
+                </div>
+    
+                <div id="docs-toolbar">
+                    <wa-dropdown id="color-scheme-selector">
+                        <wa-button slot="trigger" appearance="tinted" size="small" caret>
+                            <wa-icon class="only-light" slot="prefix" name="sun" variant="regular"></wa-icon>
+                            <wa-icon class="only-dark" slot="prefix" name="moon" variant="regular"></wa-icon>
+                            <span class="only-light only-desktop">Light</span>
+                            <span class="only-dark only-desktop">Dark</span>
+                        </wa-button>
+                        <wa-menu>
+                            <wa-menu-item type="checkbox" value="light">Light</wa-menu-item>
+                            <wa-menu-item type="checkbox" value="dark">Dark</wa-menu-item>
+                            <wa-divider></wa-divider>
+                            <wa-menu-item type="checkbox" value="auto">System</wa-menu-item>
+                        </wa-menu>
+                    </wa-dropdown>
+                </div>
             </header>
-        </div>
-
-        <!-- MAIN CONTENT -->
-        <div id="main_content_wrap" class="outer">
-            <section id="main_content" class="inner">
-            <p>Hi, I'm rebuilding this page, in short I've been a Developper, Business Analyst, Architect, Security Incident Responder, and Operations Manager. This site will more then likely contain my thoughts on these various things.</p>
-            <p>You can find me on Mastodon at <a href="https://ottawa.place/@Torvos">Torvos@ottawa.place</a></p>
-            </section>
-        </div>
-
-        <!-- FOOTER  -->
-        <div id="footer_wrap" class="outer">
-            <footer class="inner">
-            <p class="copyright">Torvos.ca maintained by <a href="https://github.com/torvos">Torvos</a></p>
-            <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
-            </footer>
-        </div>
+    
+            <aside slot="navigation" id="sidebar" class="docs-aside" data-remember-scroll>
+                <wa-icon-button id="sidebar-close-button" name="xmark" label="Close" data-drawer="close"></wa-icon-button>
+                <nav>
+                    <!-- Left Hand Menu -->
+                    <h2>Site Menu</h2>
+                    <ul>
+                        <li><a href="index.html" class="current">Home</a></li>
+                        <li><a href="about.html">About Me</a></li>
+                    </ul>
+                </nav>
+            </aside>
+            
+            <!-- Right Hand Menu -->
+            <aside slot="aside" id="outline" class="docs-aside">
+                <nav id="outline-standard" class="outline-links">
+                    <!--<h2><a href="#content">Summary</a></h2>
+                    <ul>
+                        <li data-level="2"><a href="#second-heading">something</a></li>
+                    </ul>-->
+                </nav>
+            </aside>
+    
+            <main id="content">
+                <!-- Mobile Page Menu -->    
+                <nav id="outline-expandable">
+                    <!--<details class="outline-links">
+                        <summary>Summary</summary>
+                        <ul>
+                            <li data-level="2"><a href="#second-heading">something</a></li>
+                        </ul>
+                    </details>-->
+                </nav>
+        
+                <!-- Page Content -->
+                <h1 class="title">Welcome to my website</h1>
+                <p>The site is still in development, and I'm working on it, in the near future, I aim to bring you insightful and engaging articles on technology.</p>
+                <p>I hope to provide content about cloud, security, technology, programming and various other things keeps folks informed and inspired.</p>
+                <p>Take a look at the <a href="about.html">about me</a> page for more information about who I am and my background.</p>
+                <p>Thank you for your patience and support as I build it. Stay tuned for updates, and I look forward to sharing my passion for technology with you!</p>
+            </main> 
+            
+        </wa-page>
     </body>
 </html>
-            
