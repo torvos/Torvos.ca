@@ -96,20 +96,24 @@
                 </nav>
         
                 <!-- Page Content -->
-                <h1 class="title">How this website works</h1>
-                <p><a name="artcle-top"></a>This website is hosted on GitHub, you can <a href="https://github.com/torvos/Torvos.ca" target="_blank">view the code here (opens in a new tab)</a> and even send pull requests if you want to suggest changes.</p>
-                <p>It uses what's called GitHub Pages, a service from GitHub that allows you to host websties on their infrasturcure with only a few clicks, see <a href="https://pages.github.com" target="_blank">here (opens in a new tab)</a> for a great guide from GitHub themselves.</p>
-                <p><strong>Insert Image of GitHub Pages</strong></p>
-                <hr>
-                <p><a name="artcle-local"></a>Why am I writing an article if the above page from GitHub shows you everything you need to know. Well in this article I'm going to show how I setup a local version of the website so I can develop articles in private before publishing to the live site.</p>
+                <h1 class="title">How This Website Works</h1>
+                <p><a name="artcle-top"></a>In this article I'm going to break down how this website works.  First this website is hosted on GitHub, and it's code is public, you can <a href="https://github.com/torvos/Torvos.ca" target="_blank">view the code here (opens in a new tab)</a> and even send pull requests if you spot an error or want to suggest changes.</p>
+
+                <p>Now anyone can simply host code on GidHub but your not looking at code your looking at a webstie so how does that work? That's due to a GitHub feature called GitHub Pages, it allows you to host websties on their infrasturcure with only a few clicks, see <a href="https://pages.github.com" target="_blank">here (opens in a new tab)</a> for a great guide from GitHub themselves.</p>
+                                
+                <p><a name="artcle-local"></a>While you can simply leave it at that and have yourself a website, however I wanted to be able to work on my site without updating the public version right away.  While I could just download the code locally and only commit and push changes when I'm ready it wouldn't render the HTML with all dependencies. That's why I setup a local version of it on one of my servers. That way I can develop articles in private before publishing to the live site.</p>
+                                
+                <p>The way this works is on my personal server I'm running a beta version of my website, that website is a clone of the GitHub repository, so I'm able to code changes view them locally even commit changes to the local repository. Then when I'm happy I can push it up to GitHub and the GitHub Action takes over and publishes the new version of the website.</p>
+                
                 <p><strong>Insert Image of how the sync works</strong></p>
-                <p>The way this works is on my personal server I'm running a beta version of my website, that website is a clone of the GitHub repository, so I'm able to code changes view them locally even commit changes to the local repository. Then when I'm happy I can push it up to GitHub.</p>
-                <hr>
-                <p><a name="artcle-dns"></a></p>
+
+                <p><a name="artcle-dns"></a>Now something else you may have noticed is this site address isn't <a href="https://torvos.github.io">https://torvos.github.io</a> that's because I use another feature of GitHub Pages called custom domain. While I registered torvos.ca with a domain registrar it is a rather bare bones one and doesn't support some things I wanted like programatic access.</p>
+                <p>Why did I want programatic access you may ask, well that's because once in a while my internet service provider changes my public IP, and when that happens I want a specific subdomain of my domain to be updated automatically. My server periodically checks it's public IP and compares it against what the subdomain and if it's diffrent send a programmatic request to update it.</p>
+                <p>For this I use <a hred="deSEC.io" target="_blank">deSEC (opens in a new tab)</a> they offer a free fully featured DNS hosting service that supports programatic access.</p>
+                
                 <p><strong>Insert Image of desec.io</strong></p>
-                <hr>
-                <p><a name="artcle-mx"></a></p>
-                <p><strong>Insert Image of ImprovMX</strong></p>
+                
+                <p><a name="artcle-mx"></a>The last part of this website is how my email can be <a href="mailto:phil@torvos.ca">phil@torvos.ca</a> email isn't something that GitHiub Pages offer, and while I could pay Microsoft, Google, or Apple to use one of their custom domain email services it's even easier to use something like <a href="https://improvmx.com">ImprovMX</a> a fantasitc service that has a free option and fantasitc paid options for larger groups.</p>
             </main> 
             
         </wa-page>
