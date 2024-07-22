@@ -96,7 +96,18 @@
                 </nav>
         
                 <!-- Page Content -->
-                <h1 class="title">How This Website Works</h1>
+                <h1 style="margin-bottom: 0px;">How This Website Works</h1>
+                <h5>
+                    By <a rel="author" href="mailto:phil@torvos.ca">Phil</a> 
+                    on <wa-format-date id="publishdate" month="long" day="numeric" year="numeric" date=""></wa-format-date> 
+                    (<wa-relative-time id="publishrelativedate" date=""></wa-relative-time>)
+                    <script>
+                        let text = document.lastModified;
+                        document.getElementById("publishdate").date = text;
+                        document.getElementById("publishrelativedate").date = text;
+                    </script>
+                </h5>                
+
                 <p><a name="artcle-top"></a>In this article I'm going to break down how this website works.  First this website is hosted on GitHub, and it's code is public, you can <a href="https://github.com/torvos/Torvos.ca" target="_blank">view the code here (opens in a new tab)</a> and even send pull requests if you spot an error or want to suggest changes.</p>
 
                 <p>Now anyone can simply host code on GidHub but your not looking at code your looking at a webstie so how does that work? That's due to a GitHub feature called GitHub Pages, it allows you to host websties on their infrasturcure with only a few clicks, see <a href="https://pages.github.com" target="_blank">here (opens in a new tab)</a> for a great guide from GitHub themselves.</p>
@@ -114,6 +125,7 @@
                 <p><strong>Insert Image of desec.io</strong></p>
                 
                 <p><a name="artcle-mx"></a>The last part of this website is how my email can be <a href="mailto:phil@torvos.ca">phil@torvos.ca</a> email isn't something that GitHiub Pages offer, and while I could pay Microsoft, Google, or Apple to use one of their custom domain email services it's even easier to use something like <a href="https://improvmx.com">ImprovMX</a> a fantasitc service that has a free option and fantasitc paid options for larger groups.</p>
+                <p>In the end this setup works for me and might work for you as well and if it does I hope this article helped.</p>
             </main> 
             
         </wa-page>
