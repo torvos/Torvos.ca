@@ -111,7 +111,7 @@
                                 
                 <p>The way this works is on my personal server I'm running a beta version of my website, that website is a clone of the GitHub repository, so I'm able to code changes view them locally even commit changes to the local repository. Then when I'm happy I can push it up to GitHub and the GitHub Action takes over and publishes the new version of the website.</p>
                 
-                <p><strong>Insert Image of how the sync works</strong></p>
+                <p><img src="../images/articles-parralelle-website.png" alt="Image depicting parralelle deployment method to have both a public and private website"></img></p>
 
                 <p><a name="artcle-dns"></a>Now something else you may have noticed is this site address isn't <a href="https://torvos.github.io">https://torvos.github.io</a> that's because I use another feature of GitHub Pages called custom domain. While I registered torvos.ca with a domain registrar it is a rather bare bones one and doesn't support some things I wanted like programatic access.</p>
                 <p>Why did I want programatic access you may ask, well that's because once in a while my internet service provider changes my public IP, and when that happens I want a specific subdomain of my domain to be updated automatically. My server periodically checks it's public IP and compares it against what the subdomain and if it's diffrent send a programmatic request to update it.</p>
