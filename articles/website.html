@@ -159,6 +159,18 @@
                         updateImages();
                     }, 1); 
                 });
+
+                document.addEventListener('keydown', event => {
+                    if (
+                        event.key === '\\' &&
+                        !event.composedPath().some(el => ['input', 'textarea'].includes(el?.tagName?.toLowerCase()))
+                    ) {
+                        event.preventDefault();
+                        setTimeout(function (){
+                            updateImages();
+                        }, 1); 
+                    }
+                });                
  
             </script>
         </wa-page>
