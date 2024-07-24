@@ -141,13 +141,24 @@
             <script>
 
                 function updateImages() {
-                    if (localStorage.getItem('colorScheme') == "dark") {
-                        document.getElementById("parralelle-website").src="../images/articles-parralelle-website-dark.png";
-                        document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup-dark.png";
-                    }else{
-                        document.getElementById("parralelle-website").src="../images/articles-parralelle-website.png";
-                        document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup.png";
-                    }
+                    setTimeout(function (){
+                        if (localStorage.getItem('colorScheme') == "auto") {
+                            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                                document.getElementById("parralelle-website").src="../images/articles-parralelle-website-dark.png";
+                                document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup-dark.png";
+                            }
+                            else {
+                                document.getElementById("parralelle-website").src="../images/articles-parralelle-website.png";
+                                document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup.png";
+                            }
+                        } else if (localStorage.getItem('colorScheme') == "dark") {
+                            document.getElementById("parralelle-website").src="../images/articles-parralelle-website-dark.png";
+                            document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup-dark.png";
+                        } else {
+                            document.getElementById("parralelle-website").src="../images/articles-parralelle-website.png";
+                            document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup.png";
+                        }
+                    }, 1); 
                 }
 
                 updateImages();
@@ -155,9 +166,12 @@
                 document.addEventListener('wa-select', event => {
                     const menu = event.target.closest('#color-scheme-selector wa-menu');
                     if (!menu) return;
-                    setTimeout(function (){
-                        updateImages();
-                    }, 1); 
+                    updateImages();
+                });
+
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                    const newColorScheme = event.matches ? "dark" : "light";
+                    updateImages();
                 });
 
                 document.addEventListener('keydown', event => {
@@ -166,10 +180,8 @@
                         !event.composedPath().some(el => ['input', 'textarea'].includes(el?.tagName?.toLowerCase()))
                     ) {
                         event.preventDefault();
-                        setTimeout(function (){
-                            updateImages();
-                        }, 1); 
-                    }
+                        updateImages();
+                     }
                 });                
  
             </script>
