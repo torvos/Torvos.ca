@@ -7,14 +7,17 @@
         <!-- Page Title -->
         <title>Article: How this website works</title>
 
-        <link rel="stylesheet" href="https://early.webawesome.com/webawesome@3.0.0-alpha.2/dist/themes/default.css" />
-        <link rel="stylesheet" href="/fontawesome/css/all.css"/>
-        <link rel="stylesheet" href="/style/docs.css"/>
+        <link rel="stylesheet" href="https://early.webawesome.com/webawesome@3.0.0-alpha.10/dist/styles/themes/default.css" />
+        <link rel="stylesheet" href="http://www.torvos.ca/fontawesome/css/all.css"/>
+        <link rel="stylesheet" href="http://www.torvos.ca/style/docs.css"/>
 
-        <script type="module" src="https://early.webawesome.com/webawesome@3.0.0-alpha.2/dist/webawesome.loader.js"></script>
-        <script type="module" src="/assets/scripts/color-scheme.js"></script>
+        <script type="module" src="https://early.webawesome.com/webawesome@3.0.0-alpha.10/dist/webawesome.loader.js"></script>
+        <script type="module" src="http://www.torvos.ca/assets/scripts/color-scheme.js"></script>
         <script>
-            document.documentElement.classList.toggle('wa-theme-default-dark',sessionStorage.getItem('colorScheme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.classList.toggle(
+              'wa-theme-default-dark',
+              sessionStorage.getItem('colorScheme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches
+            );
         </script>
 
     </head>
@@ -26,7 +29,7 @@
                         <wa-icon name="bars" label="Toggle navigation" style="padding-top: 12.5px;"></wa-icon>
                     </wa-button>
                     <a href="/" style="text-decoration:none;">
-                        <wa-avatar image="\images\icontorvo.png" shape="rounded" label="stylized portrait of ne with purple hair and my two previous cats"></wa-avatar>
+                        <wa-avatar image="http://www.torvos.ca/images/icontorvo.png" shape="rounded" label="stylized portrait of ne with purple hair and my two previous cats"></wa-avatar>
                         <span style="vertical-align:middle; font-size: 30px; font-weight: bold;">Torvos.ca</span>
                     </a>
                 </div>
@@ -55,12 +58,12 @@
                     <!-- Left Hand Menu -->
                     <h2>Site Menu</h2>
                     <ul>
-                        <li><a href="../index.html">Home</a></li>
-                        <li><a href="../about.html">About Me</a></li>
+                        <li><a href="http://www.torvos.ca/index.html" class="current">Home</a></li>
+                        <li><a href="http://www.torvos.ca/about.html">About Me</a></li>
                     </ul>
                     <h2>Articles</h2>
                     <ul>
-                        <li><a href="website.html" class="current">How this website works</a></li>
+                        <li><a href="http://www.torvos.ca/articles/website.html">How this website works</a></li>
                     </ul>
                 </nav>
             </aside>
@@ -108,7 +111,7 @@
                 <p style="text-align: center;"><picture>
                     <img
                         id="parralelle-website"
-                        src="../images/articles-parralelle-website.png"
+                        src="http://www.torvos.ca/images/articles-parralelle-website.png"
                         alt="Image depicting parralelle deployment method to have both a public and private website"
                         width="70%"
                     ></img>
@@ -121,7 +124,7 @@
                 <p style="text-align: center;"><picture>
                     <img
                         id="dnsmx-website"
-                        src="../images/articles-dns-mx-setup.png"
+                        src="http://www.torvos.ca/images/articles-dns-mx-setup.png"
                         alt="Image depicting the dns and mailbox setup for my domain"
                         width="70%"
                     ></img>
@@ -139,12 +142,12 @@
                     setTimeout(function (){
                         //localstorage variable set by site wide theme, also checking window media preference
                         if (localStorage.getItem('colorScheme') == "dark" || window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                            document.getElementById("parralelle-website").src="../images/articles-parralelle-website-dark.png";
-                            document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup-dark.png";
+                            document.getElementById("parralelle-website").src="http://www.torvos.ca/images/articles-parralelle-website-dark.png";
+                            document.getElementById("dnsmx-website").src="http://www.torvos.ca/images/articles-dns-mx-setup-dark.png";
                         }
                         else {
-                            document.getElementById("parralelle-website").src="../images/articles-parralelle-website.png";
-                            document.getElementById("dnsmx-website").src="../images/articles-dns-mx-setup.png";
+                            document.getElementById("parralelle-website").src="http://www.torvos.ca/images/articles-parralelle-website.png";
+                            document.getElementById("dnsmx-website").src="http://www.torvos.ca/images/articles-dns-mx-setup.png";
                         }
                     }, 1); 
                 }
