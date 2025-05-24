@@ -1,113 +1,89 @@
 <html lang="en">
     <head>
-        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="">
-        <!-- Page Title -->
         <title>Welcome to Torvos.ca</title>
-
-        <link rel="stylesheet" href="https://early.webawesome.com/webawesome@3.0.0-alpha.13/dist/styles/themes/default.css" />
-        <link rel="stylesheet" href="https://early.webawesome.com/webawesome@3.0.0-alpha.13/dist/styles/webawesome.css" />
-                
-        <link rel="stylesheet" href="http://www.torvos.ca/fontawesome/css/all.css"/>
-        <link rel="stylesheet" href="http://www.torvos.ca/style/docs.css"/>
-
-        <script type="module" src="https://early.webawesome.com/webawesome@3.0.0-alpha.13/dist/webawesome.loader.js"></script>
-        <script type="module" src="http://www.torvos.ca/assets/scripts/color-scheme.js"></script>
-        <script>
-            document.documentElement.classList.toggle(
-              'wa-theme-default-dark',
-              sessionStorage.getItem('colorScheme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches
-            );
-        </script>
-
     </head>
-    <body class="layout-page-outline">
-        <wa-page view="desktop">
-            <header slot="header">
-                <div id="docs-branding">
-                    <wa-button appearance="text" data-toggle-nav>
-                        <wa-icon name="bars" label="Toggle navigation" style="padding-top: 12.5px;"></wa-icon>
-                    </wa-button>
-                    <a href="/" style="text-decoration:none;">
-                        <wa-avatar image="http://www.torvos.ca/images/icontorvo.png" shape="rounded" label="stylized portrait of ne with purple hair and my two previous cats"></wa-avatar>
-                        <span style="vertical-align:middle; font-size: 30px; font-weight: bold;">Torvos.ca</span>
-                    </a>
-                </div>
-    
-                <div id="docs-toolbar">
-                    <wa-dropdown id="color-scheme-selector">
-                        <wa-button slot="trigger" appearance="tinted" size="small" caret>
-                            <wa-icon class="only-light" slot="prefix" name="sun" variant="regular"></wa-icon>
-                            <wa-icon class="only-dark" slot="prefix" name="moon" variant="regular"></wa-icon>
-                            <span class="only-light only-desktop">Light</span>
-                            <span class="only-dark only-desktop">Dark</span>
-                        </wa-button>
-                        <wa-menu>
-                            <wa-menu-item type="checkbox" value="light">Light</wa-menu-item>
-                            <wa-menu-item type="checkbox" value="dark">Dark</wa-menu-item>
-                            <wa-divider></wa-divider>
-                            <wa-menu-item type="checkbox" value="auto">System</wa-menu-item>
-                        </wa-menu>
-                    </wa-dropdown>
-                </div>
-            </header>
-    
-            <aside slot="navigation" id="sidebar" class="docs-aside" data-remember-scroll>
-                <wa-icon-button id="sidebar-close-button" name="xmark" label="Close" data-drawer="close"></wa-icon-button>
-                <nav>
-                    <!-- Left Hand Menu -->
-                    <h2>Site Menu</h2>
-                    <ul>
-                        <li><a href="http://www.torvos.ca/index.html" class="current">Home</a></li>
-                        <li><a href="http://www.torvos.ca/about.html">About Me</a></li>
-                    </ul>
-                    <h2>Articles</h2>
-                    <ul>
-                        <li><a href="http://www.torvos.ca/articles/website.html">How this website works</a></li>
-                    </ul>
-                </nav>
-            </aside>
+    <body style="font-family:Arial">
+        <!-- Page Content -->
+        <h1>Welcome to my website</h1>
+        <div style="padding-left: 35px; padding-right: 35px;">
+            <p>Hey there, I'm <a href="mailto:phil@torvos.ca">Phil</a> I also go by Torvos on most platforms. I'm a dedicated and passionate technology professional with over 20 years of experience in the public service sector. My journey in technology spans various domains, including application development, architecture, security operations, cloud engineering, and most recently, architecture.</p>
+            <h3>Personal Mission</h3>
+            <p>Throughout my career, I have been driven by a commitment to enhancing public services for Canadians. My focus has always been on delivering efficient and secure technological solutions within the Government of Canada, ensuring that technology serves as a powerful enabler for public service delivery.</p>
+            <p></p>
+            <h3>Skills and Expertise</h3>
+            <ul>
+                <li style="margin-bottom: 3px;"><strong>Security:</strong> Proficient in network security, threat analysis, risk management, and incident response.</li>
+                <li style="margin-bottom: 3px;"><strong>Architecture:</strong> Skilled in designing and optimizing secure solutions and environments.</li>
+                <li style="margin-bottom: 3px;"><strong>Technical Expertise:</strong> Deep understanding of cloud environments (Azure, AWS), security operations, and application development.</li>
+                <li style="margin-bottom: 3px;"><strong>Leadership and Mentorship:</strong> Guiding teams and providing expert advice on technology and security.</li>
+                <li style="margin-bottom: 3px;"><strong>Advice and Guidance:</strong> Experienced in advising and guiding management on strategic technology adoption, risk management, and cybersecurity best practices.</li>
+                <li style="margin-bottom: 3px;"><strong>Collaboration:</strong> Building partnerships with internal and external stakeholders, including government departments and private sector companies.</li>
+            </ul>
+            <h3>Professional Journey</h3>
+            <p><strong>Manager/Senior Advisor - Cloud Cyber Security Architecture and Integration</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Established secure and flexible cloud connectivity patterns to enhance cyber security.</li>
+                <li style="margin-bottom: 3px;">Advised various departments on cloud adoption strategies and best practices.</li>
+                <li style="margin-bottom: 3px;">Coached and mentored cloud and SaaS teams, ensuring alignment with security policies and standards.</li>
+                <li style="margin-bottom: 3px;">Facilitated the integration of cloud solutions into existing IT infrastructures, improving overall security posture.</li>
+            </ul>
             
-            <!-- Right Hand Menu -->
-            <aside slot="aside" id="outline" class="docs-aside">
-                <nav id="outline-standard" class="outline-links">
-                    <!--<h2><a href="#content">Summary</a></h2>
-                    <ul>
-                        <li data-level="2"><a href="#second-heading">something</a></li>
-                    </ul>-->
-                </nav>
-            </aside>
-    
-            <main id="content">
-                <!-- Mobile Page Menu -->    
-                <nav id="outline-expandable">
-                    <!--<details class="outline-links">
-                        <summary>Summary</summary>
-                        <ul>
-                            <li data-level="2"><a href="#second-heading">something</a></li>
-                        </ul>
-                    </details>-->
-                </nav>
-        
-                <!-- Page Content -->
-                <h1 style="margin-bottom: 0px;">Welcome to my website</h1>
-                <h5>
-                    By <a rel="author" href="mailto:phil@torvos.ca">Phil</a> 
-                    on <wa-format-date id="publishdate" month="long" day="numeric" year="numeric" date="2024-07-20T19:17:00-05:00"></wa-format-date> 
-                    (<wa-relative-time id="publishrelativedate" date="2024-07-20T19:17:00-05:00"></wa-relative-time>)
-                </h5>
-                <wa-callout variant="neutral">
-                    <wa-icon slot="icon" name="newspaper" variant="regular"></wa-icon>
-                    <strong><a href="http://www.torvos.ca/articles/website.html">Article Published</a></strong><br />
-                    It's still a work in progress and will likely see a few updates but explains how I setup this website/domain to work for me.
-                </wa-callout>
-                <p></p>
-                <p>Take a look at the <a href="http://www.torvos.ca/about.html">about me</a> page for more information about who I am and my background.</p>
-                <p>Thank you for your patience while I build this site, stay tuned for updates.</p>
-            </main> 
-            
-        </wa-page>
+            <p><strong>Manager/Senior Advisor - Cloud Engineering & Operations</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Staffed up cloud operations teams responsible for multiple cloud environments, including Azure and AWS.</li>
+                <li style="margin-bottom: 3px;">Oversaw cloud operations that supported a large public sector organization, ensuring high availability and performance.</li>
+                <li style="margin-bottom: 3px;">Provided expert advice on cloud practices and technology implementations.</li>
+                <li style="margin-bottom: 3px;">Provided leadership and strategic direction for cloud technology adoption in public sector.</li>
+                <li style="margin-bottom: 3px;">Developed and maintained cloud operational standards and best practices.</li>
+                <li style="margin-bottom: 3px;">Collaborated with internal and external stakeholders to drive cloud initiatives.</li>
+            </ul>
+
+            <p><strong>Team Leader/Technology Advisor - IT/Cyber Security</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Led vulnerability management and incident response activities, ensuring timely mitigation of risks.</li>
+                <li style="margin-bottom: 3px;">Provided technical expertise in cyber security operations and strategy development.</li>
+                <li style="margin-bottom: 3px;">Developed and implemented security policies and procedures to safeguard information assets.</li>
+                <li style="margin-bottom: 3px;">Conducted security assessments and audits to identify and address potential threats.</li>
+            </ul>
+
+            <p><strong>Team Leader - IT/Cyber Security</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Managed digital identity and access management projects, enhancing security and user experience.</li>
+                <li style="margin-bottom: 3px;">Led the implementation of advanced authentication mechanisms and access control policies.</li>
+                <li style="margin-bottom: 3px;">Coordinated with cross-functional teams to ensure secure integration of new technologies.</li>
+                <li style="margin-bottom: 3px;">Conducted training sessions and workshops on cyber security awareness and best practices.</li>
+            </ul>
+
+            <p><strong>Systems Analyst - Solutions Architecture</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Created solution architectures for complex IT projects, aligning with organizational goals.</li>
+                <li style="margin-bottom: 3px;">Provided guidance on technology selection and integration for enterprise solutions.</li>
+                <li style="margin-bottom: 3px;">Collaborated with project managers and developers to ensure successful project delivery.</li>
+                <li style="margin-bottom: 3px;">Developed technical documentation and architecture diagrams to support project implementation.</li>
+            </ul>
+
+            <p><strong>Systems Analyst - Enterprise Architecture</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Developed solution architectures for enterprise management systems, enhancing efficiency and scalability.</li>
+                <li style="margin-bottom: 3px;">Conducted technology evaluations and recommended solutions to meet business needs.</li>
+                <li style="margin-bottom: 3px;">Engaged with stakeholders to gather requirements and ensure alignment with enterprise architecture standards.</li>
+                <li style="margin-bottom: 3px;">Provided oversight and guidance on the implementation of architectural frameworks.</li>
+            </ul>
+
+            <p><strong>Lead Developer - Application Development</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Led development team, ensuring timely delivery and high quality.</li>
+                <li style="margin-bottom: 3px;">Collaborated with interdepartmental teams to design and develop innovative solutions.</li>
+                <li style="margin-bottom: 3px;">Conducted code reviews and provided mentorship to junior developers.</li>
+            </ul>
+
+            <p><strong>Developer - Application Development</strong></p>
+            <ul>
+                <li style="margin-bottom: 3px;">Developed applications for HR services, improving efficiency and user satisfaction.</li>
+                <li style="margin-bottom: 3px;">Developed a project management solution application used across the branch to transparently track the status of projects.</li>
+                <li style="margin-bottom: 3px;">Participated in the entire software development lifecycle, from requirements gathering to deployment.</li>
+            </ul>
+            <h3>Feel free to <a href="mailto:phil@torvos.ca">connect with me</a> to discuss technology, security.</h3>
+        </div>
     </body>
 </html>
