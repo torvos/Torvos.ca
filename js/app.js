@@ -1,6 +1,7 @@
 window.startTorvosTerminal = function () {
     const terminal = new TerminalEngine(window.TorvosConfig);
     window.__TERMINAL__ = terminal;
+    const boot = new BootSequence(window.TorvosConfig, terminal);
     terminal.init();
 };
 
