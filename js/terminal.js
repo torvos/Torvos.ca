@@ -40,6 +40,8 @@ class TerminalEngine {
 
     this.hiddenInput.addEventListener("keydown", (e) => {
 
+        console.log("KEY:", e.key, "CODE:", e.code);
+
         // -------------------------
         // CONTROL SHORTCUTS
         // -------------------------
