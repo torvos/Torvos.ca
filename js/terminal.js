@@ -26,15 +26,15 @@ class TerminalEngine {
 
         this.renderPrompt();
 
-        this.printLine(`Torvos v2.6.0`);
-        this.printLine(`Initializing kernel................ [ OK ]`);
-        this.printLine(`Mounting virtual filesystem........ [ OK ]`);
-        this.printLine(`Starting network stack............. [ OK ]`);
-        this.printLine(`Loading user profile............... [ OK ]`);
-        this.printLine(`Establishing secure session........ [ OK ]`);
-        this.printLine(`Welcome to Torvos.ca`);
-        this.printLine(`Type 'help' to begin.`);
-        
+        terminal.write("Torvos v2.6.0");
+        terminal.write("Initializing kernel................ [ OK ]");
+        terminal.write("Mounting virtual filesystem........ [ OK ]");
+        terminal.write("Starting network stack............. [ OK ]");
+        terminal.write("Loading user profile............... [ OK ]");
+        terminal.write("Establishing secure session........ [ OK ]");
+        terminal.write("Welcome to Torvos.ca");
+        terminal.write("Type 'help' to begin.");
+
         this.hiddenInput.focus();
 
     }
@@ -96,8 +96,7 @@ class TerminalEngine {
 
             default:
 
-                // ONLY printable characters go here
-                if (
+            if (
                     e.key.length === 1 &&
                     !e.metaKey &&
                     !e.altKey
@@ -260,6 +259,25 @@ class TerminalEngine {
     scrollBottom() {
 
         window.scrollTo(0, document.body.scrollHeight);
+
+    }
+    
+    write(text, options = {}) {
+
+        const div = document.createElement("div");
+
+        let output = text ?? "";
+
+        // Apply ANSI rendering
+        output = window.ANSI?.render
+            ? window.ANSI.render(output)
+            : output;
+
+        div.innerHTML = output;
+
+        this.output.appendChild(div);
+
+        this.scrollBottom();
 
     }
 
