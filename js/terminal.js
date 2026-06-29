@@ -26,16 +26,14 @@ class TerminalEngine {
 
         this.renderPrompt();        
 
-        this.printLine(`Torvos v2.6.0`);
-        this.printLine(`Initializing kernel................ [ OK ]`);
-        this.printLine(`Mounting virtual filesystem........ [ OK ]`);
-        this.printLine(`Starting network stack............. [ OK ]`);
-        this.printLine(`Loading user profile............... [ OK ]`);
-        this.printLine(`Establishing secure session........ [ OK ]`);
-        this.printLine(`Welcome to Torvos.ca`);
-        this.printLine(`Type 'help' to begin.`);
-
-        this.write(`Test`);
+        this.write(`Torvos v2.6.0`);
+        this.write(`Initializing kernel................ [ OK ]`);
+        this.write(`Mounting virtual filesystem........ [ OK ]`);
+        this.write(`Starting network stack............. [ OK ]`);
+        this.write(`Loading user profile............... [ OK ]`);
+        this.write(`Establishing secure session........ [ OK ]`);
+        this.write(`Welcome to Torvos.ca`);
+        this.write(`Type 'help' to begin.`);
 
         this.hiddenInput.focus();
 
@@ -137,7 +135,7 @@ class TerminalEngine {
         this.history.push(input);
         this.historyIndex = this.history.length;
 
-        this.printLine(
+        this.write(
             `${this.config.username}@${this.config.hostname}:${this.cwd}$ ${input}`
         );
 
@@ -159,25 +157,13 @@ class TerminalEngine {
 
             const result = window.Commands[cmd](this, args);
 
-            if (result) this.printLine(result);
+            if (result) this.write(result);
 
         } else {
 
-            this.printLine(`command not found: ${cmd}`);
+            this.write(`command not found: ${cmd}`);
 
         }
-
-    }
-
-    printLine(text) {
-
-        const div = document.createElement("div");
-
-        div.textContent = text;
-
-        this.output.appendChild(div);
-
-        this.scrollBottom();
 
     }
 
@@ -189,7 +175,7 @@ class TerminalEngine {
 
     cancelCommand() {
 
-        this.printLine("^C");
+        this.write("^C");
 
         this.currentInput = "";
 
@@ -280,7 +266,6 @@ class TerminalEngine {
         this.output.appendChild(div);
 
         this.scrollBottom();
-
     }
 
 }

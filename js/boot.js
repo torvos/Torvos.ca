@@ -36,18 +36,21 @@ class BootSequence {
             return this.finish();
         }
         const line = this.lines[this.index];
-        const div = document.createElement("div");
-        div.style.color = line.color || "#33ff66";
-        if (line.glow) {
-            div.classList.add("glow");
-        }
-        this.bootOutput.appendChild(div);
-        this.typeText(div, line.text, 0, () => {
+        const text = line.text ?? "";
+
+        //const div = document.createElement("div");
+        //div.style.color = line.color || "#33ff66";
+        //if (line.glow) {
+        //    div.classList.add("glow");
+        //}
+        //this.bootOutput.appendChild(div);
+        //this.typeText(div, line.text, 0, () => {
             setTimeout(() => {
+                this.terminal.write(text);
                 this.index++;
                 this.typeNextLine();
             }, line.delay || 200);
-        });
+        //});
     }
 
     typeText(element, text, i, callback) {
@@ -67,25 +70,11 @@ class BootSequence {
 
     finish() {
         setTimeout(() => {
-            // fade boot text instead of removing it instantly
-            this.bootOverlay.style.transition = "opacity 600ms ease";
-            this.bootOverlay.style.opacity = "0";
-            setTimeout(() => {
-                // DO NOT just show terminal abruptly
-                this.bootOverlay.remove();
-                const terminal = document.getElementById("terminal-container");
-                // Make terminal appear softly (if you keep container)
-                if (terminal) {
-                    terminal.classList.remove("hidden");
-                    terminal.style.opacity = "0";
-                    terminal.style.transition = "opacity 600ms ease";
-                    requestAnimationFrame(() => {
-                        terminal.style.opacity = "1";
-                    });
-                }
-                this.startTerminal();
-            }, 600);
-        }, 500);
+            this.terminal.write("");
+            this.terminal.write("[system] Boot sequence complete.");
+            this.terminal.write("");
+            this.startTerminal();
+        }, 400);
     }
 
     startTerminal() {
