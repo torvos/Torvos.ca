@@ -66,7 +66,6 @@ class BootSequence {
     }
 
     finish() {
-        /*
         setTimeout(() => {
             // fade boot text instead of removing it instantly
             this.bootOverlay.style.transition = "opacity 600ms ease";
@@ -87,8 +86,6 @@ class BootSequence {
                 this.startTerminal();
             }, 600);
         }, 500);
-        */
-       this.startTerminal();
     }
 
     startTerminal() {
