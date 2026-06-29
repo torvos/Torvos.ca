@@ -66,24 +66,29 @@ class BootSequence {
     }
 
     finish() {
+        /*
         setTimeout(() => {
             // fade boot text instead of removing it instantly
-            //this.bootOverlay.style.transition = "opacity 600ms ease";
-            //this.bootOverlay.style.opacity = "0";
+            this.bootOverlay.style.transition = "opacity 600ms ease";
+            this.bootOverlay.style.opacity = "0";
             setTimeout(() => {
                 // DO NOT just show terminal abruptly
-                //this.bootOverlay.remove();
-                //const terminal = document.getElementById("terminal-container");
+                this.bootOverlay.remove();
+                const terminal = document.getElementById("terminal-container");
                 // Make terminal appear softly (if you keep container)
                 if (terminal) {
-                    //terminal.classList.remove("hidden");
-                    //terminal.style.opacity = "0";
-                    //terminal.style.transition = "opacity 600ms ease";
-                    //requestAnimationFrame(() => {terminal.style.opacity = "1";});
+                    terminal.classList.remove("hidden");
+                    terminal.style.opacity = "0";
+                    terminal.style.transition = "opacity 600ms ease";
+                    requestAnimationFrame(() => {
+                        terminal.style.opacity = "1";
+                    });
                 }
                 this.startTerminal();
             }, 600);
         }, 500);
+        */
+       this.startTerminal();
     }
 
     startTerminal() {
