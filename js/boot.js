@@ -114,19 +114,35 @@ class BootSequence {
 
         setTimeout(() => {
 
+            // fade boot text instead of removing it instantly
+            this.bootOverlay.style.transition = "opacity 600ms ease";
             this.bootOverlay.style.opacity = "0";
 
             setTimeout(() => {
 
-                this.bootOverlay.classList.add("hidden");
+                // DO NOT just show terminal abruptly
+                this.bootOverlay.remove();
 
-                this.terminalContainer.classList.remove("hidden");
+                const terminal = document.getElementById("terminal-container");
+
+                // Make terminal appear softly (if you keep container)
+                if (terminal) {
+
+                    terminal.classList.remove("hidden");
+                    terminal.style.opacity = "0";
+                    terminal.style.transition = "opacity 600ms ease";
+
+                    requestAnimationFrame(() => {
+                        terminal.style.opacity = "1";
+                    });
+
+                }
 
                 this.startTerminal();
 
-            }, 400);
+            }, 600);
 
-        }, 600);
+        }, 500);
 
     }
 
