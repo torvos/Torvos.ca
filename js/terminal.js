@@ -26,8 +26,15 @@ class TerminalEngine {
 
         this.renderPrompt();
 
-        this.printLine(`Welcome to ${this.config.hostname}. Type 'help'.`);
-
+        this.printLine(`Torvos v2.6.0`);
+        this.printLine(`Initializing kernel................ [ OK ]`);
+        this.printLine(`Mounting virtual filesystem........ [ OK ]`);
+        this.printLine(`Starting network stack............. [ OK ]`);
+        this.printLine(`Loading user profile............... [ OK ]`);
+        this.printLine(`Establishing secure session........ [ OK ]`);
+        this.printLine(`Welcome to Torvos.ca`);
+        this.printLine(`Type 'help' to begin.`);
+        
         this.hiddenInput.focus();
 
     }
