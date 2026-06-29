@@ -38,54 +38,70 @@ class TerminalEngine {
             this.hiddenInput.focus();
         });
 
-        this.hiddenInput.addEventListener("keydown", (e) => {
+    this.hiddenInput.addEventListener("keydown", (e) => {
 
-            switch (e.key) {
+        // -------------------------
+        // CONTROL SHORTCUTS
+        // -------------------------
 
-                case "Enter":
-                    this.handleEnter();
-                    break;
-
-                case "Backspace":
-                    this.currentInput = this.currentInput.slice(0, -1);
-                    break;
-
-                case "ArrowUp":
-                    this.historyUp();
-                    break;
-
-                case "ArrowDown":
-                    this.historyDown();
-                    break;
-
-                case "Tab":
-                    e.preventDefault();
-                    this.autocomplete();
-                    break;
-
-                case "c":
-                    if (e.ctrlKey) {
-                        this.cancelCommand();
-                    }
-                    break;
-
-                case "l":
-                    if (e.ctrlKey) {
-                        this.clearScreen();
-                    }
-                    break;
-
-                default:
-
-                    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-                        this.currentInput += e.key;
-                    }
-
-            }
-
+        if (e.ctrlKey && e.key === "c") {
+            e.preventDefault();
+            this.cancelCommand();
             this.renderInput();
+            return;
+        }
 
-        });
+        if (e.ctrlKey && e.key === "l") {
+            e.preventDefault();
+            this.clearScreen();
+            this.renderInput();
+            return;
+        }
+
+        // -------------------------
+        // SPECIAL KEYS
+        // -------------------------
+
+        switch (e.key) {
+
+            case "Enter":
+                this.handleEnter();
+                break;
+
+            case "Backspace":
+                this.currentInput = this.currentInput.slice(0, -1);
+                break;
+
+            case "ArrowUp":
+                this.historyUp();
+                break;
+
+            case "ArrowDown":
+                this.historyDown();
+                break;
+
+            case "Tab":
+                e.preventDefault();
+                this.autocomplete();
+                break;
+
+            default:
+
+                // ONLY printable characters go here
+                if (
+                    e.key.length === 1 &&
+                    !e.metaKey &&
+                    !e.altKey
+                ) {
+                    this.currentInput += e.key;
+                }
+
+                break;
+        }
+
+        this.renderInput();
+
+    });
 
     }
 
