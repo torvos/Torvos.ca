@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Torvos.ca</title>
+
+    <meta name="description" content="Torvos Personal Infrastructure">
+
+    <!-- Fonts -->
+    <!--
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    -->
+
+    <!--
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    -->
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/terminal.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/crt.css">
+
+    <!--
+    <link rel="icon" href="favicon.ico">
+    -->
+</head>
+
+<body class="theme-green">
+
+<div id="boot-overlay">
+
+    <div id="boot-output"></div>
+
+</div>
+
+<div id="terminal-container" class="hidden">
+
+    <header id="terminal-header">
+
+        <div class="window-buttons">
+            <span class="btn close"></span>
+            <span class="btn minimize"></span>
+            <span class="btn maximize"></span>
+        </div>
+
+        <div class="window-title">
+
+            Torvos Terminal — Connected
+
+        </div>
+
+    </header>
+
+    <main id="terminal">
+
+        <div id="output"></div>
+
+        <div id="input-line">
+
+            <span id="prompt"></span>
+
+            <span id="command"></span>
+
+            <span id="cursor"></span>
+
+        </div>
+
+    </main>
+
+</div>
+
+<!-- Hidden input captures keyboard events -->
+
+<input
+    id="hidden-input"
+    type="text"
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="off"
+    spellcheck="false"
+/>
+
+<!-- Configuration -->
+
+<script>
+
+window.TorvosConfig = {
+
+    hostname: "torvos",
+
+    username: "guest",
+
+    version: "2.0.0",
+
+    typingSpeed: 18,
+
+    bootDelay: 350,
+
+    cursorBlink: 700,
+
+    enableCRT: true,
+
+    enableSounds: false,
+
+    defaultTheme: "green",
+
+    shell: "torvosh"
+
+};
+
+</script>
+
+<!-- Core -->
+
+<script src="js/filesystem.js"></script>
+<script src="js/pages.js"></script>
+
+<!-- Engine -->
+
+<script src="js/ansi.js"></script>
+<script src="js/history.js"></script>
+<script src="js/autocomplete.js"></script>
+<script src="js/typing.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/commands.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/boot.js"></script>
+<script src="js/terminal.js"></script>
+
+<!-- Start -->
+
+<script src="js/app.js"></script>
+
+</body>
+</html>

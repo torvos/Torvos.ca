@@ -1,0 +1,87 @@
+:root{
+
+    --background:#111;
+    --terminal:#000;
+
+    --foreground:#33ff66;
+
+    --prompt:#66ff99;
+
+    --cursor:#33ff66;
+
+}
+
+/* Green */
+
+.theme-green{
+
+    --background:#101010;
+    --terminal:#000000;
+
+    --foreground:#33ff66;
+
+    --prompt:#66ff99;
+
+    --cursor:#33ff66;
+
+}
+
+/* Amber */
+
+.theme-amber{
+
+    --background:#1b1200;
+    --terminal:#120d00;
+
+    --foreground:#ffbf40;
+
+    --prompt:#ffd666;
+
+    --cursor:#ffbf40;
+
+}
+
+/* White */
+
+.theme-white{
+
+    --background:#f5f5f5;
+    --terminal:white;
+
+    --foreground:#222;
+
+    --prompt:#0060df;
+
+    --cursor:#222;
+
+}
+
+/* Cyber */
+
+.theme-cyber{
+
+    --background:#13001d;
+    --terminal:#0c0012;
+
+    --foreground:#00ffff;
+
+    --prompt:#ff00ff;
+
+    --cursor:#00ffff;
+
+}
+
+/* Matrix */
+
+.theme-matrix{
+
+    --background:black;
+    --terminal:black;
+
+    --foreground:#00ff00;
+
+    --prompt:#99ff99;
+
+    --cursor:#00ff00;
+
+}
