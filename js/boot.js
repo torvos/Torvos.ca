@@ -22,7 +22,7 @@ class BootSequence {
         // You can later move this into a config file (recommended)
         return [
 
-            { text: "Torvos BIOS v2.6.0", delay: 400, color: "#33ff66" },
+            { text: "Torvos v2.6.0", delay: 400, color: "#33ff66" },
 
             { text: "Initializing kernel................ [ OK ]", delay: 300, color: "#33ff66" },
             { text: "Mounting virtual filesystem........ [ OK ]", delay: 250, color: "#33ff66" },
@@ -43,11 +43,6 @@ class BootSequence {
     }
 
     start() {
-
-        if (this.bootSound && this.config.enableSounds) {
-            this.bootSound.volume = 0.4;
-            this.bootSound.play().catch(() => {});
-        }
 
         this.bootOverlay.classList.remove("hidden");
 
