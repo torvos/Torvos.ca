@@ -115,21 +115,29 @@ class TerminalEngine {
 
     async execute(input) {
 
-        const parts = input.split(" ");
-        const cmd = parts[0];
-        const args = parts.slice(1);
+        // Add in support for expansion { }
+        // Add in support for stdin <
 
-        if (window.Commands && window.Commands[cmd]) {
-            const result = window.Commands[cmd](this, args);
-            if (result){
-                const lines = result.split(/\r?\n/);
-                for (const line of lines) {
-                    this.write(line);
-                    await this.sleep(50);
+        // No support for stdout > append >>         
+
+        const commands = input.split("|");
+        for (let i = 0; i < commands.length; i++) {
+            const parts = commands[i].trim().split(" ");
+            const cmd = parts[0];
+            const args = parts.slice(1);
+            if (window.Commands && window.Commands[cmd]) {
+                const result = window.Commands[cmd](this, args);
+                if (result){
+                    const lines = result.split(/\r?\n/);
+                    for (const line of lines) {
+                        this.write(line);
+                        await this.sleep(50);
+                    } 
                 } 
-            } 
-        } else {
-            this.write(`command not found: ${cmd}`);
+            } else {
+                this.write(`command not found: ${cmd}`);
+            }         
+            
         }
     }
 

@@ -18,6 +18,21 @@ System:
   echo <text>     Displays the text on the terminal`;
 };
 
+/* SUDO */
+Commands.sudo = function (terminal) {
+    return "guest is not allowed to invoke sudo, this incident will be reported.";
+};
+
+/* LOGIN */
+
+/* MORE */
+
+/* PAGER */
+
+/* FINGER */
+
+/* TOUCH */
+
 /* PWD */
 Commands.pwd = function (terminal) {
     return terminal.cwd;
