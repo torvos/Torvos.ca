@@ -15,22 +15,13 @@ class TerminalEngine {
     }
 
     async init() {
-        this.write(`Torvos v2.6.0`);
-        await this.sleep(50);
-        this.write(`Initializing kernel................ [ OK ]`);
-        await this.sleep(50);
-        this.write(`Mounting virtual filesystem........ [ OK ]`);
-        await this.sleep(50);
-        this.write(`Starting network stack............. [ OK ]`);
-        await this.sleep(50);
-        this.write(`Loading user profile............... [ OK ]`);
-        await this.sleep(50);
-        this.write(`Establishing secure session........ [ OK ]`);
-        await this.sleep(50);
-        this.write(`Welcome to Torvos.ca`);
-        await this.sleep(50);
-        this.write(`Type 'help' to begin.`);
-        await this.sleep(50);
+        await this.typeItOut(`Torvos v2.6.0`, {color: "#c707ce"});
+        await this.typeItOut(`Initializing kernel................ [ OK ]`);
+        await this.typeItOut(`Mounting virtual filesystem........ [ OK ]`);
+        await this.typeItOut(`Starting network stack............. [ OK ]`);
+        await this.typeItOut(`Loading user profile............... [ OK ]`);
+        await this.typeItOut(`Establishing secure session........ [ OK ]`);
+        await this.typeItOut(`Welcome to Torvos.ca type 'help' to begin.`, {color: "#ffffff"});
         this.renderPrompt();        
         this.hiddenInput.focus();
     }
@@ -199,10 +190,30 @@ class TerminalEngine {
     write(text, options = {}) {
         const div = document.createElement("div");
         let output = text ?? "";
-        div.innerHTML = output;
+        div.textContent = output;
+        if (options.color) {
+            div.style.color = options.color;
+        }
         this.output.appendChild(div);
         document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
     }
 
-    
+    async typeItOut(text, options = {}) {
+        const div = document.createElement("div");
+        this.output.appendChild(div);
+        if (options.color) {
+            div.style.color = options.color;
+        }        
+        await this.typeWrite(div, text);
+        document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
+    }
+
+    async typeWrite(div, text, delay = 15) {
+        const safeText = text ?? "";
+        for (let i = 0; i < safeText.length; i++) {
+            div.textContent += safeText[i];
+            await this.sleep(delay);
+        }
+    }
+
 }

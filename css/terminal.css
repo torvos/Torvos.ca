@@ -52,6 +52,10 @@ body {
     flex-wrap:wrap;
 }
 
+#output{
+    white-space: pre-wrap;
+}
+
 #cursor{
     display:inline-block;
     width:10px;
