@@ -1,0 +1,184 @@
+<html lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="">
+        <!-- Page Title -->
+        <title>Article: How this website works</title>
+
+        <link rel="stylesheet" href="https://early.webawesome.com/webawesome@3.0.0-alpha.13/dist/styles/themes/default.css" />
+        <link rel="stylesheet" href="https://early.webawesome.com/webawesome@3.0.0-alpha.13/dist/styles/webawesome.css" />
+                
+        <link rel="stylesheet" href="http://www.torvos.ca/fontawesome/css/all.css"/>
+        <link rel="stylesheet" href="http://www.torvos.ca/style/docs.css"/>
+
+        <script type="module" src="https://early.webawesome.com/webawesome@3.0.0-alpha.13/dist/webawesome.loader.js"></script>
+        <script type="module" src="http://www.torvos.ca/assets/scripts/color-scheme.js"></script>
+        <script>
+            document.documentElement.classList.toggle(
+              'wa-theme-default-dark',
+              sessionStorage.getItem('colorScheme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches
+            );
+        </script>
+
+    </head>
+    <body class="layout-page-outline">
+        <wa-page view="desktop">
+            <header slot="header">
+                <div id="docs-branding">
+                    <wa-button appearance="text" data-toggle-nav>
+                        <wa-icon name="bars" label="Toggle navigation" style="padding-top: 12.5px;"></wa-icon>
+                    </wa-button>
+                    <a href="/" style="text-decoration:none;">
+                        <wa-avatar image="http://www.torvos.ca/images/icontorvo.png" shape="rounded" label="stylized portrait of ne with purple hair and my two previous cats"></wa-avatar>
+                        <span style="vertical-align:middle; font-size: 30px; font-weight: bold;">Torvos.ca</span>
+                    </a>
+                </div>
+    
+                <div id="docs-toolbar">
+                    <wa-dropdown id="color-scheme-selector">
+                        <wa-button slot="trigger" appearance="tinted" size="small" caret>
+                            <wa-icon class="only-light" slot="prefix" name="sun" variant="regular"></wa-icon>
+                            <wa-icon class="only-dark" slot="prefix" name="moon" variant="regular"></wa-icon>
+                            <span class="only-light only-desktop">Light</span>
+                            <span class="only-dark only-desktop">Dark</span>
+                        </wa-button>
+                        <wa-menu>
+                            <wa-menu-item type="checkbox" value="light">Light</wa-menu-item>
+                            <wa-menu-item type="checkbox" value="dark">Dark</wa-menu-item>
+                            <wa-divider></wa-divider>
+                            <wa-menu-item type="checkbox" value="auto">System</wa-menu-item>
+                        </wa-menu>
+                    </wa-dropdown>
+                </div>
+            </header>
+    
+            <aside slot="navigation" id="sidebar" class="docs-aside" data-remember-scroll>
+                <wa-icon-button id="sidebar-close-button" name="xmark" label="Close" data-drawer="close"></wa-icon-button>
+                <nav>
+                    <!-- Left Hand Menu -->
+                    <h2>Site Menu</h2>
+                    <ul>
+                        <li><a href="http://www.torvos.ca/index.html" class="current">Home</a></li>
+                        <li><a href="http://www.torvos.ca/about.html">About Me</a></li>
+                    </ul>
+                    <h2>Articles</h2>
+                    <ul>
+                        <li><a href="http://www.torvos.ca/articles/website.html">How this website works</a></li>
+                    </ul>
+                </nav>
+            </aside>
+            
+            <!-- Right Hand Menu -->
+            <aside slot="aside" id="outline" class="docs-aside">
+                <nav id="outline-standard" class="outline-links">
+                    <h2><a href="#content">Summary</a></h2>
+                    <ul>
+                        <li data-level="2"><a href="#artcle-top">GitHub Pages</a></li>
+                        <li data-level="2"><a href="#artcle-local">Local Server</a></li>
+                        <li data-level="2"><a href="#artcle-dns">DNS service</a></li>
+                        <li data-level="2"><a href="#artcle-mx">Mail exchange setup</a></li>
+                    </ul>
+                </nav>
+            </aside>
+    
+            <main id="content">
+                <!-- Mobile Page Menu -->    
+                <nav id="outline-expandable">
+                    <details class="outline-links">
+                        <summary>Summary</summary>
+                        <ul>
+                            <li data-level="2"><a href="#artcle-top">GitHub Pages</a></li>
+                            <li data-level="2"><a href="#artcle-local">Local Server</a></li>
+                            <li data-level="2"><a href="#artcle-dns">DNS service</a></li>
+                            <li data-level="2"><a href="#artcle-mx">Mail exchange setup</a></li>
+                        </ul>
+                    </details>
+                </nav>
+        
+                <!-- Page Content -->
+                <h1 style="margin-bottom: 0px;">How This Website Works</h1>
+                <h5>
+                    By <a rel="author" href="mailto:phil@torvos.ca">Phil</a> 
+                    on <wa-format-date id="publishdate" month="long" day="numeric" year="numeric" date="2024-07-21T22:20:00-04:00"></wa-format-date> 
+                    (<wa-relative-time id="publishrelativedate" date="2024-07-21T22:20:00-04:00"></wa-relative-time>)
+                </h5>                
+
+                <p><a name="artcle-top"></a>In this article I'm going to break down how this website works.  First this website is hosted on GitHub, and it's code is public, you can <a href="https://github.com/torvos/Torvos.ca" target="_blank">view the code here (opens in a new tab)</a> and even send pull requests if you spot an error or want to suggest changes.</p>
+                <p>Now anyone can simply host code on GitHub, but you're not looking at code you're looking at a website so how does that work? That's due to a GitHub feature called GitHub Pages, it allows you to host websites on their infrastructure with only a few clicks, see <a href="https://pages.github.com" target="_blank">here (opens in a new tab)</a> for a great guide from GitHub themselves.</p>
+                <p><a name="artcle-local"></a>While you can simply leave it at that and have yourself a website, however I wanted to be able to work on my site without updating the public version right away.  While I could just download the code locally and only commit and push changes when I'm ready it wouldn't render the HTML with all dependencies. That's why I setup a local version of it on one of my servers. That way I can develop articles in private before publishing to the live site.</p>
+                <p>The way this works is on my personal server I'm running a beta version of my website, that website is a clone of the GitHub repository, so I'm able to code changes view them locally even commit changes to the local repository. Then when I'm happy I can push it up to GitHub and the GitHub Action takes over and publishes the updated version of the website.</p>
+                
+                <p style="text-align: center;"><picture>
+                    <img
+                        id="parralelle-website"
+                        src="http://www.torvos.ca/images/articles-parralelle-website.png"
+                        alt="Image depicting parralelle deployment method to have both a public and private website"
+                        width="70%"
+                    ></img>
+                  </picture></p>
+
+                <p><a name="artcle-dns"></a>Now something else you may have noticed is this site address isn't <a href="https://torvos.github.io" target="_blank">https://torvos.github.io (purposefully broken link)</a> that's because I use another feature of GitHub Pages called custom domain. While I registered torvos.ca with a domain registrar it is a barebones one and doesn't support some things I wanted like programmatic access.</p>
+                <p>Why did I want programmatic access you may ask, well that's because occasionally my internet service provider changes my public IP, and when that happens, I want a specific subdomain of my domain to be updated automatically. My server periodically checks it's public IP and compares it against what the subdomain and if it's different send a programmatic request to update it.</p>
+                <p>For this I use <a hred="deSEC.io" target="_blank">deSEC (opens in a new tab)</a> they offer a free fully featured DNS hosting service that supports programmatic access.</p>
+                
+                <p style="text-align: center;"><picture>
+                    <img
+                        id="dnsmx-website"
+                        src="http://www.torvos.ca/images/articles-dns-mx-setup.png"
+                        alt="Image depicting the dns and mailbox setup for my domain"
+                        width="70%"
+                    ></img>
+                  </picture></p>
+
+                
+                <p><a name="artcle-mx"></a>The last part of this website is how my email can be <a href="mailto:phil@torvos.ca">phil@torvos.ca</a> email isn't something that GitHub Pages offer, and while I could pay Microsoft, Google, or Apple to use one of their custom domain email services it's even easier to use something like <a href="https://improvmx.com">ImprovMX</a> a fantastic service that has a free option and fantastic paid options for larger groups.</p>
+                <p>In the end this setup works for me and might work for you as well and if it does, I hope this article helped.</p>
+            </main> 
+
+            <script>
+                //function to swap images based on theme/device preferance
+                function updateImages() {
+                    //short delay because computers are too fast
+                    setTimeout(function (){
+                        //localstorage variable set by site wide theme, also checking window media preference
+                        if (localStorage.getItem('colorScheme') == "dark" || window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                            document.getElementById("parralelle-website").src="http://www.torvos.ca/images/articles-parralelle-website-dark.png";
+                            document.getElementById("dnsmx-website").src="http://www.torvos.ca/images/articles-dns-mx-setup-dark.png";
+                        }
+                        else {
+                            document.getElementById("parralelle-website").src="http://www.torvos.ca/images/articles-parralelle-website.png";
+                            document.getElementById("dnsmx-website").src="http://www.torvos.ca/images/articles-dns-mx-setup.png";
+                        }
+                    }, 1); 
+                }
+                //watch the theme selector
+                document.addEventListener('wa-select', event => {
+                    const menu = event.target.closest('#color-scheme-selector wa-menu');
+                    if (!menu) return;
+                    updateImages();
+                });
+
+                //in case the device changes it's preference
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                    const newColorScheme = event.matches ? "dark" : "light";
+                    updateImages();
+                });
+
+                //watch the undocumented \ keyboard shortcut 
+                document.addEventListener('keydown', event => {
+                    if (
+                        event.key === '\\' &&
+                        !event.composedPath().some(el => ['input', 'textarea'].includes(el?.tagName?.toLowerCase()))
+                    ) {
+                        event.preventDefault();
+                        updateImages();
+                     }
+                });            
+
+                updateImages(); 
+            </script>
+        </wa-page>
+    </body>
+</html>
