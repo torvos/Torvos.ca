@@ -6,23 +6,18 @@ window.Commands = {};
 
 Commands.help = function () {
 
-    return `
-Torvos Terminal Commands
-
+    return `Torvos Terminal Commands
 Navigation:
   ls              List directory contents
   cd <dir>        Change directory
   pwd             Print working directory
   tree            Show directory structure
-
 Files:
   cat <file>      Display file contents
-
 System:
   help            Show this help message
   clear           Clear terminal
-  whoami          Show current user
-`;
+  whoami          Show current user`;
 
 };
 
