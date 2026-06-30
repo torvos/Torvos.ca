@@ -165,39 +165,40 @@ body {
    Terminal
 -------------------------------- */
 
-#terminal {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    box-sizing: border-box;
+#terminal{
 
-    background: black;
-    color: #33ff66;
+    flex:1;
 
-    font-family: monospace;
+    overflow-y:auto;
 
-    overflow: hidden;
+    padding:25px;
+
+    white-space:pre-wrap;
+
+    word-break:break-word;
+
 }
 
-#output {
-    flex: 1;
-    overflow-y: auto;
+#output{
 
-    display: block;
-    white-space: pre-wrap;
+    margin-bottom:10px;
+
 }
 
-#input-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+#input-line{
 
-    flex-shrink: 0;
+    display:flex;
+
+    flex-wrap:wrap;
+
 }
 
-#prompt {
-    color: #33ff66;
+#prompt{
+
+    color:var(--prompt);
+
+    font-weight:bold;
+
 }
 
 #command{
@@ -206,15 +207,16 @@ body {
 
 }
 
-#cursor {
-    display: inline-block;
-    width: 8px;
-    background: #33ff66;
-    animation: blink 1s infinite;
-}
+#cursor{
 
-@keyframes blink {
-    50% { opacity: 0; }
+    display:inline-block;
+
+    width:10px;
+
+    margin-left:2px;
+
+    background:var(--cursor);
+
 }
 
 /* -------------------------------
