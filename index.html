@@ -7,21 +7,13 @@
     <meta name="description" content="Torvos Personal Infrastructure">
 
     <link rel="stylesheet" href="css/terminal.css">
-    <link rel="stylesheet" href="css/themes.css">
     <link rel="stylesheet" href="css/animations.css">
-    <link rel="stylesheet" href="css/crt.css">
 
 </head>
 
 <body class="theme-green">
 
-<div id="boot-overlay">
-
-    <div id="boot-output"></div>
-
-</div>
-
-<div id="terminal-container" class="hidden">
+<div id="terminal-container">
     <main id="terminal">
         <div id="output"></div>
         <div id="input-line">
@@ -29,6 +21,7 @@
             <span id="command"></span>
             <span id="cursor"></span>
         </div>
+        <div id="scroll-anchor"></div>
     </main>
 </div>
 
@@ -56,26 +49,10 @@ window.TorvosConfig = {
 };
 </script>
 
-<!-- Core -->
-
 <script src="js/filesystem.js"></script>
-<!--<script src="js/pages.js"></script>-->
-
-<!-- Engine -->
-
-<script src="js/ansi.js"></script>
-<!--<script src="js/history.js"></script>-->
-<!--<script src="js/autocomplete.js"></script>-->
-<script src="js/typing.js"></script>
-<!--<script src="js/parser.js"></script>-->
-<script src="js/shell.js"></script>
+<!--<script src="js/typing.js"></script>-->
 <script src="js/commands.js"></script>
-<!--<script src="js/themes.js"></script>-->
-<script src="js/boot.js"></script>
 <script src="js/terminal.js"></script>
-
-<!-- Start -->
-
 <script src="js/app.js"></script>
 
 </body>

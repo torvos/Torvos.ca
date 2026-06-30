@@ -5,6 +5,5 @@ window.startTorvosTerminal = function () {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-    const boot = new BootSequence(window.TorvosConfig, terminal);
-    boot.start();
+    window.startTorvosTerminal();
 });
