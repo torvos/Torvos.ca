@@ -35,8 +35,6 @@ class TerminalEngine {
         this.write(`Welcome to Torvos.ca`);
         this.write(`Type 'help' to begin.`);
 
-        this.printLine(`Welcome to ${this.config.hostname}. Type 'help'.`);
-
         this.hiddenInput.focus();
 
     }
