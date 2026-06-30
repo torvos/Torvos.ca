@@ -46,9 +46,6 @@ class BootSequence {
         const line = this.lines[this.index];
         const div = document.createElement("div");
         div.style.color = line.color || "#33ff66";
-        if (line.glow) {
-            div.classList.add("glow");
-        }
         this.bootOutput.appendChild(div);
         this.typeText(div, line.text, 0, () => {
             setTimeout(() => {
