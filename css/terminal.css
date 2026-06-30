@@ -166,27 +166,34 @@ body {
 -------------------------------- */
 
 #terminal {
-    height: 100vh;
+    flex: 1;
     display: flex;
     flex-direction: column;
     padding: 20px;
     box-sizing: border-box;
+
     background: black;
     color: #33ff66;
+
     font-family: monospace;
+
+    overflow: hidden;
 }
 
 #output {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex: 1;
+    overflow-y: auto;
+
+    display: block;
+    white-space: pre-wrap;
 }
 
 #input-line {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 8px;
+
+    flex-shrink: 0;
 }
 
 #prompt {
