@@ -177,9 +177,9 @@ body {
 }
 
 #output {
-    flex: 1;
-    overflow-y: auto;
-    white-space: pre-wrap;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 #input-line {
@@ -199,16 +199,15 @@ body {
 
 }
 
-#cursor{
+#cursor {
+    display: inline-block;
+    width: 8px;
+    background: #33ff66;
+    animation: blink 1s infinite;
+}
 
-    display:inline-block;
-
-    width:10px;
-
-    margin-left:2px;
-
-    background:var(--cursor);
-
+@keyframes blink {
+    50% { opacity: 0; }
 }
 
 /* -------------------------------
