@@ -1,3 +1,170 @@
+/* ==========================================
+   Torvos Terminal
+   Base Styles
+========================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    font-family: "JetBrains Mono", monospace;
+    font-size: 17px;
+    line-height: 1.6;
+}
+
+body {
+
+    background: var(--background);
+    color: var(--foreground);
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    transition:
+        background .4s,
+        color .4s;
+
+}
+
+/* -------------------------------
+   Hidden Utility
+-------------------------------- */
+
+.hidden {
+    display: none !important;
+}
+
+/* -------------------------------
+   Boot Screen
+-------------------------------- */
+
+#boot-overlay {
+
+    position: fixed;
+
+    inset: 0;
+
+    background: black;
+
+    color: #33ff66;
+
+    padding: 40px;
+
+    overflow-y: auto;
+
+    white-space: pre-wrap;
+
+    z-index: 9999;
+
+}
+
+#boot-output{
+
+    max-width:1100px;
+
+}
+
+/* -------------------------------
+   Window
+-------------------------------- */
+
+#terminal-container {
+
+    width: 92vw;
+    height: 90vh;
+
+    display: flex;
+    flex-direction: column;
+
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 0 40px rgba(0,0,0,.6);
+
+    background: var(--terminal);
+
+}
+
+/* -------------------------------
+   Title Bar
+-------------------------------- */
+
+#terminal-header {
+
+    height: 42px;
+
+    background: rgba(255,255,255,.05);
+
+    display:flex;
+
+    align-items:center;
+
+    padding:0 18px;
+
+    user-select:none;
+
+}
+
+.window-buttons{
+
+    display:flex;
+
+    gap:10px;
+
+}
+
+.btn{
+
+    width:13px;
+    height:13px;
+
+    border-radius:50%;
+
+}
+
+.close{
+    background:#ff5f56;
+}
+
+.minimize{
+    background:#ffbd2e;
+}
+
+.maximize{
+    background:#27c93f;
+}
+
+.window-title{
+
+    flex:1;
+
+    text-align:center;
+
+    font-size:.9rem;
+
+    color:#aaa;
+
+}
+
+/* -------------------------------
+   Terminal
+-------------------------------- */
+
 #terminal {
     height: 100vh;
     display: flex;
@@ -9,14 +176,12 @@
     font-family: monospace;
 }
 
-/* OUTPUT grows naturally */
 #output {
     flex: 1;
     overflow-y: auto;
     white-space: pre-wrap;
 }
 
-/* INPUT stays glued to bottom */
 #input-line {
     display: flex;
     align-items: center;
@@ -24,7 +189,82 @@
     margin-top: 8px;
 }
 
-/* prompt spacing consistency */
 #prompt {
     color: #33ff66;
+}
+
+#command{
+
+    color:var(--foreground);
+
+}
+
+#cursor{
+
+    display:inline-block;
+
+    width:10px;
+
+    margin-left:2px;
+
+    background:var(--cursor);
+
+}
+
+/* -------------------------------
+   Hidden Input
+-------------------------------- */
+
+#hidden-input{
+
+    position:absolute;
+
+    left:-9999px;
+
+    opacity:0;
+
+}
+
+/* -------------------------------
+   Links
+-------------------------------- */
+
+a{
+
+    color:#4aa3ff;
+
+}
+
+a:hover{
+
+    text-decoration:underline;
+
+}
+
+/* -------------------------------
+   Scrollbars
+-------------------------------- */
+
+::-webkit-scrollbar{
+
+    width:10px;
+
+}
+
+::-webkit-scrollbar-track{
+
+    background:#111;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+    background:#444;
+
+}
+
+::-webkit-scrollbar-thumb:hover{
+
+    background:#666;
+
 }
