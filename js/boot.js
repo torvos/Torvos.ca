@@ -14,7 +14,7 @@ class BootSequence {
 
         return [
 
-            { text: "Torvos BIOS v2.6.0", delay: 400, color: "#33ff66" },
+            { text: "Torvos v2.6.0", delay: 400, color: "#33ff66" },
 
             { text: "Initializing kernel................ [ OK ]", delay: 300, color: "#33ff66" },
             { text: "Mounting virtual filesystem........ [ OK ]", delay: 250, color: "#33ff66" },
