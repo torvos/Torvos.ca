@@ -22,13 +22,6 @@ System:
   help            Show this help message
   clear           Clear terminal
   whoami          Show current user
-  theme <name>    Change theme
-
-Examples:
-  ls
-  cd projects
-  cat azure
-  theme cyber
 `;
 
 };
@@ -192,29 +185,6 @@ Commands.clear = function (terminal) {
     return "";
 };
 
-/* =========================================================
-   THEME
-========================================================= */
-
-Commands.theme = function (terminal, args) {
-
-    const theme = args[0];
-
-    if (!theme) {
-        return "theme: missing argument";
-    }
-
-    document.body.className = "";
-
-    document.body.classList.add(`theme-${theme}`);
-
-    if (window.TorvosConfig?.enableCRT) {
-        document.body.classList.add("crt");
-    }
-
-    return `theme set: ${theme}`;
-
-};
 
 /* =========================================================
    ECHO (useful for testing)

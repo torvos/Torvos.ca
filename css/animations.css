@@ -1,109 +1,23 @@
-/* Cursor */
-
 #cursor{
-
     animation:blink .8s infinite;
-
 }
 
 @keyframes blink{
-
     50%{
-
         opacity:0;
-
     }
-
 }
-
-/* Boot fade */
-
-.fade-in{
-
-    animation:fadeIn .4s ease;
-
-}
-
-@keyframes fadeIn{
-
-    from{
-
-        opacity:0;
-
-    }
-
-    to{
-
-        opacity:1;
-
-    }
-
-}
-
-/* Text typing */
 
 .typing{
-
     overflow:hidden;
-
 }
 
-/* Shake */
-
 .shake{
-
     animation:shake .3s;
-
 }
 
 @keyframes shake{
-
-    25%{
-
-        transform:translateX(-2px);
-
-    }
-
-    50%{
-
-        transform:translateX(2px);
-
-    }
-
-    75%{
-
-        transform:translateX(-2px);
-
-    }
-
-}
-
-/* Glow */
-
-.glow{
-
-    text-shadow:
-
-        0 0 4px currentColor,
-
-        0 0 12px currentColor;
-
-}
-
-/* Flash */
-
-.flash{
-
-    animation:flash .4s;
-
-}
-
-@keyframes flash{
-
-    50%{
-
-        opacity:.2;
-
-    }
-
+    25%{transform:translateX(-2px);}
+    50%{transform:translateX(2px);}
+    75%{transform:translateX(-2px);}
 }
