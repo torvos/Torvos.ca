@@ -14,6 +14,7 @@ System:
   help            Show this help message
   clear           Clear terminal
   whoami          Show current user
+  login           log into a diffrent user account
   history         Displays history of commands
   echo <text>     Displays the text on the terminal`;
 };
@@ -23,8 +24,6 @@ Commands.sudo = function (terminal) {
     return "guest is not allowed to invoke sudo, this incident will be reported.";
 };
 
-/* LOGIN */
-
 /* MORE */
 
 /* PAGER */
@@ -32,6 +31,10 @@ Commands.sudo = function (terminal) {
 /* FINGER */
 
 /* TOUCH */
+Commands.touch = function (terminal, args) {
+    const target = args[0];
+    return `touch: cannot touch '${target}': Permission denied`;
+};
 
 /* PWD */
 Commands.pwd = function (terminal) {

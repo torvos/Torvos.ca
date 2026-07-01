@@ -15,6 +15,7 @@ class TerminalEngine {
     }
 
     async init() {
+        this.inputMode = "normal";
         await this.typeItOut(`Torvos v2.6.0`, {color: "#c707ce"});
         await this.typeItOut(`Initializing kernel................ [ OK ]`);
         await this.typeItOut(`Mounting virtual filesystem........ [ OK ]`);
@@ -74,15 +75,12 @@ class TerminalEngine {
                     break;
 
                 default:
-
-                if (
-                        e.key.length === 1 &&
+                    if (this.inputMode === "waitingPassword"){break;}
+                    if (e.key.length === 1 &&
                         !e.metaKey &&
-                        !e.altKey
-                    ) {
-                        this.currentInput += e.key;
-                    }
-
+                        !e.altKey) {
+                            this.currentInput += e.key;
+                        }
                     break;
             }
             this.renderInput();
@@ -98,19 +96,37 @@ class TerminalEngine {
         this.commandEl.textContent = this.currentInput;
     }
 
-    handleEnter() {
+    async handleEnter() {
         const input = this.currentInput.trim();
-        if (!input){
-            this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$`);
-            document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
-            return;
-        } 
-        this.history.push(input);
-        this.historyIndex = this.history.length;
-        this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$${input}`);
-        this.execute(input);
-        this.currentInput = "";
-        this.renderInput();
+
+        switch (this.inputMode) {
+            case "normal":
+                if (!input){
+                    this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$`);
+                    document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
+                    return;
+                } 
+                this.history.push(input);
+                this.historyIndex = this.history.length;
+                this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$${input}`);
+                this.execute(input);
+                this.currentInput = "";
+                this.renderInput();
+                break;
+            case "waitingUsername":
+                this.currentInput = "";
+                this.renderInput();
+                this.inputMode = "waitingPassword";
+                this.promptEl.textContent = "password:";
+                break;
+            case "waitingPassword":
+                this.write("Login incorrect")
+                this.currentInput = "";
+                this.renderInput();
+                this.inputMode = "normal";
+                this.renderPrompt();
+                break;
+        }
     }
 
     async execute(input) {
@@ -118,7 +134,7 @@ class TerminalEngine {
         // Add in support for expansion { }
         // Add in support for stdin <
 
-        // No support for stdout > append >>         
+        // No support for stdout > append >>            
 
         const commands = input.split("|");
         for (let i = 0; i < commands.length; i++) {
@@ -134,10 +150,12 @@ class TerminalEngine {
                         await this.sleep(50);
                     } 
                 } 
+            } else if (cmd === "login"){
+                this.inputMode = "waitingUsername";
+                this.promptEl.textContent = "user:";
             } else {
                 this.write(`command not found: ${cmd}`);
             }         
-            
         }
     }
 
@@ -198,7 +216,19 @@ class TerminalEngine {
     write(text, options = {}) {
         const div = document.createElement("div");
         let output = text ?? "";
-        div.textContent = output;
+ 
+        output = output
+        .replace(
+            /\b(https?:\/\/[^\s<]+)/gi,
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        )
+        .replace(
+            /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+            '<a href="mailto:$&">$&</a>'
+        );        
+
+        div.innerHTML = output;
+
         if (options.color) {
             div.style.color = options.color;
         }
