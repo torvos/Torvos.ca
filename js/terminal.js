@@ -134,8 +134,6 @@ class TerminalEngine {
         // Add in support for expansion { }
         // Add in support for stdin <
 
-        // No support for stdout > append >>            
-
         const commands = input.split("|");
         for (let i = 0; i < commands.length; i++) {
             const parts = commands[i].trim().split(" ");
@@ -190,6 +188,7 @@ class TerminalEngine {
         this.renderInput();
     }
 
+/*
     autocomplete() {
         if (!window.Commands) return;
         const keys = Object.keys(window.Commands);
@@ -200,6 +199,80 @@ class TerminalEngine {
             this.currentInput = match;
             this.renderInput();
         }
+    }
+*/
+
+    autocomplete() {
+        if (!this.currentInput.trim()) return;
+        const parts = this.currentInput.split(/\s+/);
+        const partial = parts.pop();
+        const matches = this.findPathMatches(partial);
+
+        if (parts.length === 1) {
+            const commands = Object.keys(window.Commands);
+            const match = commands.find(c => c.startsWith(parts[0]));
+            if (match) {
+                this.currentInput = match;
+                this.renderInput();
+            }
+            return;
+        }
+
+        if (matches.length === 1) {
+            parts.push(matches[0]);
+            this.currentInput = parts.join(" ");
+            this.renderInput();
+        }
+    }
+
+    getNode(path) {
+        if (!path.startsWith("~"))
+            path = this.cwd + "/" + path;
+
+        const parts = path.split("/").filter(Boolean);
+        let node = window.FileSystem["~"];
+
+        parts.shift();
+        for (const part of parts) {
+            if (!node.children)
+                return null;
+            node = node.children[part];
+            if (!node)
+                return null;
+        }
+        return node;
+    }
+
+    findPathMatches(partial) {
+        let directory;
+        let prefix;
+
+        const node = this.getNode(directory);
+
+        if (partial.includes("/")) {
+            const split = partial.split("/");
+            prefix = split.pop();
+            directory = split.join("/");
+            if (!directory.startsWith("~"))
+                directory = this.cwd + "/" + directory;
+        } else {
+            directory = this.cwd;
+            prefix = partial;
+        }
+
+        if (!node || node.type !== "dir")
+            return [];
+
+        return Object.keys(node.children)
+            .filter(name => name.startsWith(prefix))
+            .map(name => {
+                const child = node.children[name];
+                if (partial.includes("/")) {
+                    const base = partial.substring(0, partial.lastIndexOf("/") + 1);
+                    return base + name + (child.type === "dir" ? "/" : "");
+                }
+                return name + (child.type === "dir" ? "/" : "");
+            });
     }
 
     changeDirectory(path) {
