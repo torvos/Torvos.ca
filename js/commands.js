@@ -38,6 +38,14 @@ Commands.sudo = function (terminal) {
 
 /* KILL - kill process */
 
+/* MKDIR - create directory */
+
+/* RMDIR - create directory */
+
+/* MV - move or rename file */
+
+/* RM - remove file */
+
 /* DF - report total, used, and available storage space */
 
 /* FREE - display free and used memory */
