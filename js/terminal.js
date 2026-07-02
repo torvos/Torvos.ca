@@ -216,18 +216,24 @@ class TerminalEngine {
     write(text, options = {}) {
         const div = document.createElement("div");
         let output = text ?? "";
- 
-        output = output
-        .replace(
-            /\b(https?:\/\/[^\s<]+)/gi,
-            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-        )
-        .replace(
-            /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
-            '<a href="mailto:$&">$&</a>'
-        );        
 
-        div.innerHTML = output;
+        const pattern1 = /\b(https?:\/\/[^\s<]+)/gi;
+        const pattern2 = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+ 
+        if (pattern1.test(output) || pattern2.test(output)){
+            output = output
+            .replace(
+                /\b(https?:\/\/[^\s<]+)/gi,
+                '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+            )
+            .replace(
+                /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+                '<a href="mailto:$&">$&</a>'
+            );        
+            div.innerHTML = output;
+        } else {
+            div.innerText = output;
+        }
 
         if (options.color) {
             div.style.color = options.color;

@@ -24,11 +24,27 @@ Commands.sudo = function (terminal) {
     return "guest is not allowed to invoke sudo, this incident will be reported.";
 };
 
-/* MORE */
+/* HEAD - show first few lines of a file */
 
-/* PAGER */
+/* TAIL - show last few lines of file */
 
-/* FINGER */
+/* FIND - file files */
+
+/* PS - list processes*/
+
+/* KILL - kill process */
+
+/* DF - report total, used, and available storage space */
+
+/* FREE - display free and used memory */
+
+/* PING */
+
+/* CURL - download file/site */
+
+/* WGET - download file/site */
+
+/* FINGER - user info look up */
 
 /* TOUCH */
 Commands.touch = function (terminal, args) {
@@ -94,6 +110,11 @@ Commands.cat = function (terminal, args) {
     }
     return node.content;
 };
+
+/* MORE */
+Commands.more = Commands.cat;
+/* PAGER */
+Commands.pager = Commands.cat;
 
 /* TREE */
 Commands.tree = function () {
