@@ -10,6 +10,7 @@ class TerminalEngine {
         this.currentInput = "";
         this.history = [];
         this.historyIndex = -1;
+        this.cursorPos = 0;
         this.cwd = "~";
         this.bindEvents();
     }
@@ -23,7 +24,8 @@ class TerminalEngine {
         await this.typeItOut(`Loading user profile............... [ OK ]`);
         await this.typeItOut(`Establishing secure session........ [ OK ]`);
         await this.typeItOut(`Welcome to Torvos.ca type 'help' to begin.`, {color: "#ffffff"});
-        this.renderPrompt();        
+        this.renderPrompt();     
+        this.renderInput();   
         this.hiddenInput.focus();
     }
 
@@ -58,8 +60,14 @@ class TerminalEngine {
                     break;
 
                 case "Backspace":
-                    this.currentInput = this.currentInput.slice(0, -1);
-                    break;
+                    if (this.cursorPos === 0) break;
+
+                    this.currentInput =
+                        this.currentInput.slice(0, this.cursorPos - 1) +
+                        this.currentInput.slice(this.cursorPos);
+
+                    this.cursorPos--;
+                    break;                    
 
                 case "ArrowUp":
                     this.historyUp();
@@ -69,8 +77,13 @@ class TerminalEngine {
                     this.historyDown();
                     break;
 
-                //ArrowLeft
-                //ArrowRight
+                case "ArrowLeft":
+                    this.cursorPos = Math.max(0, this.cursorPos - 1);
+                    break;
+
+                case "ArrowRight":
+                    this.cursorPos = Math.min(this.currentInput.length, this.cursorPos + 1);
+                    break;
 
                 case "Tab":
                     e.preventDefault();
@@ -82,7 +95,11 @@ class TerminalEngine {
                     if (e.key.length === 1 &&
                         !e.metaKey &&
                         !e.altKey) {
-                            this.currentInput += e.key;
+                            this.currentInput =
+                                this.currentInput.slice(0, this.cursorPos) +
+                                e.key +
+                                this.currentInput.slice(this.cursorPos);
+                            this.cursorPos++;
                         }
                     break;
             }
@@ -96,7 +113,13 @@ class TerminalEngine {
     }
 
     renderInput() {
-        this.commandEl.textContent = this.currentInput;
+        const before = this.currentInput.slice(0, this.cursorPos);
+        const after = this.currentInput.slice(this.cursorPos);
+
+        this.commandEl.innerHTML =
+            `<span>${before}</span>` +
+            `<span id="cursor">█</span>` +
+            `<span>${after}</span>`;
     }
 
     async handleEnter() {
@@ -176,6 +199,7 @@ class TerminalEngine {
             this.historyIndex--;
         }
         this.currentInput = this.history[this.historyIndex] || "";
+        this.cursorPos = this.currentInput.length;
         this.renderInput();
     }
 
@@ -185,8 +209,9 @@ class TerminalEngine {
             this.historyIndex++;
             this.currentInput = this.history[this.historyIndex];
         } else {
-            this.historyIndex = this.history.length;
-            this.currentInput = "";
+            this.currentInput = this.history[this.historyIndex] || "";
+            this.cursorPos = this.currentInput.length;
+            this.renderInput();
         }
         this.renderInput();
     }
@@ -218,6 +243,7 @@ class TerminalEngine {
             this.currentInput = parts.join(" ");
             this.renderInput();
         }
+        this.cursorPos = this.currentInput.length;
     }
 
     getNode(path) {
