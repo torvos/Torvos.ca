@@ -69,6 +69,9 @@ class TerminalEngine {
                     this.historyDown();
                     break;
 
+                //ArrowLeft
+                //ArrowRight
+
                 case "Tab":
                     e.preventDefault();
                     this.autocomplete();
@@ -188,35 +191,27 @@ class TerminalEngine {
         this.renderInput();
     }
 
-/*
-    autocomplete() {
-        if (!window.Commands) return;
-        const keys = Object.keys(window.Commands);
-        const match = keys.find(k =>
-            k.startsWith(this.currentInput)
-        );
-        if (match) {
-            this.currentInput = match;
-            this.renderInput();
-        }
-    }
-*/
-
     autocomplete() {
         if (!this.currentInput.trim()) return;
-        const parts = this.currentInput.split(/\s+/);
-        const partial = parts.pop();
-        const matches = this.findPathMatches(partial);
 
+        const isAtEndOfWord = !this.currentInput.endsWith(" ");
+        const parts = this.currentInput.trimStart().split(/\s+/);
         if (parts.length === 1) {
+            const partial = parts[0];
+
             const commands = Object.keys(window.Commands);
-            const match = commands.find(c => c.startsWith(parts[0]));
+            const match = commands.find(c => c.startsWith(partial));
+
             if (match) {
                 this.currentInput = match;
                 this.renderInput();
             }
+
             return;
         }
+
+        const partial = parts.pop();
+        const matches = this.findPathMatches(partial);
 
         if (matches.length === 1) {
             parts.push(matches[0]);
@@ -244,34 +239,42 @@ class TerminalEngine {
     }
 
     findPathMatches(partial) {
+
         let directory;
         let prefix;
 
-        const node = this.getNode(directory);
-
         if (partial.includes("/")) {
+
             const split = partial.split("/");
             prefix = split.pop();
-            directory = split.join("/");
-            if (!directory.startsWith("~"))
+
+            directory = split.join("/") || "~";
+
+            if (!directory.startsWith("~")) {
                 directory = this.cwd + "/" + directory;
+            }
+
         } else {
             directory = this.cwd;
             prefix = partial;
         }
 
-        if (!node || node.type !== "dir")
+        const node = this.getNode(directory);
+
+        if (!node || node.type !== "dir") {
             return [];
+        }
 
         return Object.keys(node.children)
             .filter(name => name.startsWith(prefix))
             .map(name => {
                 const child = node.children[name];
-                if (partial.includes("/")) {
-                    const base = partial.substring(0, partial.lastIndexOf("/") + 1);
-                    return base + name + (child.type === "dir" ? "/" : "");
-                }
-                return name + (child.type === "dir" ? "/" : "");
+
+                const base = partial.includes("/")
+                    ? partial.substring(0, partial.lastIndexOf("/") + 1)
+                    : "";
+
+                return base + name + (child.type === "dir" ? "/" : "");
             });
     }
 
