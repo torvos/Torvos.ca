@@ -6,7 +6,7 @@ window.FileSystem = {
             about: {
                 type: "dir",
                 children: {
-                    bio: {
+                    "bio.md": {
                         type: "file",
                         content: `
 Torvos is a personal infrastructure and security-focused portfolio.
@@ -22,15 +22,15 @@ Specializing in:
             projects: {
                 type: "dir",
                 children: {
-                    azure: {
+                    "azure.md": {
                         type: "file",
                         content: "Azure IAM / Entra ID / federation / enterprise identity work."
                     },
-                    terraform: {
+                    "terraform.md": {
                         type: "file",
                         content: "Infrastructure-as-code pipelines and multi-cloud deployments."
                     },
-                    security: {
+                    "security.md": {
                         type: "file",
                         content: "Threat modeling, IAM design, and cloud security architecture."
                     }
@@ -40,14 +40,14 @@ Specializing in:
             blog: {
                 type: "dir",
                 children: {
-                    "welcome": {
+                    "welcome.md": {
                         type: "file",
                         content: "Welcome to the Torvos technical blog. More posts coming soon."
                     }
                 }
             },
 
-            contact: {
+            "contact.md": {
                 type: "file",
                 content: `
 Email: contact@torvos.ca
@@ -56,7 +56,7 @@ Bluesky: https://bsky.app/profile/torvos.bsky.social
 LinkedIn: https://www.linkedin.com/in/philippet/`
             },
 
-            resume: {
+            "resume.md": {
                 type: "file",
                 content: "Resume download available soon."
             }
