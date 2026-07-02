@@ -10,6 +10,8 @@ Navigation:
   tree            Show directory structure
 Files:
   cat <file>      Display file contents
+  more <file>     Disolay file one screen at a time
+  pager <file>    Disolay file one screen at a time
 System:
   help            Show this help message
   clear           Clear terminal
