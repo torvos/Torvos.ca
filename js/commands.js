@@ -10,13 +10,15 @@ Navigation:
   tree            Show directory structure
 Files:
   cat <file>      Display file contents
-  more <file>     Disolay file one screen at a time
-  pager <file>    Disolay file one screen at a time
+  more <file>     Display file one screen at a time
+  pager <file>    Display file one screen at a time
+  touch <file>    Create empty file
 System:
   help            Show this help message
   clear           Clear terminal
   whoami          Show current user
-  login           log into a diffrent user account
+  login           Login to a diffrent user account
+  sudo            Execute commands with administrative
   history         Displays history of commands
   echo <text>     Displays the text on the terminal`;
 };
@@ -157,7 +159,6 @@ Commands.echo = function (_terminal, args) {
 };
 
 /* HISTORY */
-
 Commands.history = function (terminal) {
     return terminal.history.join("\n");
 };
