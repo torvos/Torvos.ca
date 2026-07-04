@@ -31,6 +31,9 @@ Commands.sudo = function (terminal) {
 
 /* HEAD - show first few lines of a file */
 Commands.head = function (terminal, args) {
+    if (!args){
+        return "head: missing file operand";
+    }
     for (const arg of args) {
         const fullPath = resolveRelativePath(terminal.cwd, arg);
         const node = resolvePath(fullPath);
@@ -46,13 +49,13 @@ Commands.head = function (terminal, args) {
             }
         }
     }
-    if (!target) {
-        return "head: missing file operand";
-    }
 };
 
 /* TAIL - show last few lines of file */
 Commands.tail = function (terminal, args) {
+    if (!args){
+        return "tail: missing file operand";
+    }
     for (const arg of args) {
         const fullPath = resolveRelativePath(terminal.cwd, arg);
         const node = resolvePath(fullPath);
@@ -67,9 +70,6 @@ Commands.tail = function (terminal, args) {
                 return node.content;
             }
         }
-    }
-    if (!target) {
-        return "tail: missing file operand";
     }
 };
 
