@@ -10,7 +10,6 @@ window.FileSystem = {
                         type: "file",
                         content: `
 Torvos is a personal infrastructure and security-focused portfolio.
-
 Specializing in:
 - Cloud architecture (Azure, AWS)
 - Identity & access management
