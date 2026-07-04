@@ -52,6 +52,26 @@ Commands.head = function (terminal, args) {
 };
 
 /* TAIL - show last few lines of file */
+Commands.tail = function (terminal, args) {
+    for (const arg of args) {
+        const fullPath = resolveRelativePath(terminal.cwd, arg);
+        const node = resolvePath(fullPath);
+        if (node != null){
+            if (!node) {
+                return `tail: no such file: ${target}`;
+            }
+            if (node.type === "dir") {
+                return `tail: ${target}: is a directory`;
+            }
+            if (node && node.type === "file") {
+                return node.content;
+            }
+        }
+    }
+    if (!target) {
+        return "tail: missing file operand";
+    }
+};
 
 /* FIND - file files */
 
