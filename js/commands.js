@@ -31,6 +31,7 @@ Commands.sudo = function (terminal) {
 
 /* HEAD - show first few lines of a file */
 Commands.head = function (terminal, args) {
+    alert(`args: ${args}`);
     if (!args){
         return "head: missing file operand";
     }
