@@ -6,14 +6,15 @@ Commands.help = function () {
 Navigation:
   ls              List directory contents
   cd <dir>        Change directory
+  cd ..           Return to parent directory
   pwd             Print working directory
   tree            Show directory structure
 Files:
   cat <file>                Display file contents
-  head -n <number> <file>   Display number of lines from the start of the file
+  head -n <number> <file>   Outputs the beginning portion of a file
+  tail -n <number> <file>   Outputs the last portion of a file 
   more <file>               Display file one screen at a time
   pager <file>              Display file one screen at a time
-  touch <file>              Create empty file
 System:
   help            Show this help message
   clear           Clear terminal
@@ -26,7 +27,7 @@ System:
 
 /* SUDO */
 Commands.sudo = function (terminal) {
-    return "guest is not allowed to invoke sudo, this incident will be reported.";
+    return "guest users are not allowed to invoke sudo, this incident will be reported.";
 };
 
 /* HEAD - show first few lines of a file */
@@ -73,31 +74,65 @@ Commands.tail = function (terminal, args) {
     }
 };
 
-/* FIND - file files */
-
 /* PS - list processes*/
+Commands.ps = function (terminal) {
+    return "guest users are not permitted to list processes.";
+};
 
 /* KILL - kill process */
+Commands.kill = function (terminal) {
+    return "guest users are not permitted to kill processes.";
+};
 
 /* MKDIR - create directory */
+Commands.mkdir = function (terminal) {
+    return "guest users are not permitted to create directories.";
+};
 
 /* RMDIR - create directory */
+Commands.rmdir = function (terminal) {
+    return "guest users are not permitted to remove directories.";
+};
 
 /* MV - move or rename file */
+Commands.mv = function (terminal) {
+    return "guest users are not permitted to move files.";
+};
 
 /* RM - remove file */
+Commands.rm = function (terminal) {
+    return "guest users are not permitted to remove files.";
+};
 
 /* DF - report total, used, and available storage space */
+Commands.df = function (terminal) {
+    return "guest users are not permitted view storage information.";
+};
 
 /* FREE - display free and used memory */
+Commands.free = function (terminal) {
+    return "guest users are not permitted view memory information.";
+};
 
 /* PING */
+Commands.ping = function (terminal) {
+    return "guest users are not permitted to run the ping command.";
+};
 
 /* CURL - download file/site */
+Commands.curl = function (terminal) {
+    return "guest users are not permitted to run the curl command.";
+};
 
 /* WGET - download file/site */
+Commands.wget = function (terminal) {
+    return "guest users are not permitted to run the wget command.";
+};
 
 /* FINGER - user info look up */
+Commands.finger = function (terminal) {
+    return "guest users are not permitted to run the finger command.";
+};
 
 /* TOUCH */
 Commands.touch = function (terminal, args) {
