@@ -31,8 +31,7 @@ Commands.sudo = function (terminal) {
 
 /* HEAD - show first few lines of a file */
 Commands.head = function (terminal, args) {
-    alert(`args: ${args}`);
-    if (!args){
+    if (args.length === 0){
         return "head: missing file operand";
     }
     for (const arg of args) {
@@ -54,7 +53,7 @@ Commands.head = function (terminal, args) {
 
 /* TAIL - show last few lines of file */
 Commands.tail = function (terminal, args) {
-    if (!args){
+    if (args.length === 0){
         return "tail: missing file operand";
     }
     for (const arg of args) {
