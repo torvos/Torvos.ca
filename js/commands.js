@@ -9,10 +9,11 @@ Navigation:
   pwd             Print working directory
   tree            Show directory structure
 Files:
-  cat <file>      Display file contents
-  more <file>     Display file one screen at a time
-  pager <file>    Display file one screen at a time
-  touch <file>    Create empty file
+  cat <file>                Display file contents
+  head -n <number> <file>   Display number of lines from the start of the file
+  more <file>               Display file one screen at a time
+  pager <file>              Display file one screen at a time
+  touch <file>              Create empty file
 System:
   help            Show this help message
   clear           Clear terminal

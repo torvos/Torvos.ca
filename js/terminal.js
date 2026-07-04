@@ -170,15 +170,16 @@ class TerminalEngine {
                 if (result){
                     const lines = result.split(/\r?\n/);
                     if (cmd === "head"){
-                        const maxLines = Math.min(lines.length, 10);
-                        const nArg = args.find(arg => arg.startsWith("-n,"));
-                        if (nArg) {
-                            const value = parseInt(nArg.split(",")[1], 10);
+                        let maxLines = Math.min(lines.length, 10);
+                        const nIndex = args.indexOf("-n");
+                        if (nIndex !== -1 && nIndex + 1 < args.length) {
+                            const value = parseInt(args[nIndex + 1], 10);
+
                             if (!isNaN(value) && value > 0) {
-                                maxLines = value;
+                                maxLines = Math.min(value, lines.length);
                             }
                         }
-                        for (let i = 0; i < maxLines; i++) {
+                        for (let i = 1; i < maxLines+1; i++) {
                             this.write(lines[i]);
                             await this.sleep(50);
                         }
