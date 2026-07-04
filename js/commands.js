@@ -29,6 +29,26 @@ Commands.sudo = function (terminal) {
 };
 
 /* HEAD - show first few lines of a file */
+Commands.head = function (terminal, args) {
+    for (const arg of args) {
+        const fullPath = resolveRelativePath(terminal.cwd, arg);
+        const node = resolvePath(fullPath);
+        if (node != null){
+            if (!node) {
+                return `head: no such file: ${target}`;
+            }
+            if (node.type === "dir") {
+                return `head: ${target}: is a directory`;
+            }
+            if (node && node.type === "file") {
+                return node.content;
+            }
+        }
+    }
+    if (!target) {
+        return "head: missing file operand";
+    }
+};
 
 /* TAIL - show last few lines of file */
 

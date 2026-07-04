@@ -169,10 +169,26 @@ class TerminalEngine {
                 const result = window.Commands[cmd](this, args);
                 if (result){
                     const lines = result.split(/\r?\n/);
-                    for (const line of lines) {
-                        this.write(line);
-                        await this.sleep(50);
-                    } 
+                    if (cmd === "head"){
+                        const maxLines = Math.min(lines.length, 10);
+                        const nArg = args.find(arg => arg.startsWith("-n,"));
+                        if (nArg) {
+                            const value = parseInt(nArg.split(",")[1], 10);
+                            if (!isNaN(value) && value > 0) {
+                                maxLines = value;
+                            }
+                        }
+                        for (let i = 0; i < maxLines; i++) {
+                            this.write(lines[i]);
+                            await this.sleep(50);
+                        }
+                    }
+                    else{
+                        for (const line of lines) {
+                            this.write(line);
+                            await this.sleep(50);
+                        } 
+                    }
                 } 
             } else if (cmd === "login"){
                 this.inputMode = "waitingUsername";
