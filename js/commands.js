@@ -3,26 +3,31 @@ window.Commands = {};
 /* HELP */
 Commands.help = function () {
     return `Torvos Terminal Commands
-Navigation:
-  ls              List directory contents
-  cd <dir>        Change directory
-  cd ..           Return to parent directory
-  pwd             Print working directory
-  tree            Show directory structure
-Files:
-  cat <file>                Display file contents
-  head -n <number> <file>   Outputs the beginning portion of a file
-  tail -n <number> <file>   Outputs the last portion of a file 
-  more <file>               Display file one screen at a time
-  pager <file>              Display file one screen at a time
-System:
-  help            Show this help message
-  clear           Clear terminal
-  whoami          Show current user
-  login           Login to a diffrent user account
-  sudo            Execute commands with administrative
-  history         Displays history of commands
-  echo <text>     Displays the text on the terminal`;
++--------------------------------------------------------------------+
+|Navigation:                                                         |
+|  ls              List directory contents                           |
+|  cd <dir>        Change directory                                  |
+|  cd ..           Return to parent directory                        |
+|  pwd             Print working directory                           |
+|  tree            Show directory structure                          |
++--------------------------------------------------------------------+
+|Files:                                                              |
+|  cat <file>                Display file contents                   |
+|  head -n <number> <file>   Outputs the beginning portion of a file |
+|  tail -n <number> <file>   Outputs the last portion of a file      |
+|  more <file>               Display file one screen at a time       |
+|  pager <file>              Display file one screen at a time       |
++--------------------------------------------------------------------+
+|System:                                                             |
+|  help            Show this help message                            |
+|  clear           Clear terminal                                    |
+|  whoami          Show current user                                 |
+|  login           Login to a diffrent user account                  |
+|  sudo            Execute commands with administrative              |
+|  history         Displays history of commands                      |
+|  echo <text>     Displays the text on the terminal                 |
++--------------------------------------------------------------------+`;
+
 };
 
 /* SUDO */
