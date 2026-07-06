@@ -1,4 +1,4 @@
-window.FileSystem = {
+    window.FileSystem = {
 
     "~": {
         type: "dir",
@@ -8,30 +8,7 @@ window.FileSystem = {
                 children: {
                     "bio.md": {
                         type: "file",
-                        content: `
-Torvos is a personal infrastructure and security-focused portfolio.
-Specializing in:
-- Cloud architecture (Azure, AWS)
-- Identity & access management
-- Infrastructure automation (Terraform)
-- Secure system design`
-                    }
-                }
-            },
-            projects: {
-                type: "dir",
-                children: {
-                    "azure.md": {
-                        type: "file",
-                        content: "Azure IAM / Entra ID / federation / enterprise identity work."
-                    },
-                    "terraform.md": {
-                        type: "file",
-                        content: "Infrastructure-as-code pipelines and multi-cloud deployments."
-                    },
-                    "security.md": {
-                        type: "file",
-                        content: "Threat modeling, IAM design, and cloud security architecture."
+                        content: `Bio comming soon, for now just look at linkedIn or find me on Slack/Discord.`
                     }
                 }
             },
@@ -41,7 +18,7 @@ Specializing in:
                 children: {
                     "welcome.md": {
                         type: "file",
-                        content: "Welcome to the Torvos technical blog. More posts coming soon."
+                        content: "Welcome... I'll write something at some point once I've finished this."
                     }
                 }
             },
@@ -57,7 +34,7 @@ LinkedIn: https://www.linkedin.com/in/philippet/`
 
             "resume.md": {
                 type: "file",
-                content: "Resume download available soon."
+                content: "Resume download available soon, check linkedIn for now."
             }
 
         }
