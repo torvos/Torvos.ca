@@ -1,4 +1,4 @@
-window.FileSystem = {
+    window.FileSystem = {
 
     "~": {
         type: "dir",
@@ -12,6 +12,7 @@ window.FileSystem = {
                     }
                 }
             },
+
             blog: {
                 type: "dir",
                 children: {
@@ -24,10 +25,11 @@ window.FileSystem = {
 
             "contact.md": {
                 type: "file",
-                content: `Email: contact@torvos.ca
+                content: `
+Email: contact@torvos.ca
 GitHub: https://github.com/torvos
 Bluesky: https://bsky.app/profile/torvos.bsky.social
-LinkedIn: https://www.linkedin.com/in/philippet/
+LinkedIn: https://www.linkedin.com/in/philippet/`
             },
 
             "resume.md": {
