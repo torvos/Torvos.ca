@@ -146,10 +146,14 @@ Commands.pwd = function (terminal) {
 };
 
 /* LS */
-Commands.ls = function (terminal) {
-    const node = resolvePath(terminal.cwd);
+Commands.ls = function (terminal, args) {
+    let target = args[0];
+    if (target === undefined) {
+        target = terminal.cwd;
+    }
+    const node = resolvePath(target);
     if (!node || node.type !== "dir") {
-        return "ls: not a directory";
+        return `ls: ${target} is not a directory`;
     }
     const children = node.children || {};
     const keys = Object.keys(children);

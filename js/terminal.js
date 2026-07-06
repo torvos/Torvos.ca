@@ -61,12 +61,11 @@ class TerminalEngine {
 
                 case "Backspace":
                     if (this.cursorPos === 0) break;
-
                     this.currentInput =
                         this.currentInput.slice(0, this.cursorPos - 1) +
                         this.currentInput.slice(this.cursorPos);
-
                     this.cursorPos--;
+                    document.getElementById("hidden-input").value = this.currentInput;
                     break;                    
 
                 case "ArrowUp":
@@ -153,6 +152,8 @@ class TerminalEngine {
                 this.renderPrompt();
                 break;
         }
+        document.getElementById("hidden-input").value = "";
+        this.cursorPos = 0;
     }
 
     async execute(input) {
@@ -229,6 +230,7 @@ class TerminalEngine {
             this.historyIndex--;
         }
         this.currentInput = this.history[this.historyIndex] || "";
+        document.getElementById("hidden-input").value = this.currentInput;
         this.cursorPos = this.currentInput.length;
         this.renderInput();
     }
@@ -239,10 +241,11 @@ class TerminalEngine {
             this.historyIndex++;
             this.currentInput = this.history[this.historyIndex];
         } else {
-            this.currentInput = this.history[this.historyIndex] || "";
-            this.cursorPos = this.currentInput.length;
+            this.currentInput = "";
+            this.cursorPos = 0;
             this.renderInput();
         }
+        document.getElementById("hidden-input").value = this.currentInput;
         this.renderInput();
     }
 
