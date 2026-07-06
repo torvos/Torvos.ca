@@ -5,7 +5,7 @@ Commands.help = function () {
     return `Torvos Terminal Commands
 +--------------------------------------------------------------------+
 |Navigation:                                                         |
-|  ls              List directory contents                           |
+|  ls <dir>        List directory contents                           |
 |  cd <dir>        Change directory                                  |
 |  cd ..           Return to parent directory                        |
 |  pwd             Print working directory                           |
@@ -208,9 +208,10 @@ Commands.cat = function (terminal, args) {
     return node.content;
 };
 
-/* MORE */
+/* MORE - actually implement this */
 Commands.more = Commands.cat;
-/* PAGER */
+
+/* PAGER - actually implement this */
 Commands.pager = Commands.cat;
 
 /* TREE */

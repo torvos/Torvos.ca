@@ -25,8 +25,7 @@
 
             "contact.md": {
                 type: "file",
-                content: `
-Email: contact@torvos.ca
+                content: `Email: contact@torvos.ca
 GitHub: https://github.com/torvos
 Bluesky: https://bsky.app/profile/torvos.bsky.social
 LinkedIn: https://www.linkedin.com/in/philippet/`
