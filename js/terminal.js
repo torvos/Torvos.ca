@@ -17,15 +17,29 @@ class TerminalEngine {
 
     async init() {
         this.inputMode = "normal";
-        await this.typeItOut(`Torvos v2.7.0`, {color: "#c707ce"});
-        await this.typeItOut(`Initializing kernel................ [ OK ]`);
-        await this.typeItOut(`Mounting virtual filesystem........ [ OK ]`);
-        await this.typeItOut(`Starting network stack............. [ OK ]`);
-        await this.typeItOut(`Loading user profile............... [ OK ]`);
-        await this.typeItOut(`Establishing secure session........ [ OK ]`);
-        await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
-        await this.write(`|  Welcome to Torvos.ca type 'help' to begin.  |`, {color: "#ffffff"});
-        await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
+        const params = new URLSearchParams(window.location.search);
+
+        if (!params.has("quickboot")) {
+            await this.typeItOut(`Torvos v2.7.0`, {color: "#c707ce"});
+            await this.typeItOut(`Initializing kernel................ [ OK ]`);
+            await this.typeItOut(`Mounting virtual filesystem........ [ OK ]`);
+            await this.typeItOut(`Starting network stack............. [ OK ]`);
+            await this.typeItOut(`Loading user profile............... [ OK ]`);
+            await this.typeItOut(`Establishing secure session........ [ OK ]`);
+            await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
+            await this.write(`|  Welcome to Torvos.ca type 'help' to begin.  |`, {color: "#ffffff"});
+            await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
+        }
+        if (params.has("run")) {
+            const command = params.get("run");
+            this.currentInput = command;
+            this.promptEl.textContent = `${this.config.username}@${this.config.hostname}:${this.cwd}$ ${command}`;   
+            this.cursorPos = command.length;
+            this.renderInput();   
+            this.hiddenInput.focus();
+            this.handleEnter();
+        }
+
         this.renderPrompt();     
         this.renderInput();   
         this.hiddenInput.focus();
