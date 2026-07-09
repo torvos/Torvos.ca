@@ -1,3 +1,47 @@
+/* RESOLVE PATH HELPERS (fallback safety) (If not already defined globally)*/
+if (typeof resolvePath === "undefined") {
+    window.resolvePath = function (path) {
+        const parts = path.replace("~", "").split("/").filter(Boolean);
+        let node = window.FileSystem["~"];
+        for (const part of parts) {
+            if (!node.children || !node.children[part]) {
+                return null;
+            }
+            node = node.children[part];
+        }
+        return node;
+    };
+}
+
+if (typeof resolveRelativePath === "undefined") {
+    window.resolveRelativePath = function (cwd, path) {
+        if (!path) return cwd;
+        if (path.startsWith("~")) return path;
+        if (path.startsWith("/")) return "~" + path;
+        if (path === "..") return "~";
+        if (cwd === "~") return `~/${path}`;
+        return `${cwd}/${path}`;
+    };
+}
+
+if (typeof getParentDirectory === "undefined") {
+    window.getParentDirectory = function (path) {
+        const parts = path.replace(/^~/, "").split("/").filter(Boolean);
+        const name = parts.pop();
+        let parent = window.FileSystem["~"];
+        for (const part of parts) {
+            if (!parent.children || !parent.children[part]) {
+                return null;
+            }
+            parent = parent.children[part];
+        }
+        return {
+            parent: parent,
+            name: name
+        };
+    };
+}
+
 window.Commands = {};
 
 /* HELP */
@@ -46,10 +90,10 @@ Commands.head = function (terminal, args) {
         const node = resolvePath(fullPath);
         if (node != null){
             if (!node) {
-                return `head: no such file: ${target}`;
+                return `head: no such file: ${arg}`;
             }
             if (node.type === "dir") {
-                return `head: ${target}: is a directory`;
+                return `head: ${arg}: is a directory`;
             }
             if (node && node.type === "file") {
                 return node.content;
@@ -68,10 +112,10 @@ Commands.tail = function (terminal, args) {
         const node = resolvePath(fullPath);
         if (node != null){
             if (!node) {
-                return `tail: no such file: ${target}`;
+                return `tail: no such file: ${arg}`;
             }
             if (node.type === "dir") {
-                return `tail: ${target}: is a directory`;
+                return `tail: ${arg}: is a directory`;
             }
             if (node && node.type === "file") {
                 return node.content;
@@ -96,12 +140,19 @@ Commands.mkdir = function (terminal, args) {
     if (target === undefined) {
         return `mkdir: missing operand`;
     }
-    const node = resolvePath(target);
+    const path = resolveRelativePath(terminal.cwd, target);
+    const node = resolvePath(path);
     if (node){
         return `mkdir: directory ${target} already exsists`;
     }
-    const dir = window.FileSystem[terminal.cwd];
-    dir.children[target] = {
+    const path = resolveRelativePath(terminal.cwd, target);
+    const result = getParentDirectory(path);
+
+    if (!result) {
+        return `mkdir: invalid path ${target}`;
+    }
+
+    result.parent.children[result.name] = {
         type: "dir",
         children: {}
     };
@@ -113,7 +164,8 @@ Commands.rmdir = function (terminal, args) {
     if (target === undefined) {
         return `rmdir: missing operand`;
     }
-    const node = resolvePath(target);
+    const path = resolveRelativePath(terminal.cwd, target);
+    const node = resolvePath(path);
     if (!node){
         return `rmdir: directory ${target} not found`;
     }
@@ -122,9 +174,14 @@ Commands.rmdir = function (terminal, args) {
             return `rmdir: failed to remove ${target}: Directory not empty`;    
         }
         else{
-            const dir = window.FileSystem[terminal.cwd];
-            delete dir.children[target];
-        }
+            const path = resolveRelativePath(terminal.cwd, target);
+            const result = getParentDirectory(path);
+
+            if (!result) {
+                return `rmdir: directory ${target} not found`;
+            }
+
+            delete result.parent.children[result.name];        }
     }
     else if (node.type === "file"){
         return `rmdir: ${target} is a file please use rm`;
@@ -132,8 +189,57 @@ Commands.rmdir = function (terminal, args) {
 };
 
 /* MV - move or rename file */
-Commands.mv = function (terminal) {
-    return "guest users are not permitted to move files.";
+Commands.mv = function (terminal, args) {
+    let source = args[0];
+    let destination = args[1];
+
+    if (source === undefined || destination === undefined) {
+        return `mv: missing operand`;
+    }
+
+    const sourcePath = resolveRelativePath(terminal.cwd, source);
+    const destinationPath = resolveRelativePath(terminal.cwd, destination);
+
+    const src = getParentDirectory(sourcePath);
+    const dest = getParentDirectory(destinationPath);
+
+    if (!src || !dest) {
+        return `mv: invalid path`;
+    }
+
+    if (dest.parent.children[dest.name]) {
+        return `mv: ${destination}: already exists`;
+    }
+
+    dest.parent.children[dest.name] = src.parent.children[src.name];
+
+    delete src.parent.children[src.name];
+};
+
+/* CP - copy file */
+Commands.cp = function (terminal, args) {
+    let source = args[0];
+    let destination = args[1];
+
+    if (source === undefined || destination === undefined) {
+        return `cp: missing operand`;
+    }
+
+    const sourcePath = resolveRelativePath(terminal.cwd, source);
+    const destinationPath = resolveRelativePath(terminal.cwd, destination);
+
+    const src = getParentDirectory(sourcePath);
+    const dest = getParentDirectory(destinationPath);
+
+    if (!src || !dest) {
+        return `cp: invalid path`;
+    }
+
+    if (dest.parent.children[dest.name]) {
+        return `cp: ${destination}: already exists`;
+    }
+
+    dest.parent.children[dest.name] = structuredClone(src.parent.children[src.name]);
 };
 
 /* RM - remove file */
@@ -142,16 +248,21 @@ Commands.rm = function (terminal, args) {
     if (target === undefined) {
         return `rm: missing operand`;
     }
-    const node = resolvePath(target);
-    if (node && node.type === "file"){
-        const dir = window.FileSystem[terminal.cwd];
-        delete dir.children[target];
+
+    const path = resolveRelativePath(terminal.cwd, target);
+    const result = getParentDirectory(path);
+
+    if (!result) {
+        return `rm: file ${target} not found`;
     }
-    else if (node.type === "dir"){
-        return `rm: ${target} is a directory please use rmdir`;
+
+    const node = result.parent.children[result.name];
+
+    if (node.type === "file") {
+        delete result.parent.children[result.name];
     }
     else {
-        return `rm: file ${target} not found`;
+        return `rm: ${target} is a directory please use rmdir`;
     }
 };
 
@@ -191,12 +302,20 @@ Commands.touch = function (terminal, args) {
     if (target === undefined) {
         return `touch: missing operand`;
     }
-    const node = resolvePath(target);
+    const path = resolveRelativePath(terminal.cwd, target);
+    const node = resolvePath(path);
     if (node){
         return `touch: file ${target} already exsists`;
     }
-    const dir = window.FileSystem[terminal.cwd];
-    dir.children[target] = {
+
+    const path = resolveRelativePath(terminal.cwd, target);
+    const result = getParentDirectory(path);
+
+    if (!result) {
+        return `touch: invalid path ${target}`;
+    }
+
+    result.parent.children[result.name] = {
         type: "file",
         content: ""
     };
@@ -218,7 +337,8 @@ Commands.ls = function (terminal, args) {
     if (target === undefined) {
         target = terminal.cwd;
     }
-    const node = resolvePath(target);
+    const path = resolveRelativePath(terminal.cwd, target);
+    const node = resolvePath(path);
     if (!node || node.type !== "dir") {
         return `ls: ${target} is not a directory`;
     }
@@ -318,29 +438,3 @@ Commands.echo = function (_terminal, args) {
 Commands.history = function (terminal) {
     return terminal.history.join("\n");
 };
-
-/* RESOLVE PATH HELPERS (fallback safety) (If not already defined globally)*/
-if (typeof resolvePath === "undefined") {
-    window.resolvePath = function (path) {
-        const parts = path.replace("~", "").split("/").filter(Boolean);
-        let node = window.FileSystem["~"];
-        for (const part of parts) {
-            if (!node.children || !node.children[part]) {
-                return null;
-            }
-            node = node.children[part];
-        }
-        return node;
-    };
-}
-
-if (typeof resolveRelativePath === "undefined") {
-    window.resolveRelativePath = function (cwd, path) {
-        if (!path) return cwd;
-        if (path.startsWith("~")) return path;
-        if (path.startsWith("/")) return "~" + path;
-        if (path === "..") return "~";
-        if (cwd === "~") return `~/${path}`;
-        return `${cwd}/${path}`;
-    };
-}
