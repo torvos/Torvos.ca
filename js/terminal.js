@@ -27,9 +27,13 @@ class TerminalEngine {
             this.hasbooted = settings.hasbooted ?? "0";
             this.cwd = settings.cwd ?? "~";
         }
-      
-        const params = new URLSearchParams(window.location.search);
 
+        const savedFileSystem = localStorage.getItem("FileSystem");
+        if (savedFileSystem) {
+            window.FileSystem = JSON.parse(savedFileSystem);
+        }
+
+        const params = new URLSearchParams(window.location.search);
         if (this.hasbooted === 0 || params.has("quickboot")) {
             await this.typeItOut(`Torvos v2.7.0`, {color: "#c707ce"});
             await this.typeItOut(`Initializing kernel................ [ OK ]`);
@@ -64,7 +68,6 @@ class TerminalEngine {
         const cursorPos = this.cursorPos;
         const hasbooted = this.hasbooted;
         const cwd = this.cwd;
-        
 
         const terminalSettings = {
             history,
@@ -75,7 +78,7 @@ class TerminalEngine {
         };
 
         localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
-
+        localStorage.setItem("FileSystem", JSON.stringify(window.FileSystem));
     }
 
     sleep(ms) {
@@ -182,6 +185,7 @@ class TerminalEngine {
                 }
                 if (input === "reset"){
                     localStorage.removeItem("terminalSettings");
+                    localStorage.removeItem("FileSystem");
                     location.reload();
                     return;
                 } 

@@ -91,13 +91,44 @@ Commands.kill = function (terminal) {
 };
 
 /* MKDIR - create directory */
-Commands.mkdir = function (terminal) {
-    return "guest users are not permitted to create directories.";
+Commands.mkdir = function (terminal, args) {
+    let target = args[0];
+    if (target === undefined) {
+        return `mkdir: missing operand`;
+    }
+    const node = resolvePath(target);
+    if (node){
+        return `mkdir: directory ${target} already exsists`;
+    }
+    const dir = window.FileSystem[terminal.cwd];
+    dir.children[target] = {
+        type: "dir",
+        children: {}
+    };
 };
 
 /* RMDIR - create directory */
-Commands.rmdir = function (terminal) {
-    return "guest users are not permitted to remove directories.";
+Commands.rmdir = function (terminal, args) {
+    let target = args[0];
+    if (target === undefined) {
+        return `rmdir: missing operand`;
+    }
+    const node = resolvePath(target);
+    if (!node){
+        return `rmdir: directory ${target} not found`;
+    }
+    if (node && node.type === "dir"){
+        if (Object.keys(node.children).length > 0) {
+            return `rmdir: failed to remove ${target}: Directory not empty`;    
+        }
+        else{
+            const dir = window.FileSystem[terminal.cwd];
+            delete dir.children[target];
+        }
+    }
+    else if (node.type === "file"){
+        return `rmdir: ${target} is a file please use rm`;
+    }
 };
 
 /* MV - move or rename file */
@@ -106,8 +137,22 @@ Commands.mv = function (terminal) {
 };
 
 /* RM - remove file */
-Commands.rm = function (terminal) {
-    return "guest users are not permitted to remove files.";
+Commands.rm = function (terminal, args) {
+    let target = args[0];
+    if (target === undefined) {
+        return `rm: missing operand`;
+    }
+    const node = resolvePath(target);
+    if (node && node.type === "file"){
+        const dir = window.FileSystem[terminal.cwd];
+        delete dir.children[target];
+    }
+    else if (node.type === "dir"){
+        return `rm: ${target} is a directory please use rmdir`;
+    }
+    else {
+        return `rm: file ${target} not found`;
+    }
 };
 
 /* DF - report total, used, and available storage space */
@@ -142,8 +187,19 @@ Commands.finger = function (terminal) {
 
 /* TOUCH */
 Commands.touch = function (terminal, args) {
-    const target = args[0];
-    return `touch: cannot touch '${target}': Permission denied`;
+    let target = args[0];
+    if (target === undefined) {
+        return `touch: missing operand`;
+    }
+    const node = resolvePath(target);
+    if (node){
+        return `touch: file ${target} already exsists`;
+    }
+    const dir = window.FileSystem[terminal.cwd];
+    dir.children[target] = {
+        type: "file",
+        content: ""
+    };
 };
 
 /* PWD */
