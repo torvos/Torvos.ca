@@ -140,12 +140,14 @@ Commands.mkdir = function (terminal, args) {
     if (target === undefined) {
         return `mkdir: missing operand`;
     }
+
     const path = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(path);
+
     if (node){
         return `mkdir: directory ${target} already exsists`;
     }
-    const path = resolveRelativePath(terminal.cwd, target);
+
     const result = getParentDirectory(path);
 
     if (!result) {
@@ -299,16 +301,18 @@ Commands.finger = function (terminal) {
 /* TOUCH */
 Commands.touch = function (terminal, args) {
     let target = args[0];
+
     if (target === undefined) {
         return `touch: missing operand`;
     }
+
     const path = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(path);
+
     if (node){
         return `touch: file ${target} already exsists`;
     }
 
-    const path = resolveRelativePath(terminal.cwd, target);
     const result = getParentDirectory(path);
 
     if (!result) {
