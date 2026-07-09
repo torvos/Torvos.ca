@@ -20,6 +20,7 @@ Commands.help = function () {
 +--------------------------------------------------------------------+
 |System:                                                             |
 |  help            Show this help message                            |
+|  reset           reverts terminal to original settings             |
 |  clear           Clear terminal                                    |
 |  whoami          Show current user                                 |
 |  login           Login to a diffrent user account                  |
@@ -148,6 +149,11 @@ Commands.touch = function (terminal, args) {
 /* PWD */
 Commands.pwd = function (terminal) {
     return terminal.cwd;
+};
+
+/* RESET */
+Commands.reset = function (terminal) {
+    return "reset";
 };
 
 /* LS */

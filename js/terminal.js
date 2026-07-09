@@ -1,5 +1,5 @@
 class TerminalEngine {
-
+    
     constructor(config) {
         this.config = config;
         this.output = document.getElementById("output");
@@ -11,15 +11,26 @@ class TerminalEngine {
         this.history = [];
         this.historyIndex = -1;
         this.cursorPos = 0;
+        this.hasbooted = 0;
         this.cwd = "~";
         this.bindEvents();
     }
 
     async init() {
         this.inputMode = "normal";
+        const savedSettings = localStorage.getItem("terminalSettings");
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            this.history = settings.history ?? [];
+            this.historyIndex = settings.historyIndex ?? "-1";
+            this.cursorPos = settings.cursorPos ?? "0";
+            this.hasbooted = settings.hasbooted ?? "0";
+            this.cwd = settings.cwd ?? "~";
+        }
+      
         const params = new URLSearchParams(window.location.search);
 
-        if (!params.has("quickboot")) {
+        if (this.hasbooted === 0 || params.has("quickboot")) {
             await this.typeItOut(`Torvos v2.7.0`, {color: "#c707ce"});
             await this.typeItOut(`Initializing kernel................ [ OK ]`);
             await this.typeItOut(`Mounting virtual filesystem........ [ OK ]`);
@@ -29,6 +40,7 @@ class TerminalEngine {
             await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
             await this.write(`|  Welcome to Torvos.ca type 'help' to begin.  |`, {color: "#ffffff"});
             await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
+            this.hasbooted = 1;
         }
         if (params.has("run")) {
             const command = params.get("run");
@@ -42,7 +54,28 @@ class TerminalEngine {
 
         this.renderPrompt();     
         this.renderInput();   
+        this.saveSettings();
         this.hiddenInput.focus();
+    }
+
+    saveSettings(){
+        const history = this.history;
+        const historyIndex = this.historyIndex;
+        const cursorPos = this.cursorPos;
+        const hasbooted = this.hasbooted;
+        const cwd = this.cwd;
+        
+
+        const terminalSettings = {
+            history,
+            historyIndex,
+            cursorPos,
+            hasbooted,
+            cwd
+        };
+
+        localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
+
     }
 
     sleep(ms) {
@@ -146,6 +179,11 @@ class TerminalEngine {
                     this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$`);
                     document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
                     return;
+                }
+                if (input === "reset"){
+                    localStorage.removeItem("terminalSettings");
+                    location.reload();
+                    return;
                 } 
                 this.history.push(input);
                 this.historyIndex = this.history.length;
@@ -170,6 +208,7 @@ class TerminalEngine {
         }
         document.getElementById("hidden-input").value = "";
         this.cursorPos = 0;
+        this.saveSettings();
     }
 
     async execute(input) {
