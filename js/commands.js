@@ -124,16 +124,6 @@ Commands.tail = function (terminal, args) {
     }
 };
 
-/* PS - list processes*/
-Commands.ps = function (terminal) {
-    return "guest users are not permitted to list processes.";
-};
-
-/* KILL - kill process */
-Commands.kill = function (terminal) {
-    return "guest users are not permitted to kill processes.";
-};
-
 /* MKDIR - create directory */
 Commands.mkdir = function (terminal, args) {
     let target = args[0];
@@ -266,36 +256,6 @@ Commands.rm = function (terminal, args) {
     else {
         return `rm: ${target} is a directory please use rmdir`;
     }
-};
-
-/* DF - report total, used, and available storage space */
-Commands.df = function (terminal) {
-    return "guest users are not permitted view storage information.";
-};
-
-/* FREE - display free and used memory */
-Commands.free = function (terminal) {
-    return "guest users are not permitted view memory information.";
-};
-
-/* PING */
-Commands.ping = function (terminal) {
-    return "guest users are not permitted to run the ping command.";
-};
-
-/* CURL - download file/site */
-Commands.curl = function (terminal) {
-    return "guest users are not permitted to run the curl command.";
-};
-
-/* WGET - download file/site */
-Commands.wget = function (terminal) {
-    return "guest users are not permitted to run the wget command.";
-};
-
-/* FINGER - user info look up */
-Commands.finger = function (terminal) {
-    return "guest users are not permitted to run the finger command.";
 };
 
 /* TOUCH */
@@ -441,4 +401,44 @@ Commands.echo = function (_terminal, args) {
 /* HISTORY */
 Commands.history = function (terminal) {
     return terminal.history.join("\n");
+};
+
+/* PS - list processes*/
+Commands.ps = function (terminal) {
+    return "guest users are not permitted to list processes.";
+};
+
+/* KILL - kill process */
+Commands.kill = function (terminal) {
+    return "guest users are not permitted to kill processes.";
+};
+
+/* DF - report total, used, and available storage space */
+Commands.df = function (terminal) {
+    return "guest users are not permitted view storage information.";
+};
+
+/* FREE - display free and used memory */
+Commands.free = function (terminal) {
+    return "guest users are not permitted view memory information.";
+};
+
+/* PING */
+Commands.ping = function (terminal) {
+    return "guest users are not permitted to run the ping command.";
+};
+
+/* CURL - download file/site */
+Commands.curl = function (terminal) {
+    return "guest users are not permitted to run the curl command.";
+};
+
+/* WGET - download file/site */
+Commands.wget = function (terminal) {
+    return "guest users are not permitted to run the wget command.";
+};
+
+/* FINGER - user info look up */
+Commands.finger = function (terminal) {
+    return "guest users are not permitted to run the finger command.";
 };
