@@ -34,18 +34,29 @@ class TerminalEngine {
         }
 
         const params = new URLSearchParams(window.location.search);
-        if (this.hasbooted === 0 || params.has("quickboot")) {
-            await this.typeItOut(`Torvos v2.7.0`, {color: "#c707ce"});
+        
+        await this.write(`Torvos v2.7.0`, {color: "#c707ce"});
+
+        if (this.hasbooted === 1){
+            await this.write(`[INFO] Resuming previous session.................[ OK ]`, {color: "#ffffff"});
+        } else if (this.hasbooted === 0 || params.has("quickboot")) {
             await this.typeItOut(`Initializing kernel................ [ OK ]`);
             await this.typeItOut(`Mounting virtual filesystem........ [ OK ]`);
             await this.typeItOut(`Starting network stack............. [ OK ]`);
             await this.typeItOut(`Loading user profile............... [ OK ]`);
             await this.typeItOut(`Establishing secure session........ [ OK ]`);
-            await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
-            await this.write(`|  Welcome to Torvos.ca type 'help' to begin.  |`, {color: "#ffffff"});
-            await this.write(`+----------------------------------------------+`, {color: "#ffffff"});
             this.hasbooted = 1;
         }
+        await this.write(`+------------------------------------------------------+`, {color: "#ffffff"});
+        await this.write(`| ████████╗ ██████╗ ██████╗ ██╗   ██╗ ██████╗ ███████╗ |`, {color: "#ffffff"});
+        await this.write(`| ╚══██╔══╝██╔═══██╗██╔══██╗██║   ██║██╔═══██╗██╔════╝ |`, {color: "#ffffff"});
+        await this.write(`|    ██║   ██║   ██║██████╔╝██║   ██║██║   ██║███████╗ |`, {color: "#ffffff"});
+        await this.write(`|    ██║   ██║   ██║██╔══██╗╚██╗ ██╔╝██║   ██║╚════██║ |`, {color: "#ffffff"});
+        await this.write(`|    ██║   ╚██████╔╝██║  ██║ ╚████╔╝ ╚██████╔╝███████║ |`, {color: "#ffffff"});
+        await this.write(`|    ╚═╝    ╚═════╝ ╚═╝  ╚═╝  ╚═══╝   ╚═════╝ ╚══════╝ |`, {color: "#ffffff"});
+        await this.write(`|            Welcome type 'help' to begin.             |`, {color: "#ffffff"});
+        await this.write(`+------------------------------------------------------+`, {color: "#ffffff"});
+
         if (params.has("run")) {
             const command = params.get("run");
             this.currentInput = command;
