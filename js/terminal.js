@@ -23,7 +23,9 @@ class TerminalEngine {
     }
 
     async init() {
+
         this.inputMode = "normal";
+
         const savedSettings = localStorage.getItem("terminalSettings");
         if (savedSettings) {
             const settings = JSON.parse(savedSettings);
@@ -74,7 +76,6 @@ class TerminalEngine {
         }
 
         const style = getComputedStyle(document.documentElement);
-
         const lineHeight = parseFloat(style.lineHeight) || parseFloat(getComputedStyle(document.body).lineHeight);
         this.pager.pageSize = Math.floor(document.getElementById("terminal").clientHeight / lineHeight) - 1;
         
@@ -101,6 +102,26 @@ class TerminalEngine {
 
         localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
         localStorage.setItem("FileSystem", JSON.stringify(window.FileSystem));
+    }
+
+    parseFlags(args){
+        const flags = new Set();
+        const remaining = [];
+
+        for (const arg of args) {
+            if (arg.startsWith("-") && arg.length > 1) {
+                for (const flag of arg.slice(1)) {
+                    flags.add(flag);
+                }
+            } else {
+                remaining.push(arg);
+            }
+        }
+
+        return {
+            flags,
+            args: remaining
+        };
     }
 
     sleep(ms) {
@@ -508,9 +529,9 @@ class TerminalEngine {
             );        
             div.innerHTML = output;
         } else {
-            div.innerText = output;
+            div.innerText = output || "\u00A0";
         }
-
+        
         if (options.color) {
             div.style.color = options.color;
         }

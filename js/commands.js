@@ -145,6 +145,7 @@ Commands.mkdir = function (terminal, args) {
 
     result.parent.children[result.name] = {
         type: "dir",
+        hidden: false,
         children: {}
     };
 };
@@ -280,6 +281,7 @@ Commands.touch = function (terminal, args) {
 
     result.parent.children[result.name] = {
         type: "file",
+        hidden: false,
         content: ""
     };
 };
@@ -296,25 +298,58 @@ Commands.reset = function (terminal) {
 
 /* LS */
 Commands.ls = function (terminal, args) {
-    let target = args[0];
-    if (target === undefined) {
-        target = terminal.cwd;
-    }
+    const parsed = terminal.parseFlags(args);
+    const longFormat = parsed.flags.has("l");
+    const showHidden = parsed.flags.has("a");
+    const recursive = parsed.flags.has("R");
+    const target = parsed.args[0] || "~";
+
     const path = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(path);
+
     if (!node || node.type !== "dir") {
         return `ls: ${target} is not a directory`;
     }
-    const children = node.children || {};
-    const keys = Object.keys(children);
-    if (keys.length === 0) return "";
-    return keys.map(name => {
-        const child = children[name];
-        if (child.type === "dir") {
-            return `${name}/`;
+
+    function listDirectory(dirNode, dirPath) {
+        const children = dirNode.children || {};
+        const keys = Object.keys(children);
+
+        let output = [];
+        let directories = [];
+
+        // First pass: list current directory contents
+        keys.forEach(name => {
+            const child = children[name];
+
+            if (!child.hidden || showHidden) {
+                if (child.type === "dir") {
+                    output.push(`${name}/`);
+                    directories.push({
+                        name,
+                        node: child
+                    });
+                } else {
+                    output.push(name);
+                }
+            }
+        });
+
+        // Second pass: recurse into directories
+        if (recursive) {
+            directories.forEach(dir => {
+                output.push("");
+                output.push(`${dirPath}${dir.name}:`);
+                output.push(listDirectory(dir.node, `${dirPath}${dir.name}/`));
+            });
         }
-        return name;
-    }).join("    ");
+        return output.join(recursive || longFormat ? "\n" : "    ");
+    }
+    if (recursive) {
+        return `${target}:\n${listDirectory(node, "")}`;
+    }
+
+    return listDirectory(node, "");
 };
 
 /* CD */

@@ -2,12 +2,15 @@
 
     "~": {
         type: "dir",
+        hidden: false,
         children: {
-            about: {
+           about: {
                 type: "dir",
+                hidden: false,
                 children: {
                     "bio.md": {
                         type: "file",
+                        hidden: false,
                         content: `
 +------------------------------------------------------------------------------------------+
 | Senior cloud architecture and cybersecurity leader with more than 23 years of            |
@@ -21,9 +24,11 @@
 
 /*            blog: {
                 type: "dir",
+                hidden: false,
                 children: {
                     "welcome.md": {
                         type: "file",
+                        hidden: false,
                         content: 
 "Welcome... I'll write something at some point once I've finished this."
                     }
@@ -32,6 +37,7 @@
 
             "contact.md": {
                 type: "file",
+                hidden: false,                
                 content: `
 +--------------------------------------------------------+
 | - Email: contact@torvos.ca                             |
@@ -41,10 +47,16 @@
 
             "resume.md": {
                 type: "file",
+                hidden: false,                
                 content: 
 "Resume download available soon, check linkedIn for now."
-            }
+            },
 
+            ".hidden.md": {
+                type: "file",
+                hidden: true,
+                content: "Hidden file"
+            }
         }
 
     }
