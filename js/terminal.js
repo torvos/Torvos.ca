@@ -14,6 +14,12 @@ class TerminalEngine {
         this.hasbooted = 0;
         this.cwd = "~";
         this.bindEvents();
+        this.pager = {
+            active: false,
+            linesPrinted: 0,
+            pageSize: 0,
+            resolver: null
+        };
     }
 
     async init() {
@@ -67,6 +73,11 @@ class TerminalEngine {
             this.handleEnter();
         }
 
+        const style = getComputedStyle(document.documentElement);
+
+        const lineHeight = parseFloat(style.lineHeight) || parseFloat(getComputedStyle(document.body).lineHeight);
+        this.pager.pageSize = Math.floor(document.getElementById("terminal").clientHeight / lineHeight) - 1;
+        
         this.renderPrompt();     
         this.renderInput();   
         this.saveSettings();
@@ -96,12 +107,53 @@ class TerminalEngine {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    getPageSize() {
+        const terminal = document.getElementById("terminal");
+        const lineHeight = parseFloat(getComputedStyle(document.body).lineHeight);
+
+        return Math.floor(terminal.clientHeight / lineHeight) - 1;
+    }
+
     bindEvents() {
+
+        window.addEventListener("resize", () => {
+            this.pager.pageSize = this.getPageSize();
+        });
+
         document.addEventListener("click", () => {
             this.hiddenInput.focus();
         });
-
+        
         this.hiddenInput.addEventListener("keydown", (e) => {
+
+            if (this.pager.active) {
+                e.preventDefault();
+
+                if (e.key === " " || e.key === "Enter") {
+
+                    // remove the "--More--" line
+                    this.output.lastChild.remove();
+
+                    this.pager.active = false;
+                    this.pager.linesPrinted = 0;
+
+                    this.pager.resolver();
+                }
+
+                if (e.key === "q") {
+
+                    this.output.lastChild.remove();
+
+                    this.pager.active = false;
+                    this.pager.linesPrinted = 0;
+
+                    // reject or resolve depending on how you want to abort
+                    this.pager.resolver(false);
+                }
+
+                return;
+            }
+
             if (e.ctrlKey && e.key === "c") {
                 e.preventDefault();
                 this.cancelCommand();
@@ -237,8 +289,8 @@ class TerminalEngine {
             const cmd = parts[0];
             const args = parts.slice(1);
             if (window.Commands && window.Commands[cmd]) {
-                const result = window.Commands[cmd](this, args);
-                if (result){
+                const result = await window.Commands[cmd](this, args);
+                if (typeof result === "string") {
                     const lines = result.split(/\r?\n/);
                     if (cmd === "head"){
                         let maxLines = Math.min(lines.length, 10);
@@ -416,6 +468,16 @@ class TerminalEngine {
             this.cwd = `${this.cwd}/${path}`;
         }
         this.renderPrompt();
+    }
+
+    async pageBreak() {
+        this.pager.active = true;
+
+        this.write("--More--");
+
+        return new Promise(resolve => {
+            this.pager.resolver = resolve;
+        });
     }
 
     write(text, options = {}) {

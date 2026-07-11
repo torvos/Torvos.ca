@@ -355,7 +355,36 @@ Commands.cat = function (terminal, args) {
 };
 
 /* MORE - actually implement this */
-Commands.more = Commands.cat;
+Commands.more = async function (terminal, args) {
+    const target = args[0];
+    if (!target) {
+        terminal.write("more: missing file operand");
+        return;
+    }
+    const fullPath = resolveRelativePath(terminal.cwd, target);
+    const node = resolvePath(fullPath);
+    if (!node) {
+        terminal.write(`more: no such file: ${target}`);
+        return;
+    }
+    if (node.type === "dir") {
+        terminal.write(`more: ${target}: is a directory`);
+        return;
+    }
+    const lines = node.content.split(/\r?\n/);
+    terminal.pager.linesPrinted = 0;
+    for (const line of lines) {
+        terminal.write(line);
+        terminal.pager.linesPrinted++;
+        if (terminal.pager.linesPrinted >= terminal.pager.pageSize) {
+            const keepGoing = await terminal.pageBreak();
+            if (keepGoing === false) {
+                break;
+            }
+        }
+        await terminal.sleep(20);
+    }
+};
 
 /* PAGER - actually implement this */
 Commands.pager = Commands.cat;
