@@ -107,6 +107,11 @@ class TerminalEngine {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    scrollToBottom() {
+        const terminal = document.getElementById("terminal");
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
     getPageSize() {
         const terminal = document.getElementById("terminal");
         const lineHeight = parseFloat(getComputedStyle(document.body).lineHeight);
@@ -255,7 +260,11 @@ class TerminalEngine {
                 this.history.push(input);
                 this.historyIndex = this.history.length;
                 this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$${input}`);
-                this.execute(input);
+    
+                document.getElementById("input-line").classList.add("hidden");
+                await this.execute(input);
+                document.getElementById("input-line").classList.remove("hidden");
+
                 this.currentInput = "";
                 this.renderInput();
                 break;
@@ -506,7 +515,7 @@ class TerminalEngine {
             div.style.color = options.color;
         }
         this.output.appendChild(div);
-        document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
+        this.scrollToBottom();
     }
 
     async typeItOut(text, options = {}) {
@@ -516,7 +525,7 @@ class TerminalEngine {
             div.style.color = options.color;
         }        
         await this.typeWrite(div, text);
-        document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
+        this.scrollToBottom();
     }
 
     async typeWrite(div, text, delay = 15) {
