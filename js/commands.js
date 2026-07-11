@@ -60,7 +60,6 @@ Commands.help = function () {
 |  head -n <number> <file>   Outputs the beginning portion of a file |
 |  tail -n <number> <file>   Outputs the last portion of a file      |
 |  more <file>               Display file one screen at a time       |
-|  pager <file>              Display file one screen at a time       |
 +--------------------------------------------------------------------+
 |System:                                                             |
 |  help            Show this help message                            |
@@ -387,7 +386,7 @@ Commands.more = async function (terminal, args) {
 };
 
 /* PAGER - actually implement this */
-Commands.pager = Commands.cat;
+Commands.pager = Commands.more;
 
 /* TREE */
 Commands.tree = function () {
