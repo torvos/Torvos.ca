@@ -145,7 +145,7 @@ Commands.mkdir = function (terminal, args) {
 
     result.parent.children[result.name] = {
         type: "dir",
-        hidden: false,
+        hidden: result.name.startsWith("."),
         children: {}
     };
 };
@@ -270,7 +270,7 @@ Commands.touch = function (terminal, args) {
     const node = resolvePath(path);
 
     if (node){
-        return `touch: file ${target} already exsists`;
+        return `touch: file ${target} already exists`;
     }
 
     const result = getParentDirectory(path);
@@ -281,7 +281,7 @@ Commands.touch = function (terminal, args) {
 
     result.parent.children[result.name] = {
         type: "file",
-        hidden: false,
+        hidden: result.name.startsWith("."),
         content: ""
     };
 };
