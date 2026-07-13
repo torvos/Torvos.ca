@@ -43,7 +43,7 @@ class TerminalEngine {
 
         const params = new URLSearchParams(window.location.search);
         
-        await this.write(`Torvos v2.7.0`, {color: "#c707ce"});
+        await this.write(`Torvos v2.7.2`, {color: "#c707ce"});
 
         if (this.hasbooted === 1){
             await this.write(`[INFO] Resuming previous session.................[ OK ]`, {color: "#ffffff"});
