@@ -81,6 +81,9 @@ Commands.sudo = function (terminal) {
 
 /* HEAD - show first few lines of a file */
 Commands.head = function (terminal, args) {
+    //Add support for:
+    // -n number of files (remember to remove from terminal.js)
+    // or -# same as -n #
     if (args.length === 0){
         return `head: missing file operand`;
     }
@@ -103,6 +106,9 @@ Commands.head = function (terminal, args) {
 
 /* TAIL - show last few lines of file */
 Commands.tail = function (terminal, args) {
+    //Add support for:
+    // -n number of files (remember to remove from terminal.js)
+    // or -# same as -n #
     if (args.length === 0){        
         return `tail: missing file operand`;
     }
@@ -125,6 +131,9 @@ Commands.tail = function (terminal, args) {
 
 /* MKDIR - create directory */
 Commands.mkdir = function (terminal, args) {
+    //Add support for:    
+    // -p create multiple folders in structure dir/dir2/dir3
+
     let target = args[0];
     if (target === undefined) {
         return `mkdir: missing operand`;
@@ -236,6 +245,9 @@ Commands.cp = function (terminal, args) {
 
 /* RM - remove file */
 Commands.rm = function (terminal, args) {
+    //Add support for:
+    // -f force
+    // -r recursive
     let target = args[0];
     if (target === undefined) {
         return `rm: missing operand`;
@@ -373,6 +385,9 @@ Commands.cd = function (terminal, args) {
 
 /* CAT */
 Commands.cat = function (terminal, args) {
+    //Add support for:
+    // -n adds numbers to lines
+
     const target = args[0];
     if (!target) {
         return "cat: missing file operand";
@@ -388,8 +403,11 @@ Commands.cat = function (terminal, args) {
     return node.content;
 };
 
-/* MORE - actually implement this */
+/* MORE */
 Commands.more = async function (terminal, args) {
+    //Add support for:
+    // + start at line #
+    // - limit screen size to # rows 
     const target = args[0];
     if (!target) {
         terminal.write("more: missing file operand");
@@ -420,11 +438,13 @@ Commands.more = async function (terminal, args) {
     }
 };
 
-/* PAGER - actually implement this */
-Commands.pager = Commands.more;
-
 /* TREE */
 Commands.tree = function () {
+    //Add support for:
+    //-d directories only
+    //-L 2 max depth
+    //-a show hidden
+    
     const root = window.FileSystem["~"];
     function walk(node, prefix = "") {
         let output = "";
@@ -457,7 +477,7 @@ Commands.clear = function (terminal) {
 };
 
 /* ECHO */
-Commands.echo = function (_terminal, args) {
+Commands.echo = function (_terminal, args) {    
     return args.join(" ");
 };
 

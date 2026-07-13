@@ -11,8 +11,7 @@
                     "bio.md": {
                         type: "file",
                         hidden: false,
-                        content: `
-+------------------------------------------------------------------------------------------+
+                        content: `+------------------------------------------------------------------------------------------+
 | Senior cloud architecture and cybersecurity leader with more than 23 years of            |
 | experience delivering enterprise technology solutions. Recognized for leading cloud      | 
 | modernization initiatives, establishing enterprise architecture and security strategies, |
@@ -21,44 +20,24 @@
 +------------------------------------------------------------------------------------------+`}
                 }
             },
-
-/*            blog: {
-                type: "dir",
-                hidden: false,
-                children: {
-                    "welcome.md": {
-                        type: "file",
-                        hidden: false,
-                        content: 
-"Welcome... I'll write something at some point once I've finished this."
-                    }
-                }
-            },*/
-
             "contact.md": {
                 type: "file",
                 hidden: false,                
-                content: `
-+--------------------------------------------------------+
+                content: `+--------------------------------------------------------+
 | - Email: contact@torvos.ca                             |
 | - GitHub: https://github.com/torvos                    |
 | - Bluesky: https://bsky.app/profile/torvos.bsky.social |
 +--------------------------------------------------------+`},
-
             "resume.md": {
                 type: "file",
                 hidden: false,                
-                content: 
-"Resume download available soon, check linkedIn for now."
+                content: "Resume download available soon, check linkedIn for now."
             },
-
             ".hidden.md": {
                 type: "file",
                 hidden: true,
                 content: "Hidden file"
             }
         }
-
     }
-
 };
