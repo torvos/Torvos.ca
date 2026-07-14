@@ -71,7 +71,6 @@ Commands.help = function () {
 |  history         Displays history of commands                      |
 |  echo <text>     Displays the text on the terminal                 |
 +--------------------------------------------------------------------+`;
-
 };
 
 /* SUDO */
@@ -314,7 +313,7 @@ Commands.ls = function (terminal, args) {
     const longFormat = parsed.flags.has("l");
     const showHidden = parsed.flags.has("a");
     const recursive = parsed.flags.has("R");
-    const target = parsed.args[0] || "~";
+    const target = parsed.args[0] || terminal.cwd;
 
     const path = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(path);
@@ -439,25 +438,39 @@ Commands.more = async function (terminal, args) {
 };
 
 /* TREE */
-Commands.tree = function () {
-    //Add support for:
-    //-d directories only
-    //-L 2 max depth
-    //-a show hidden
-    
+Commands.tree = function (terminal, args) {
+
+    const parsed = terminal.parseFlags(args);
+    const onlyDirectory = parsed.flags.has("d");
+    const showHidden = parsed.flags.has("a");
+    const maxDepth = parsed.options?.L !== undefined
+        ? parseInt(parsed.options.L, 10)
+        : Infinity;
+
     const root = window.FileSystem["~"];
-    function walk(node, prefix = "") {
+
+    function walk(node, prefix = "", depth = 1) {
         let output = "";
         if (!node.children) return output;
-        const keys = Object.keys(node.children);
+
+        let keys = Object.keys(node.children);
+
+        if (!showHidden) {
+            keys = keys.filter(key => !node.children[key].hidden);
+        }        
+        if (onlyDirectory){
+            keys = keys.filter(key => node.children[key].type === "dir");
+        }
+        
         keys.forEach((key, index) => {
             const child = node.children[key];
             const isLast = index === keys.length - 1;
             const connector = isLast ? "└── " : "├── ";
             output += `${prefix}${connector}${key}${child.type === "dir" ? "/" : ""}\n`;
-            const nextPrefix = prefix + (isLast ? "    " : "│   ");
-            if (child.type === "dir") {
-                output += walk(child, nextPrefix);
+
+            if (child.type === "dir" && depth < maxDepth) {
+                const nextPrefix = prefix + (isLast ? "    " : "│   ");
+                output += walk(child, nextPrefix, depth + 1);
             }
         });
         return output;

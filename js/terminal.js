@@ -104,15 +104,35 @@ class TerminalEngine {
         localStorage.setItem("FileSystem", JSON.stringify(window.FileSystem));
     }
 
-    parseFlags(args){
+    parseFlags(args) {
         const flags = new Set();
+        const options = {};
         const remaining = [];
 
-        for (const arg of args) {
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+
             if (arg.startsWith("-") && arg.length > 1) {
-                for (const flag of arg.slice(1)) {
+
+                // Handle -L2 style
+                if (arg.length > 2) {
+                    const flag = arg[1];
+                    const value = arg.slice(2);
+
                     flags.add(flag);
+                    options[flag] = value;
+                    continue;
                 }
+
+                const flag = arg[1];
+                flags.add(flag);
+
+                // Handle -L 2 style
+                if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
+                    options[flag] = args[i + 1];
+                    i++;
+                }
+
             } else {
                 remaining.push(arg);
             }
@@ -120,6 +140,7 @@ class TerminalEngine {
 
         return {
             flags,
+            options,
             args: remaining
         };
     }
@@ -151,32 +172,24 @@ class TerminalEngine {
         });
         
         this.hiddenInput.addEventListener("keydown", (e) => {
-
             if (this.pager.active) {
                 e.preventDefault();
 
                 if (e.key === " " || e.key === "Enter") {
-
                     // remove the "--More--" line
                     this.output.lastChild.remove();
-
                     this.pager.active = false;
                     this.pager.linesPrinted = 0;
-
                     this.pager.resolver();
                 }
 
                 if (e.key === "q") {
-
                     this.output.lastChild.remove();
-
                     this.pager.active = false;
                     this.pager.linesPrinted = 0;
-
                     // reject or resolve depending on how you want to abort
                     this.pager.resolver(false);
                 }
-
                 return;
             }
 
