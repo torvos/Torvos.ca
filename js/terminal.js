@@ -104,7 +104,7 @@ class TerminalEngine {
         localStorage.setItem("FileSystem", JSON.stringify(window.FileSystem));
     }
 
-    parseFlags(args) {
+    parseFlags(args, flagDefs = {}) {
         const flags = new Set();
         const options = {};
         const remaining = [];
@@ -112,29 +112,39 @@ class TerminalEngine {
         for (let i = 0; i < args.length; i++) {
             const arg = args[i];
 
-            if (arg.startsWith("-") && arg.length > 1) {
+            if (!arg.startsWith("-") || arg === "-") {
+                remaining.push(arg);
+                continue;
+            }
 
-                // Handle -L2 style
-                if (arg.length > 2) {
-                    const flag = arg[1];
-                    const value = arg.slice(2);
+            const chars = arg.slice(1);
 
-                    flags.add(flag);
-                    options[flag] = value;
-                    continue;
+            for (let j = 0; j < chars.length; j++) {
+                const flag = chars[j];
+
+                // Unknown flag
+                if (!(flag in flagDefs)) {
+                    remaining.push("-" + chars.slice(j));
+                    break;
                 }
 
-                const flag = arg[1];
                 flags.add(flag);
 
-                // Handle -L 2 style
-                if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
-                    options[flag] = args[i + 1];
-                    i++;
-                }
+                // Does this flag take a value?
+                if (flagDefs[flag]) {
 
-            } else {
-                remaining.push(arg);
+                    // -n2
+                    if (j + 1 < chars.length) {
+                        options[flag] = chars.slice(j + 1);
+                    }
+                    // -n 2
+                    else if (i + 1 < args.length) {
+                        options[flag] = args[++i];
+                    }
+
+                    // Everything after belongs to this option.
+                    break;
+                }
             }
         }
 

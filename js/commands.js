@@ -80,9 +80,6 @@ Commands.sudo = function (terminal) {
 
 /* HEAD - show first few lines of a file */
 Commands.head = function (terminal, args) {
-    //Add support for:
-    // -n number of files (remember to remove from terminal.js)
-    // or -# same as -n #
     if (args.length === 0){
         return `head: missing file operand`;
     }
@@ -105,9 +102,6 @@ Commands.head = function (terminal, args) {
 
 /* TAIL - show last few lines of file */
 Commands.tail = function (terminal, args) {
-    //Add support for:
-    // -n number of files (remember to remove from terminal.js)
-    // or -# same as -n #
     if (args.length === 0){        
         return `tail: missing file operand`;
     }
@@ -130,25 +124,64 @@ Commands.tail = function (terminal, args) {
 
 /* MKDIR - create directory */
 Commands.mkdir = function (terminal, args) {
-    //Add support for:    
-    // -p create multiple folders in structure dir/dir2/dir3
 
-    let target = args[0];
-    if (target === undefined) {
-        return `mkdir: missing operand`;
+    const parsed = terminal.parseFlags(args, { p: false });
+    const parents = parsed.flags.has("p");
+    const target = parsed.args[0];
+
+    if (!target) {
+        return "mkdir: missing operand";
     }
 
     const path = resolveRelativePath(terminal.cwd, target);
+
+    function mkdirRecursive(path) {
+        const parts = path.split("/").filter(Boolean);
+
+        let currentPath = parts[0]; // "~"
+
+        for (let i = 1; i < parts.length; i++) {
+            currentPath += "/" + parts[i];
+
+            let node = resolvePath(currentPath);
+
+            if (node) {
+                if (node.type !== "dir") {
+                    return `mkdir: ${parts[i]}: Not a directory`;
+                }
+                continue;
+            }
+
+            const result = getParentDirectory(currentPath);
+
+            if (!result) {
+                return `mkdir: invalid path ${currentPath}`;
+            }
+
+            result.parent.children[result.name] = {
+                type: "dir",
+                hidden: result.name.startsWith("."),
+                children: {}
+            };
+        }
+
+        return "";
+    }
+    
+    if (parents) {
+        return mkdirRecursive(path);
+    }
+
     const node = resolvePath(path);
 
-    if (node){
-        return `mkdir: directory ${target} already exsists`;
+    if (node) {
+        return `mkdir: directory ${target} already exists`;
     }
 
     const result = getParentDirectory(path);
 
     if (!result) {
-        return `mkdir: invalid path ${target}`;
+        return `mkdir: cannot create directory '${target}': No such file or directory`;
     }
 
     result.parent.children[result.name] = {
@@ -156,6 +189,8 @@ Commands.mkdir = function (terminal, args) {
         hidden: result.name.startsWith("."),
         children: {}
     };
+
+    return "";
 };
 
 /* RMDIR - create directory */
@@ -309,7 +344,7 @@ Commands.reset = function (terminal) {
 
 /* LS */
 Commands.ls = function (terminal, args) {
-    const parsed = terminal.parseFlags(args);
+    const parsed = terminal.parseFlags(args,{l: false,a: false,R: false});
     const longFormat = parsed.flags.has("l");
     const showHidden = parsed.flags.has("a");
     const recursive = parsed.flags.has("R");
@@ -440,7 +475,7 @@ Commands.more = async function (terminal, args) {
 /* TREE */
 Commands.tree = function (terminal, args) {
 
-    const parsed = terminal.parseFlags(args);
+    const parsed = terminal.parseFlags(args,{d: false,a: false,L: true});
     const onlyDirectory = parsed.flags.has("d");
     const showHidden = parsed.flags.has("a");
     const maxDepth = parsed.options?.L !== undefined
