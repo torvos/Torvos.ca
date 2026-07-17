@@ -12,7 +12,7 @@ class TerminalEngine {
         this.historyIndex = -1;
         this.cursorPos = 0;
         this.hasbooted = 0;
-        this.cwd = "~";
+        this.cwd = "/home/guest";
         this.bindEvents();
         this.pager = {
             active: false,
@@ -33,7 +33,7 @@ class TerminalEngine {
             this.historyIndex = settings.historyIndex ?? "-1";
             this.cursorPos = settings.cursorPos ?? "0";
             this.hasbooted = settings.hasbooted ?? "0";
-            this.cwd = settings.cwd ?? "~";
+            this.cwd = settings.cwd ?? "/home/guest";
         }
 
         const savedFileSystem = localStorage.getItem("FileSystem");
@@ -455,19 +455,17 @@ class TerminalEngine {
     }
 
     getNode(path) {
-        if (!path.startsWith("~"))
-            path = this.cwd + "/" + path;
+        if (!path.startsWith("/"))
+            path = resolveRelativePath(this.cwd, path);
 
+        let node = window.FileSystem["/"];
         const parts = path.split("/").filter(Boolean);
-        let node = window.FileSystem["~"];
 
-        parts.shift();
         for (const part of parts) {
-            if (!node.children)
+            if (!node.children || !node.children[part]) {
                 return null;
+            }
             node = node.children[part];
-            if (!node)
-                return null;
         }
         return node;
     }
@@ -513,13 +511,15 @@ class TerminalEngine {
     }
 
     changeDirectory(path) {
-        if (path === "~") {
-            this.cwd = "~";
-        } else if (path === "..") {
-            this.cwd = "~";
-        } else {
-            this.cwd = `${this.cwd}/${path}`;
+        const resolved = resolveRelativePath(this.cwd, path);
+        const node = this.getNode(resolved);
+        if (!node) {
+            return `cd: ${path}: No such file or directory`;
         }
+        if (node.type !== "dir") {
+            return `cd: ${path}: Not a directory`;
+        }
+        this.cwd = resolved;
         this.renderPrompt();
     }
 

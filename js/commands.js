@@ -2,7 +2,7 @@
 if (typeof resolvePath === "undefined") {
     window.resolvePath = function (path) {
         const parts = path.replace("~", "").split("/").filter(Boolean);
-        let node = window.FileSystem["~"];
+        let node = window.FileSystem["/"];
         for (const part of parts) {
             if (!node.children || !node.children[part]) {
                 return null;
@@ -15,30 +15,42 @@ if (typeof resolvePath === "undefined") {
 
 if (typeof resolveRelativePath === "undefined") {
     window.resolveRelativePath = function (cwd, path) {
-        if (!path) return cwd;
-        if (path.startsWith("~")) return path;
-        if (path.startsWith("/")) return "~" + path;
-        if (path === "..") return "~";
-        if (cwd === "~") return `~/${path}`;
-        return `${cwd}/${path}`;
+
+        function normalizePath(path) {
+            const parts = [];
+            for (const part of path.split("/")) {
+                if (!part || part === ".") {continue;}
+                if (part === "..") {
+                    if (parts.length > 0) {
+                        parts.pop();
+                    }
+                    continue;
+                }
+                parts.push(part);
+            }
+            return "/" + parts.join("/");
+        }
+
+        if (!path || path === ".") {return cwd;}
+        if (path === "~") {return "/home/guest";}
+        if (path.startsWith("~/")) {path = "/home/guest" + path.slice(1);}
+        if (path.startsWith("/")) {return normalizePath(path);}
+        return normalizePath(`${cwd}/${path}`);
     };
 }
 
 if (typeof getParentDirectory === "undefined") {
     window.getParentDirectory = function (path) {
-        const parts = path.replace(/^~/, "").split("/").filter(Boolean);
+        const parts = path.split("/").filter(Boolean);
+        if (parts.length === 0) {return null;}
         const name = parts.pop();
-        let parent = window.FileSystem["~"];
+        let parent = window.FileSystem["/"];
         for (const part of parts) {
-            if (!parent.children || !parent.children[part]) {
-                return null;
-            }
+            if (!parent.children || !parent.children[part]) {return null;}
             parent = parent.children[part];
+            if (parent.type !== "dir") {return null;}
         }
-        return {
-            parent: parent,
-            name: name
-        };
+        return {parent,name};
     };
 }
 
@@ -138,7 +150,7 @@ Commands.mkdir = function (terminal, args) {
     function mkdirRecursive(path) {
         const parts = path.split("/").filter(Boolean);
 
-        let currentPath = parts[0]; // "~"
+        let currentPath = parts[0];
 
         for (let i = 1; i < parts.length; i++) {
             currentPath += "/" + parts[i];
@@ -263,7 +275,7 @@ Commands.cp = function (terminal, args) {
     const sourcePath = resolveRelativePath(terminal.cwd, source);
     const destinationPath = resolveRelativePath(terminal.cwd, destination);
 
-    const src = getParentDirectory(sourcePath);
+    const smrc = getParentDirectory(sourcePath);
     const dest = getParentDirectory(destinationPath);
 
     if (!src || !dest) {
@@ -279,10 +291,11 @@ Commands.cp = function (terminal, args) {
 
 /* RM - remove file */
 Commands.rm = function (terminal, args) {
-    //Add support for:
-    // -f force
-    // -r recursive
-    let target = args[0];
+    const parsed = terminal.parseFlags(args,{f: false,r: false});
+    const force = parsed.flags.has("f");
+    const recursive = parsed.flags.has("r");
+    const target = parsed.args[0];
+
     if (target === undefined) {
         return `rm: missing operand`;
     }
@@ -298,10 +311,40 @@ Commands.rm = function (terminal, args) {
 
     if (node.type === "file") {
         delete result.parent.children[result.name];
+        return;
     }
-    else {
+
+    if (!force) {
         return `rm: ${target} is a directory please use rmdir`;
     }
+
+    if (recursive) {
+        function removeChildren(dir) {
+            if (!dir.children) {
+                return;
+            }
+
+            for (const key of Object.keys(dir.children)) {
+                const child = dir.children[key];
+
+                if (child.type === "dir") {
+                    removeChildren(child);
+                }
+
+                delete dir.children[key];
+            }
+        }
+
+        if(target === "/"){
+            return "rm: it is dangerous to operate recursively on '/'";
+        }
+        removeChildren(node);
+    }
+    else if (Object.keys(node.children).length > 0) {
+        return `rm: cannot remove '${target}': Directory not empty`;
+    }
+
+    delete result.parent.children[result.name];    
 };
 
 /* TOUCH */
@@ -364,7 +407,6 @@ Commands.ls = function (terminal, args) {
         let output = [];
         let directories = [];
 
-        // First pass: list current directory contents
         keys.forEach(name => {
             const child = children[name];
 
@@ -381,7 +423,6 @@ Commands.ls = function (terminal, args) {
             }
         });
 
-        // Second pass: recurse into directories
         if (recursive) {
             directories.forEach(dir => {
                 output.push("");
@@ -482,7 +523,7 @@ Commands.tree = function (terminal, args) {
         ? parseInt(parsed.options.L, 10)
         : Infinity;
 
-    const root = window.FileSystem["~"];
+    const root = window.FileSystem["/"];
 
     function walk(node, prefix = "", depth = 1) {
         let output = "";
