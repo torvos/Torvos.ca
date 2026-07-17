@@ -455,7 +455,6 @@ Commands.cd = function (terminal, args) {
     }
     terminal.cwd = newPath;
     terminal.renderPrompt();
-    return "";
 };
 
 /* CAT */
@@ -523,7 +522,9 @@ Commands.tree = function (terminal, args) {
         ? parseInt(parsed.options.L, 10)
         : Infinity;
 
-    const root = window.FileSystem["/"];
+    const target = parsed.args[0] || terminal.cwd;
+    const path = resolveRelativePath(terminal.cwd, target);
+    const root = resolvePath(path);
 
     function walk(node, prefix = "", depth = 1) {
         let output = "";
