@@ -149,17 +149,16 @@ Commands.mkdir = function (terminal, args) {
 
     function mkdirRecursive(path) {
         const parts = path.split("/").filter(Boolean);
+        let currentPath = "";
 
-        let currentPath = parts[0];
-
-        for (let i = 1; i < parts.length; i++) {
-            currentPath += "/" + parts[i];
+        for (const part of parts) {
+            currentPath += "/" + part;
 
             let node = resolvePath(currentPath);
 
             if (node) {
                 if (node.type !== "dir") {
-                    return `mkdir: ${parts[i]}: Not a directory`;
+                    return `mkdir: ${part}: Not a directory`;
                 }
                 continue;
             }
@@ -176,8 +175,7 @@ Commands.mkdir = function (terminal, args) {
                 children: {}
             };
         }
-
-        return "";
+        return;
     }
     
     if (parents) {
@@ -202,7 +200,7 @@ Commands.mkdir = function (terminal, args) {
         children: {}
     };
 
-    return "";
+    return;
 };
 
 /* RMDIR - create directory */
@@ -563,7 +561,7 @@ Commands.whoami = function () {
 /* CLEAR */
 Commands.clear = function (terminal) {
     terminal.clearScreen();
-    return "";
+    return;
 };
 
 /* ECHO */
