@@ -83,7 +83,7 @@ Commands.sudo = function (terminal) {
     return "guest users are not allowed to invoke sudo, this incident will be reported.";
 };
 
-/* HEAD - show first few lines of a file */
+/* HEAD */
 Commands.head = function (terminal, args) {
     const parsed = terminal.parseFlags(args,{n: true});
     const maxDepth = parsed.options?.n !== undefined
@@ -111,7 +111,7 @@ Commands.head = function (terminal, args) {
     }
 };
 
-/* TAIL - show last few lines of file */
+/* TAIL */
 Commands.tail = function (terminal, args) {
     const parsed = terminal.parseFlags(args,{n: true});
     const maxDepth = parsed.options?.n !== undefined
@@ -139,7 +139,7 @@ Commands.tail = function (terminal, args) {
     }
 };
 
-/* MKDIR - create directory */
+/* MKDIR */
 Commands.mkdir = function (terminal, args) {
     const parsed = terminal.parseFlags(args, { p: false });
     const parents = parsed.flags.has("p");
@@ -207,7 +207,7 @@ Commands.mkdir = function (terminal, args) {
     return;
 };
 
-/* RMDIR - create directory */
+/* RMDIR */
 Commands.rmdir = function (terminal, args) {
     let target = args[0];
     if (target === undefined) {
@@ -237,7 +237,7 @@ Commands.rmdir = function (terminal, args) {
     }
 };
 
-/* MV - move or rename file */
+/* MV */
 Commands.mv = function (terminal, args) {
     let source = args[0];
     let destination = args[1];
@@ -265,7 +265,7 @@ Commands.mv = function (terminal, args) {
     delete src.parent.children[src.name];
 };
 
-/* CP - copy file */
+/* CP */
 Commands.cp = function (terminal, args) {
     let source = args[0];
     let destination = args[1];
@@ -291,7 +291,7 @@ Commands.cp = function (terminal, args) {
     dest.parent.children[dest.name] = structuredClone(src.parent.children[src.name]);
 };
 
-/* RM - remove file */
+/* RM */
 Commands.rm = function (terminal, args) {
     const parsed = terminal.parseFlags(args,{f: false,r: false});
     const force = parsed.flags.has("f");
@@ -585,22 +585,22 @@ Commands.history = function (terminal) {
     return terminal.history.join("\n");
 };
 
-/* PS - list processes*/
+/* PS */
 Commands.ps = function (terminal) {
     return "guest users are not permitted to list processes.";
 };
 
-/* KILL - kill process */
+/* KILL */
 Commands.kill = function (terminal) {
     return "guest users are not permitted to kill processes.";
 };
 
-/* DF - report total, used, and available storage space */
+/* DF */
 Commands.df = function (terminal) {
     return "guest users are not permitted view storage information.";
 };
 
-/* FREE - display free and used memory */
+/* FREE */
 Commands.free = function (terminal) {
     return "guest users are not permitted view memory information.";
 };
@@ -610,17 +610,17 @@ Commands.ping = function (terminal) {
     return "guest users are not permitted to run the ping command.";
 };
 
-/* CURL - download file/site */
+/* CURL */
 Commands.curl = function (terminal) {
     return "guest users are not permitted to run the curl command.";
 };
 
-/* WGET - download file/site */
+/* WGET */
 Commands.wget = function (terminal) {
     return "guest users are not permitted to run the wget command.";
 };
 
-/* FINGER - user info look up */
+/* FINGER */
 Commands.finger = function (terminal) {
     return "guest users are not permitted to run the finger command.";
 };

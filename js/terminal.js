@@ -121,28 +121,18 @@ class TerminalEngine {
 
             for (let j = 0; j < chars.length; j++) {
                 const flag = chars[j];
-
-                // Unknown flag
                 if (!(flag in flagDefs)) {
                     remaining.push("-" + chars.slice(j));
                     break;
                 }
-
                 flags.add(flag);
-
-                // Does this flag take a value?
                 if (flagDefs[flag]) {
-
-                    // -n2
                     if (j + 1 < chars.length) {
                         options[flag] = chars.slice(j + 1);
                     }
-                    // -n 2
                     else if (i + 1 < args.length) {
                         options[flag] = args[++i];
                     }
-
-                    // Everything after belongs to this option.
                     break;
                 }
             }
@@ -186,7 +176,6 @@ class TerminalEngine {
                 e.preventDefault();
 
                 if (e.key === " " || e.key === "Enter") {
-                    // remove the "--More--" line
                     this.output.lastChild.remove();
                     this.pager.active = false;
                     this.pager.linesPrinted = 0;
@@ -197,7 +186,6 @@ class TerminalEngine {
                     this.output.lastChild.remove();
                     this.pager.active = false;
                     this.pager.linesPrinted = 0;
-                    // reject or resolve depending on how you want to abort
                     this.pager.resolver(false);
                 }
                 return;
