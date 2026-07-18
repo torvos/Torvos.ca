@@ -1,60 +1,53 @@
-/* RESOLVE PATH HELPERS (fallback safety) (If not already defined globally)*/
-if (typeof resolvePath === "undefined") {
-    window.resolvePath = function (path) {
-        const parts = path.replace("~", "").split("/").filter(Boolean);
-        let node = window.FileSystem["/"];
-        for (const part of parts) {
-            if (!node.children || !node.children[part]) {
-                return null;
-            }
-            node = node.children[part];
-        }
-        return node;
-    };
-}
-
-if (typeof resolveRelativePath === "undefined") {
-    window.resolveRelativePath = function (cwd, path) {
-
-        function normalizePath(path) {
-            const parts = [];
-            for (const part of path.split("/")) {
-                if (!part || part === ".") {continue;}
-                if (part === "..") {
-                    if (parts.length > 0) {
-                        parts.pop();
-                    }
-                    continue;
-                }
-                parts.push(part);
-            }
-            return "/" + parts.join("/");
-        }
-
-        if (!path || path === ".") {return cwd;}
-        if (path === "~") {return "/home/guest";}
-        if (path.startsWith("~/")) {path = "/home/guest" + path.slice(1);}
-        if (path.startsWith("/")) {return normalizePath(path);}
-        return normalizePath(`${cwd}/${path}`);
-    };
-}
-
-if (typeof getParentDirectory === "undefined") {
-    window.getParentDirectory = function (path) {
-        const parts = path.split("/").filter(Boolean);
-        if (parts.length === 0) {return null;}
-        const name = parts.pop();
-        let parent = window.FileSystem["/"];
-        for (const part of parts) {
-            if (!parent.children || !parent.children[part]) {return null;}
-            parent = parent.children[part];
-            if (parent.type !== "dir") {return null;}
-        }
-        return {parent,name};
-    };
-}
-
 window.Commands = {};
+
+window.resolvePath = function (path) {
+    const parts = path.replace("~", "").split("/").filter(Boolean);
+    let node = window.FileSystem["/"];
+    for (const part of parts) {
+        if (!node.children || !node.children[part]) {
+            return null;
+        }
+        node = node.children[part];
+    }
+    return node;
+};
+
+window.resolveRelativePath = function (cwd, path) {
+
+    function normalizePath(path) {
+        const parts = [];
+        for (const part of path.split("/")) {
+            if (!part || part === ".") {continue;}
+            if (part === "..") {
+                if (parts.length > 0) {
+                    parts.pop();
+                }
+                continue;
+            }
+            parts.push(part);
+        }
+        return "/" + parts.join("/");
+    }
+
+    if (!path || path === ".") {return cwd;}
+    if (path === "~") {return "/home/guest";}
+    if (path.startsWith("~/")) {path = "/home/guest" + path.slice(1);}
+    if (path.startsWith("/")) {return normalizePath(path);}
+    return normalizePath(`${cwd}/${path}`);
+};
+
+window.getParentDirectory = function (path) {
+    const parts = path.split("/").filter(Boolean);
+    if (parts.length === 0) {return null;}
+    const name = parts.pop();
+    let parent = window.FileSystem["/"];
+    for (const part of parts) {
+        if (!parent.children || !parent.children[part]) {return null;}
+        parent = parent.children[part];
+        if (parent.type !== "dir") {return null;}
+    }
+    return {parent,name};
+};
 
 /* HELP */
 Commands.help = function () {
@@ -457,10 +450,10 @@ Commands.cd = function (terminal, args) {
 
 /* CAT */
 Commands.cat = function (terminal, args) {
-    //Add support for:
-    // -n adds numbers to lines
+    const parsed = terminal.parseFlags(args,{n: false});
+    const numberLines = parsed.flags.has("n");
+    const target = parsed.args[0];
 
-    const target = args[0];
     if (!target) {
         return "cat: missing file operand";
     }
@@ -471,6 +464,17 @@ Commands.cat = function (terminal, args) {
     }
     if (node.type === "dir") {
         return `cat: ${target}: is a directory`;
+    }
+    
+    if (numberLines){
+        let lineNumber = 1;
+        let returnContent = "";
+        const content = node.content.split(/\r?\n/);
+        for (const line of content) {
+            returnContent += `  ${lineNumber}  ${line} \n`;
+            lineNumber++;
+        }
+        return returnContent;
     }
     return node.content;
 };
