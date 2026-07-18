@@ -14,6 +14,7 @@ class TerminalEngine {
         this.hasbooted = 0;
         this.cwd = "/home/guest";
         this.bindEvents();
+        this.version = "2.7.4";
         this.pager = {
             active: false,
             linesPrinted: 0,
@@ -27,8 +28,15 @@ class TerminalEngine {
         this.inputMode = "normal";
 
         const savedSettings = localStorage.getItem("terminalSettings");
-        if (savedSettings) {
+        if (savedSettings) {        
             const settings = JSON.parse(savedSettings);
+ 
+            if(settings.version != "2.7.4"){
+                localStorage.removeItem("terminalSettings");
+                localStorage.removeItem("FileSystem");
+                location.reload();
+            }            
+
             this.history = settings.history ?? [];
             this.historyIndex = settings.historyIndex ?? "-1";
             this.cursorPos = settings.cursorPos ?? "0";
@@ -43,7 +51,7 @@ class TerminalEngine {
 
         const params = new URLSearchParams(window.location.search);
         
-        await this.write(`Torvos v2.7.2`, {color: "#c707ce"});
+        await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
 
         if (this.hasbooted === 1){
             await this.write(`[INFO] Resuming previous session.................[ OK ]`, {color: "#ffffff"});
@@ -90,6 +98,7 @@ class TerminalEngine {
         const historyIndex = this.historyIndex;
         const cursorPos = this.cursorPos;
         const hasbooted = this.hasbooted;
+        const version = this.version;
         const cwd = this.cwd;
 
         const terminalSettings = {
@@ -97,6 +106,7 @@ class TerminalEngine {
             historyIndex,
             cursorPos,
             hasbooted,
+            version,
             cwd
         };
 
