@@ -85,6 +85,11 @@ Commands.sudo = function (terminal) {
 
 /* HEAD - show first few lines of a file */
 Commands.head = function (terminal, args) {
+    const parsed = terminal.parseFlags(args,{n: true});
+    const maxDepth = parsed.options?.n !== undefined
+        ? parseInt(parsed.options.n, 10)
+        : 10;
+
     if (args.length === 0){
         return `head: missing file operand`;
     }
@@ -99,7 +104,8 @@ Commands.head = function (terminal, args) {
                 return `head: ${arg}: is a directory`;
             }
             if (node && node.type === "file") {
-                return node.content;
+                const content = node.content.split(/\r?\n/);
+                return content.slice(0, maxDepth).join("\n");
             }
         }
     }
@@ -107,6 +113,11 @@ Commands.head = function (terminal, args) {
 
 /* TAIL - show last few lines of file */
 Commands.tail = function (terminal, args) {
+    const parsed = terminal.parseFlags(args,{n: true});
+    const maxDepth = parsed.options?.n !== undefined
+        ? parseInt(parsed.options.n, 10)
+        : 10;
+
     if (args.length === 0){        
         return `tail: missing file operand`;
     }
@@ -121,7 +132,8 @@ Commands.tail = function (terminal, args) {
                 return `tail: ${arg}: is a directory`;
             }
             if (node && node.type === "file") {
-                return node.content;
+                const content = node.content.split(/\r?\n/);
+                return content.slice(-maxDepth).join("\n");
             }
         }
     }
@@ -129,7 +141,6 @@ Commands.tail = function (terminal, args) {
 
 /* MKDIR - create directory */
 Commands.mkdir = function (terminal, args) {
-
     const parsed = terminal.parseFlags(args, { p: false });
     const parents = parsed.flags.has("p");
     const target = parsed.args[0];
@@ -481,9 +492,6 @@ Commands.cat = function (terminal, args) {
 
 /* MORE */
 Commands.more = async function (terminal, args) {
-    //Add support for:
-    // + start at line #
-    // - limit screen size to # rows 
     const target = args[0];
     if (!target) {
         terminal.write("more: missing file operand");
@@ -516,7 +524,6 @@ Commands.more = async function (terminal, args) {
 
 /* TREE */
 Commands.tree = function (terminal, args) {
-
     const parsed = terminal.parseFlags(args,{d: false,a: false,L: true});
     const onlyDirectory = parsed.flags.has("d");
     const showHidden = parsed.flags.has("a");

@@ -345,40 +345,10 @@ class TerminalEngine {
                 const result = await window.Commands[cmd](this, args);
                 if (typeof result === "string") {
                     const lines = result.split(/\r?\n/);
-                    if (cmd === "head"){
-                        let maxLines = Math.min(lines.length, 10);
-                        const nIndex = args.indexOf("-n");
-                        if (nIndex !== -1 && nIndex + 1 < args.length) {
-                            const value = parseInt(args[nIndex + 1], 10);
-                            if (!isNaN(value) && value > 0) {
-                                maxLines = Math.min(value, lines.length);
-                            }
-                        }
-                        for (let i = 0; i < maxLines+1; i++) {
-                            this.write(lines[i]);
-                            await this.sleep(50);
-                        }
-                    }
-                    else if (cmd === "tail"){
-                        let maxLines = lines.length - 10;
-                        const nIndex = args.indexOf("-n");
-                        if (nIndex !== -1 && nIndex + 1 < args.length) {
-                            const value = parseInt(args[nIndex + 1], 10);
-                            if (!isNaN(value) && value > 0) {
-                                maxLines = lines.length - value;
-                            }
-                        }
-                        for (let i = maxLines; i < lines.length; i++) {
-                            this.write(lines[i]);
-                            await this.sleep(50);
-                        }
-                    }                    
-                    else{
-                        for (const line of lines) {
-                            this.write(line);
-                            await this.sleep(50);
-                        } 
-                    }
+                    for (const line of lines) {
+                        this.write(line);
+                        await this.sleep(50);
+                    } 
                 } 
             } else if (cmd === "login"){
                 this.inputMode = "waitingUsername";
