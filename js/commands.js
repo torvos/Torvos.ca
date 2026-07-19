@@ -90,38 +90,22 @@ Commands.edit = function (terminal, args) {
     if (!target){
         return "edit: missing operand";
     }
-    const path = resolveRelativePath(
-        terminal.cwd,
-        target
-    );
+    const path = resolveRelativePath(terminal.cwd,target);
 
     let node = resolvePath(path);
 
     if (!node) {
-
-        const parent = getParentDirectory(path);
-
-        if (!parent)
-            return `edit: cannot create '${target}': No such directory`;
-
-        const filename = path.split("/").pop();
-
-        parent.children[filename] = {
+        const result = getParentDirectory(path);
+        result.parent.children[result.name] = {
             type: "file",
-            content: "",
-            hidden: false
+            hidden: result.name.startsWith("."),
+            content: ""
         };
-
-        node = parent.children[filename];
-
-        localStorage.setItem(
-            "FileSystem",
-            JSON.stringify(window.FileSystem)
-        );
     }
 
-    if (node.type !== "file")
+    if (node.type !== "file"){
         return `edit: ${target}: Is a directory`;
+    }
 
     terminal.openEditor(node, path);
 
@@ -350,8 +334,11 @@ Commands.rm = function (terminal, args) {
     const path = resolveRelativePath(terminal.cwd, target);
     const result = getParentDirectory(path);
 
-    if (!result) {
-        return `rm: file ${target} not found`;
+    if (!result || !result.parent.children[result.name]) {
+        if (force) {
+            return;
+        }
+        return `rm: cannot remove '${target}': No such file or directory`;
     }
 
     const node = result.parent.children[result.name];

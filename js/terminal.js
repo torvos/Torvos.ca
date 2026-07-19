@@ -14,7 +14,7 @@ class TerminalEngine {
         this.hasbooted = 0;
         this.cwd = "/home/guest";
         this.bindEvents();
-        this.version = "2.7.4";
+        this.version = "2.7.5";
         this.pager = {
             active: false,
             linesPrinted: 0,
@@ -41,9 +41,10 @@ class TerminalEngine {
         if (savedSettings) {        
             const settings = JSON.parse(savedSettings);
  
-            if(settings.version != "2.7.4"){
+            if(settings.version != "2.7.5"){
                 localStorage.removeItem("terminalSettings");
                 localStorage.removeItem("FileSystem");
+                this.cwd = "/home/guest";
                 location.reload();
             }            
 
@@ -482,10 +483,12 @@ class TerminalEngine {
             const split = partial.split("/");
             prefix = split.pop();
 
-            directory = split.join("/") || "~";
+            directory = split.join("/");
 
-            if (!directory.startsWith("~")) {
-                directory = this.cwd + "/" + directory;
+            if (directory === "") {
+                directory = "/";
+            } else {
+                directory = resolveRelativePath(this.cwd, directory);
             }
 
         } else {
