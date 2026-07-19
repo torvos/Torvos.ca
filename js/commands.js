@@ -62,6 +62,7 @@ Commands.help = function () {
 +--------------------------------------------------------------------+
 |Files:                                                              |
 |  cat <file>                Display file contents                   |
+|  edit <file>               Edit file contents                      |
 |  head -n <number> <file>   Outputs the beginning portion of a file |
 |  tail -n <number> <file>   Outputs the last portion of a file      |
 |  more <file>               Display file one screen at a time       |
@@ -81,6 +82,50 @@ Commands.help = function () {
 /* SUDO */
 Commands.sudo = function (terminal) {
     return "guest users are not allowed to invoke sudo, this incident will be reported.";
+};
+
+/* EDIT */
+Commands.edit = function (terminal, args) {
+    const target = args[0];
+    if (!target){
+        return "edit: missing operand";
+    }
+    const path = resolveRelativePath(
+        terminal.cwd,
+        target
+    );
+
+    let node = resolvePath(path);
+
+    if (!node) {
+
+        const parent = getParentDirectory(path);
+
+        if (!parent)
+            return `edit: cannot create '${target}': No such directory`;
+
+        const filename = path.split("/").pop();
+
+        parent.children[filename] = {
+            type: "file",
+            content: "",
+            hidden: false
+        };
+
+        node = parent.children[filename];
+
+        localStorage.setItem(
+            "FileSystem",
+            JSON.stringify(window.FileSystem)
+        );
+    }
+
+    if (node.type !== "file")
+        return `edit: ${target}: Is a directory`;
+
+    terminal.openEditor(node, path);
+
+    return;
 };
 
 /* HEAD */
