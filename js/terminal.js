@@ -362,6 +362,7 @@ class TerminalEngine {
         document.getElementById("hidden-input").value = "";
         this.cursorPos = 0;
         this.saveSettings();
+        this.scrollToBottom();
     }
 
     async execute(input) {
