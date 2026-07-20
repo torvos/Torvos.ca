@@ -379,7 +379,7 @@ class TerminalEngine {
                 if (typeof result === "string") {
                     const lines = result.split(/\r?\n/);
                     for (const line of lines) {
-                        this.write(line);
+                        this.write(line, {color: "#ffffff"});
                         await this.sleep(50);
                     } 
                 } 
@@ -601,9 +601,7 @@ class TerminalEngine {
             this.editorEl.value.length,
             this.editorEl.value.length
         );
-        document.getElementById("editor-header").innerHTML =`Editing: ${path}<br>
-Ctrl+S Save    Ctrl+X Save & Exit    Esc Exit<br>
----------------------------------------------------------------------------------`;
+        document.getElementById("editor-header").innerHTML =`Editing: ${path} | Ctrl+S Save | Ctrl+X Save & Exit | Esc Exit`;
     }
 
     saveEditor() {

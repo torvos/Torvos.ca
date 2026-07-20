@@ -593,7 +593,7 @@ Commands.tree = function (terminal, args) {
         });
         return output;
     }
-    return ".\n" + walk(root);
+    return walk(root).replace(/\r?\n$/, "");
 };
 
 /* WHOAMI */
