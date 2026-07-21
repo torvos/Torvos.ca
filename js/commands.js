@@ -1,8 +1,8 @@
 window.Commands = {};
 
 window.resolvePath = function (path) {
-    const parts = path.replace("~", "").split("/").filter(Boolean);
-    let node = window.FileSystem["/"];
+    const parts = path.replace("~", "").split(ROOT).filter(Boolean);
+    let node = window.FileSystem[ROOT];
     for (const part of parts) {
         if (!node.children || !node.children[part]) {
             return null;
@@ -16,7 +16,7 @@ window.resolveRelativePath = function (cwd, path) {
 
     function normalizePath(path) {
         const parts = [];
-        for (const part of path.split("/")) {
+        for (const part of path.split(ROOT)) {
             if (!part || part === ".") {continue;}
             if (part === "..") {
                 if (parts.length > 0) {
@@ -26,21 +26,21 @@ window.resolveRelativePath = function (cwd, path) {
             }
             parts.push(part);
         }
-        return "/" + parts.join("/");
+        return ROOT + parts.join(ROOT);
     }
 
     if (!path || path === ".") {return cwd;}
-    if (path === "~") {return "/home/guest";}
-    if (path.startsWith("~/")) {path = "/home/guest" + path.slice(1);}
-    if (path.startsWith("/")) {return normalizePath(path);}
+    if (path === "~") {return HOME;}
+    if (path.startsWith("~/")) {path = HOME + path.slice(1);}
+    if (path.startsWith(ROOT)) {return normalizePath(path);}
     return normalizePath(`${cwd}/${path}`);
 };
 
 window.getParentDirectory = function (path) {
-    const parts = path.split("/").filter(Boolean);
+    const parts = path.split(ROOT).filter(Boolean);
     if (parts.length === 0) {return null;}
     const name = parts.pop();
-    let parent = window.FileSystem["/"];
+    let parent = window.FileSystem[ROOT];
     for (const part of parts) {
         if (!parent.children || !parent.children[part]) {return null;}
         parent = parent.children[part];
@@ -181,11 +181,11 @@ Commands.mkdir = function (terminal, args) {
     const path = resolveRelativePath(terminal.cwd, target);
 
     function mkdirRecursive(path) {
-        const parts = path.split("/").filter(Boolean);
+        const parts = path.split(ROOT).filter(Boolean);
         let currentPath = "";
 
         for (const part of parts) {
-            currentPath += "/" + part;
+            currentPath += ROOT + part;
 
             let node = resolvePath(currentPath);
 
@@ -369,7 +369,7 @@ Commands.rm = function (terminal, args) {
             }
         }
 
-        if(target === "/"){
+        if(target === ROOT){
             return "rm: it is dangerous to operate recursively on '/'";
         }
         removeChildren(node);
@@ -584,7 +584,7 @@ Commands.tree = function (terminal, args) {
             const child = node.children[key];
             const isLast = index === keys.length - 1;
             const connector = isLast ? "└── " : "├── ";
-            output += `${prefix}${connector}${key}${child.type === "dir" ? "/" : ""}\n`;
+            output += `${prefix}${connector}${key}${child.type === "dir" ? ROOT : ""}\n`;
 
             if (child.type === "dir" && depth < maxDepth) {
                 const nextPrefix = prefix + (isLast ? "    " : "│   ");
@@ -598,7 +598,7 @@ Commands.tree = function (terminal, args) {
 
 /* WHOAMI */
 Commands.whoami = function () {
-    return "guest";
+    return DEFAULT_USER;
 };
 
 /* CLEAR */

@@ -14,7 +14,7 @@ class TerminalEngine {
         this.hasbooted = 0;
         this.cwd = "/home/guest";
         this.bindEvents();
-        this.version = "2.7.5";
+        this.version = TERMINAL_VERSION;
         this.pager = {
             active: false,
             linesPrinted: 0,
@@ -41,7 +41,7 @@ class TerminalEngine {
         if (savedSettings) {        
             const settings = JSON.parse(savedSettings);
  
-            if(settings.version != "2.7.5"){
+            if(settings.version != TERMINAL_VERSION){
                 localStorage.removeItem("terminalSettings");
                 localStorage.removeItem("FileSystem");
                 this.cwd = "/home/guest";
