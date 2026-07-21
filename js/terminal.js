@@ -12,7 +12,7 @@ class TerminalEngine {
         this.historyIndex = -1;
         this.cursorPos = 0;
         this.hasbooted = 0;
-        this.cwd = "/home/guest";
+        this.cwd = HOME;
         this.bindEvents();
         this.version = TERMINAL_VERSION;
         this.pager = {
@@ -44,7 +44,7 @@ class TerminalEngine {
             if(settings.version != TERMINAL_VERSION){
                 localStorage.removeItem("terminalSettings");
                 localStorage.removeItem("FileSystem");
-                this.cwd = "/home/guest";
+                this.cwd = HOME;
                 location.reload();
             }            
 
@@ -52,7 +52,7 @@ class TerminalEngine {
             this.historyIndex = settings.historyIndex ?? "-1";
             this.cursorPos = settings.cursorPos ?? "0";
             this.hasbooted = settings.hasbooted ?? "0";
-            this.cwd = settings.cwd ?? "/home/guest";
+            this.cwd = settings.cwd ?? HOME;
         }
 
         const savedFileSystem = localStorage.getItem("FileSystem");
@@ -375,15 +375,16 @@ class TerminalEngine {
             const parts = commands[i].trim().split(" ");
             const cmd = parts[0];
             const args = parts.slice(1);
-            if (window.Commands && window.Commands[cmd]) {
-                const result = await window.Commands[cmd](this, args);
-                if (typeof result === "string") {
-                    const lines = result.split(/\r?\n/);
+            const stdin = "";
+            if (window.Commands && window.Commands[cmd]) {  
+                const result = await window.Commands[cmd](this, args, stdin);
+                if (result.stdout) {
+                    const lines = result.stdout.split(/\r?\n/);
                     for (const line of lines) {
-                        this.write(line, {color: "#ffffff"});
+                        this.write(line, { color: "#ffffff" });
                         await this.sleep(50);
-                    } 
-                } 
+                    }
+                }
             } else if (cmd === "login"){
                 this.inputMode = "waitingUsername";
                 this.promptEl.textContent = "user:";
@@ -459,11 +460,11 @@ class TerminalEngine {
     }
 
     getNode(path) {
-        if (!path.startsWith("/"))
+        if (!path.startsWith(ROOT))
             path = resolveRelativePath(this.cwd, path);
 
-        let node = window.FileSystem["/"];
-        const parts = path.split("/").filter(Boolean);
+        let node = window.FileSystem[ROOT];
+        const parts = path.split(ROOT).filter(Boolean);
 
         for (const part of parts) {
             if (!node.children || !node.children[part]) {
@@ -479,15 +480,15 @@ class TerminalEngine {
         let directory;
         let prefix;
 
-        if (partial.includes("/")) {
+        if (partial.includes(ROOT)) {
 
-            const split = partial.split("/");
+            const split = partial.split(ROOT);
             prefix = split.pop();
 
-            directory = split.join("/");
+            directory = split.join(ROOT);
 
             if (directory === "") {
-                directory = "/";
+                directory = ROOT;
             } else {
                 directory = resolveRelativePath(this.cwd, directory);
             }
@@ -508,11 +509,11 @@ class TerminalEngine {
             .map(name => {
                 const child = node.children[name];
 
-                const base = partial.includes("/")
-                    ? partial.substring(0, partial.lastIndexOf("/") + 1)
+                const base = partial.includes(ROOT)
+                    ? partial.substring(0, partial.lastIndexOf(ROOT) + 1)
                     : "";
 
-                return base + name + (child.type === "dir" ? "/" : "");
+                return base + name + (child.type === "dir" ? ROOT : "");
             });
     }
 

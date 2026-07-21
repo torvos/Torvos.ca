@@ -50,8 +50,9 @@ window.getParentDirectory = function (path) {
 };
 
 /* HELP */
-Commands.help = function () {
-    return `Torvos Terminal Commands
+Commands.help = function (terminal, args, stdin) {
+    return {
+        stdout: `Torvos Terminal Commands
 +--------------------------------------------------------------------+
 |Navigation:                                                         |
 |  ls <dir>        List directory contents                           |
@@ -76,19 +77,30 @@ Commands.help = function () {
 |  sudo            Execute commands with administrative              |
 |  history         Displays history of commands                      |
 |  echo <text>     Displays the text on the terminal                 |
-+--------------------------------------------------------------------+`;
++--------------------------------------------------------------------+`,
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* SUDO */
-Commands.sudo = function (terminal) {
-    return "guest users are not allowed to invoke sudo, this incident will be reported.";
+Commands.sudo = function (terminal, args, stdin) {
+    return {
+        stdout: "guest users are not allowed to invoke sudo, this incident will be reported.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* EDIT */
-Commands.edit = function (terminal, args) {
+Commands.edit = function (terminal, args, stdin) {
     const target = args[0];
     if (!target){
-        return "edit: missing operand";
+        return {
+            stdout: "edit: missing operand",
+            stderr: "",
+            exitCode: 0
+        };        
     }
     const path = resolveRelativePath(terminal.cwd,target);
 
@@ -104,78 +116,123 @@ Commands.edit = function (terminal, args) {
     }
 
     if (node.type !== "file"){
-        return `edit: ${target}: Is a directory`;
+        return {
+            stdout: `edit: ${target}: Is a directory`,
+            stderr: "",
+            exitCode: 0
+        };                
     }
 
     terminal.openEditor(node, path);
 
-    return;
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };        
 };
 
 /* HEAD */
-Commands.head = function (terminal, args) {
+Commands.head = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{n: true});
     const maxDepth = parsed.options?.n !== undefined
         ? parseInt(parsed.options.n, 10)
         : 10;
 
     if (args.length === 0){
-        return `head: missing file operand`;
+        return {
+            stdout: `head: missing file operand`,
+            stderr: "",
+            exitCode: 0
+        };        
     }
     for (const arg of args) {
         const fullPath = resolveRelativePath(terminal.cwd, arg);
         const node = resolvePath(fullPath);
         if (node != null){
             if (!node) {
-                return `head: no such file: ${arg}`;
+                return {
+                    stdout: `head: no such file: ${arg}`,
+                    stderr: "",
+                    exitCode: 0
+                };        
             }
             if (node.type === "dir") {
-                return `head: ${arg}: is a directory`;
+                return {
+                    stdout: `head: ${arg}: is a directory`,
+                    stderr: "",
+                    exitCode: 0
+                };        
             }
             if (node && node.type === "file") {
                 const content = node.content.split(/\r?\n/);
-                return content.slice(0, maxDepth).join("\n");
+                return {
+                    stdout: content.slice(0, maxDepth).join(`\n`),
+                    stderr: "",
+                    exitCode: 0
+                };        
             }
         }
     }
 };
 
 /* TAIL */
-Commands.tail = function (terminal, args) {
+Commands.tail = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{n: true});
     const maxDepth = parsed.options?.n !== undefined
         ? parseInt(parsed.options.n, 10)
         : 10;
 
     if (args.length === 0){        
-        return `tail: missing file operand`;
+        return {
+            stdout: `tail: missing file operand`,
+            stderr: "",
+            exitCode: 0
+        };
     }
     for (const arg of args) {
         const fullPath = resolveRelativePath(terminal.cwd, arg);
         const node = resolvePath(fullPath);
         if (node != null){
             if (!node) {
-                return `tail: no such file: ${arg}`;
+                return {
+                    stdout: `tail: no such file: ${arg}`,
+                    stderr: "",
+                    exitCode: 0
+                };        
             }
             if (node.type === "dir") {
-                return `tail: ${arg}: is a directory`;
+                return {
+                    stdout: `tail: ${arg}: is a directory`,
+                    stderr: "",
+                    exitCode: 0
+                };        
             }
             if (node && node.type === "file") {
                 const content = node.content.split(/\r?\n/);
-                return content.slice(-maxDepth).join("\n");
+                return {
+                    stdout: content.slice(-maxDepth).join("\n"),
+                    stderr: "",
+                    exitCode: 0
+                };                        
             }
         }
     }
 };
 
 /* MKDIR */
-Commands.mkdir = function (terminal, args) {
+Commands.mkdir = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args, { p: false });
     const parents = parsed.flags.has("p");
     const target = parsed.args[0];
 
     if (!target) {
-        return "mkdir: missing operand";
+        return {
+            stdout: "mkdir: missing operand",
+            stderr: "",
+            exitCode: 0
+        };        
+
     }
 
     const path = resolveRelativePath(terminal.cwd, target);
@@ -191,7 +248,12 @@ Commands.mkdir = function (terminal, args) {
 
             if (node) {
                 if (node.type !== "dir") {
-                    return `mkdir: ${part}: Not a directory`;
+                    return {
+                        stdout: `mkdir: ${part}: Not a directory`,
+                        stderr: "",
+                        exitCode: 0
+                    };        
+
                 }
                 continue;
             }
@@ -199,7 +261,11 @@ Commands.mkdir = function (terminal, args) {
             const result = getParentDirectory(currentPath);
 
             if (!result) {
-                return `mkdir: invalid path ${currentPath}`;
+                return {
+                    stdout: `mkdir: invalid path ${currentPath}`,
+                    stderr: "",
+                    exitCode: 0
+                };        
             }
 
             result.parent.children[result.name] = {
@@ -208,23 +274,39 @@ Commands.mkdir = function (terminal, args) {
                 children: {}
             };
         }
-        return;
+        return {
+            stdout: "",
+            stderr: "",
+            exitCode: 0
+        };        
     }
     
     if (parents) {
-        return mkdirRecursive(path);
+        return {
+            stdout: mkdirRecursive(path),
+            stderr: "",
+            exitCode: 0
+        };         
     }
 
     const node = resolvePath(path);
 
     if (node) {
-        return `mkdir: directory ${target} already exists`;
+        return {
+            stdout: `mkdir: directory ${target} already exists`,
+            stderr: "",
+            exitCode: 0
+        };           
     }
 
     const result = getParentDirectory(path);
 
     if (!result) {
-        return `mkdir: cannot create directory '${target}': No such file or directory`;
+        return {
+            stdout: `mkdir: cannot create directory '${target}': No such file or directory`,
+            stderr: "",
+            exitCode: 0
+        };           
     }
 
     result.parent.children[result.name] = {
@@ -233,46 +315,76 @@ Commands.mkdir = function (terminal, args) {
         children: {}
     };
 
-    return;
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };          
 };
 
 /* RMDIR */
-Commands.rmdir = function (terminal, args) {
+Commands.rmdir = function (terminal, args, stdin) {
     let target = args[0];
     if (target === undefined) {
-        return `rmdir: missing operand`;
+        return {
+            stdout: `rmdir: missing operand`,
+            stderr: "",
+            exitCode: 0
+        };          
     }
     const path = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(path);
     if (!node){
-        return `rmdir: directory ${target} not found`;
+        return {
+            stdout: `rmdir: directory ${target} not found`,
+            stderr: "",
+            exitCode: 0
+        };          
     }
     if (node && node.type === "dir"){
         if (Object.keys(node.children).length > 0) {
-            return `rmdir: failed to remove ${target}: Directory not empty`;    
+            return {
+                stdout: `rmdir: failed to remove ${target}: Directory not empty`,
+                stderr: "",
+                exitCode: 0
+            };           
         }
         else{
             const path = resolveRelativePath(terminal.cwd, target);
             const result = getParentDirectory(path);
 
             if (!result) {
-                return `rmdir: directory ${target} not found`;
+                return {
+                    stdout: `rmdir: directory ${target} not found`,
+                    stderr: "",
+                    exitCode: 0
+                };           
             }
 
-            delete result.parent.children[result.name];        }
+            delete result.parent.children[result.name];       
+        }
     }
     else if (node.type === "file"){
-        return `rmdir: ${target} is a file please use rm`;
+        return {
+            stdout: `rmdir: ${target} is a file please use rm`,
+            stderr: "",
+            exitCode: 0
+        };           
+
     }
 };
 
 /* MV */
-Commands.mv = function (terminal, args) {
+Commands.mv = function (terminal, args, stdin) {
     let source = args[0];
     let destination = args[1];
 
     if (source === undefined || destination === undefined) {
-        return `mv: missing operand`;
+        return {
+            stdout: `mv: missing operand`,
+            stderr: "",
+            exitCode: 0
+        };           
     }
 
     const sourcePath = resolveRelativePath(terminal.cwd, source);
@@ -282,11 +394,19 @@ Commands.mv = function (terminal, args) {
     const dest = getParentDirectory(destinationPath);
 
     if (!src || !dest) {
-        return `mv: invalid path`;
+        return {
+            stdout: `mv: invalid path`,
+            stderr: "",
+            exitCode: 0
+        };   
     }
 
     if (dest.parent.children[dest.name]) {
-        return `mv: ${destination}: already exists`;
+        return {
+            stdout: `mv: ${destination}: already exists`,
+            stderr: "",
+            exitCode: 0
+        };           
     }
 
     dest.parent.children[dest.name] = src.parent.children[src.name];
@@ -295,40 +415,56 @@ Commands.mv = function (terminal, args) {
 };
 
 /* CP */
-Commands.cp = function (terminal, args) {
+Commands.cp = function (terminal, args, stdin) {
     let source = args[0];
     let destination = args[1];
 
     if (source === undefined || destination === undefined) {
-        return `cp: missing operand`;
+        return {
+            stdout: `cp: missing operand`,
+            stderr: "",
+            exitCode: 0
+        };    
     }
 
     const sourcePath = resolveRelativePath(terminal.cwd, source);
     const destinationPath = resolveRelativePath(terminal.cwd, destination);
 
-    const smrc = getParentDirectory(sourcePath);
+    const src = getParentDirectory(sourcePath);
     const dest = getParentDirectory(destinationPath);
 
     if (!src || !dest) {
-        return `cp: invalid path`;
+        return {
+            stdout: `cp: invalid path`,
+            stderr: "",
+            exitCode: 0
+        };    
     }
 
     if (dest.parent.children[dest.name]) {
-        return `cp: ${destination}: already exists`;
+        return {
+            stdout: `cp: ${destination}: already exists`,
+            stderr: "",
+            exitCode: 0
+        };    
     }
 
     dest.parent.children[dest.name] = structuredClone(src.parent.children[src.name]);
 };
 
 /* RM */
-Commands.rm = function (terminal, args) {
+Commands.rm = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{f: false,r: false});
     const force = parsed.flags.has("f");
     const recursive = parsed.flags.has("r");
     const target = parsed.args[0];
 
     if (target === undefined) {
-        return `rm: missing operand`;
+        return {
+            stdout: `rm: missing operand`,
+            stderr: "",
+            exitCode: 0
+        };    
     }
 
     const path = resolveRelativePath(terminal.cwd, target);
@@ -336,20 +472,36 @@ Commands.rm = function (terminal, args) {
 
     if (!result || !result.parent.children[result.name]) {
         if (force) {
-            return;
+            return {
+                stdout: "",
+                stderr: "",
+                exitCode: 0
+            };    
         }
-        return `rm: cannot remove '${target}': No such file or directory`;
+        return {
+            stdout: `rm: cannot remove '${target}': No such file or directory`,
+            stderr: "",
+            exitCode: 0
+        };   
     }
 
     const node = result.parent.children[result.name];
 
     if (node.type === "file") {
         delete result.parent.children[result.name];
-        return;
+        return {
+            stdout: "",
+            stderr: "",
+            exitCode: 0
+        };    
     }
 
     if (!force) {
-        return `rm: ${target} is a directory please use rmdir`;
+        return {
+            stdout: `rm: ${target} is a directory please use rmdir`,
+            stderr: "",
+            exitCode: 0
+        };                  
     }
 
     if (recursive) {
@@ -370,36 +522,56 @@ Commands.rm = function (terminal, args) {
         }
 
         if(target === ROOT){
-            return "rm: it is dangerous to operate recursively on '/'";
+            return {
+                stdout: "rm: it is dangerous to operate recursively on '/'",
+                stderr: "",
+                exitCode: 0
+            };          
         }
         removeChildren(node);
     }
     else if (Object.keys(node.children).length > 0) {
-        return `rm: cannot remove '${target}': Directory not empty`;
+        return {
+            stdout: `rm: cannot remove '${target}': Directory not empty`,
+            stderr: "",
+            exitCode: 0
+        };          
     }
 
     delete result.parent.children[result.name];    
 };
 
 /* TOUCH */
-Commands.touch = function (terminal, args) {
+Commands.touch = function (terminal, args, stdin) {
     let target = args[0];
 
     if (target === undefined) {
-        return `touch: missing operand`;
+        return {
+            stdout: `touch: missing operand`,
+            stderr: "",
+            exitCode: 0
+        };           
     }
 
     const path = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(path);
 
     if (node){
-        return `touch: file ${target} already exists`;
+        return {
+            stdout: `touch: file ${target} already exists`,
+            stderr: "",
+            exitCode: 0
+        };           
     }
 
     const result = getParentDirectory(path);
 
     if (!result) {
-        return `touch: invalid path ${target}`;
+        return {
+            stdout: `touch: invalid path ${target}`,
+            stderr: "",
+            exitCode: 0
+        };           
     }
 
     result.parent.children[result.name] = {
@@ -410,17 +582,25 @@ Commands.touch = function (terminal, args) {
 };
 
 /* PWD */
-Commands.pwd = function (terminal) {
-    return terminal.cwd;
+Commands.pwd = function (terminal, args, stdin) {
+    return {
+        stdout: terminal.cwd,
+        stderr: "",
+        exitCode: 0
+    };                  
 };
 
 /* RESET */
-Commands.reset = function (terminal) {
-    return "reset";
+Commands.reset = function (terminal, args, stdin) {
+    return {
+        stdout: "reset",
+        stderr: "",
+        exitCode: 0
+    };                  
 };
 
 /* LS */
-Commands.ls = function (terminal, args) {
+Commands.ls = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{l: false,a: false,R: false});
     const longFormat = parsed.flags.has("l");
     const showHidden = parsed.flags.has("a");
@@ -431,7 +611,11 @@ Commands.ls = function (terminal, args) {
     const node = resolvePath(path);
 
     if (!node || node.type !== "dir") {
-        return `ls: ${target} is not a directory`;
+        return {
+            stdout:`ls: ${target} is not a directory`,
+            stderr: "",
+            exitCode: 0
+        };                  
     }
 
     function listDirectory(dirNode, dirPath) {
@@ -464,49 +648,88 @@ Commands.ls = function (terminal, args) {
                 output.push(listDirectory(dir.node, `${dirPath}${dir.name}/`));
             });
         }
-        return output.join(recursive || longFormat ? "\n" : "    ");
+        return {
+            stdout: output.join(recursive || longFormat ? "\n" : "    "),
+            stderr: "",
+            exitCode: 0
+        };          
     }
     if (recursive) {
-        return `${target}:\n${listDirectory(node, "")}`;
+        return {
+            stdout: `${target}:\n${listDirectory(node, "")}`,
+            stderr: "",
+            exitCode: 0
+        };         
     }
 
-    return listDirectory(node, "");
+    return {
+        stdout: listDirectory(node, ""),
+        stderr: "",
+        exitCode: 0
+    }; 
+
 };
 
 /* CD */
-Commands.cd = function (terminal, args) {
+Commands.cd = function (terminal, args, stdin) {
     const target = args[0];
     if (!target) {
-        return "cd: missing operand";
+        return {
+            stdout: "cd: missing operand",
+            stderr: "",
+            exitCode: 0
+        }; 
+
     }
     const newPath = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(newPath);
     if (!node) {
-        return `cd: no such file or directory: ${target}`;
+        return {
+            stdout: `cd: no such file or directory: ${target}`,
+            stderr: "",
+            exitCode: 0
+        }; 
+
     }
     if (node.type !== "dir") {
-        return `cd: not a directory: ${target}`;
+        return {
+            stdout: `cd: not a directory: ${target}`,
+            stderr: "",
+            exitCode: 0
+        }; 
     }
     terminal.cwd = newPath;
     terminal.renderPrompt();
 };
 
 /* CAT */
-Commands.cat = function (terminal, args) {
+Commands.cat = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{n: false});
     const numberLines = parsed.flags.has("n");
     const target = parsed.args[0];
 
     if (!target) {
-        return "cat: missing file operand";
+        return {
+            stdout: "cat: missing file operand",
+            stderr: "",
+            exitCode: 0
+        }; 
     }
     const fullPath = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(fullPath);
     if (!node) {
-        return `cat: no such file: ${target}`;
+        return {
+            stdout: `cat: no such file: ${target}`,
+            stderr: "",
+            exitCode: 0
+        };         
     }
     if (node.type === "dir") {
-        return `cat: ${target}: is a directory`;
+        return {
+            stdout: `cat: ${target}: is a directory`,
+            stderr: "",
+            exitCode: 0
+        };         
     }
     
     if (numberLines){
@@ -517,27 +740,44 @@ Commands.cat = function (terminal, args) {
             returnContent += `  ${lineNumber}  ${line} \n`;
             lineNumber++;
         }
-        return returnContent;
+        return {
+            stdout: returnContent,
+            stderr: "",
+            exitCode: 0
+        };        
     }
-    return node.content;
+    return {
+        stdout: node.content,
+        stderr: "",
+        exitCode: 0
+    };    
 };
 
 /* MORE */
-Commands.more = async function (terminal, args) {
+Commands.more = async function (terminal, args, stdin) {
     const target = args[0];
     if (!target) {
-        terminal.write("more: missing file operand");
-        return;
+        return {
+            stdout: "more: missing file operand",
+            stderr: "",
+            exitCode: 0
+        };        
     }
     const fullPath = resolveRelativePath(terminal.cwd, target);
     const node = resolvePath(fullPath);
     if (!node) {
-        terminal.write(`more: no such file: ${target}`);
-        return;
+        return {
+            stdout: `more: no such file: ${target}`,
+            stderr: "",
+            exitCode: 0
+        };        
     }
     if (node.type === "dir") {
-        terminal.write(`more: ${target}: is a directory`);
-        return;
+        return {
+            stdout: `more: ${target}: is a directory`,
+            stderr: "",
+            exitCode: 0
+        };
     }
     const lines = node.content.split(/\r?\n/);
     terminal.pager.linesPrinted = 0;
@@ -555,7 +795,7 @@ Commands.more = async function (terminal, args) {
 };
 
 /* TREE */
-Commands.tree = function (terminal, args) {
+Commands.tree = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{d: false,a: false,L: true});
     const onlyDirectory = parsed.flags.has("d");
     const showHidden = parsed.flags.has("a");
@@ -591,68 +831,129 @@ Commands.tree = function (terminal, args) {
                 output += walk(child, nextPrefix, depth + 1);
             }
         });
-        return output;
+        return {
+            stdout: output,
+            stderr: "",
+            exitCode: 0
+        };
     }
-    return walk(root).replace(/\r?\n$/, "");
+    return {
+        stdout: walk(root).replace(/\r?\n$/, ""),
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* WHOAMI */
-Commands.whoami = function () {
-    return DEFAULT_USER;
+Commands.whoami = function (terminal, args, stdin) {
+        return {
+        stdout: DEFAULT_USER,
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* CLEAR */
-Commands.clear = function (terminal) {
+Commands.clear = function (terminal, args, stdin) {
     terminal.clearScreen();
-    return;
-};
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };};
 
 /* ECHO */
-Commands.echo = function (_terminal, args) {    
-    return args.join(" ");
+Commands.echo = function (terminal, args, stdin) {    
+    return {
+        stdout: args.join(" "),
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* HISTORY */
-Commands.history = function (terminal) {
-    return terminal.history.join("\n");
+Commands.history = function (terminal, args, stdin) {
+        return {
+        stdout: terminal.history.join("\n"),
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* PS */
-Commands.ps = function (terminal) {
-    return "guest users are not permitted to list processes.";
+Commands.ps = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted to list processes.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* KILL */
-Commands.kill = function (terminal) {
-    return "guest users are not permitted to kill processes.";
+Commands.kill = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted to kill processes.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* DF */
-Commands.df = function (terminal) {
-    return "guest users are not permitted view storage information.";
+Commands.df = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted view storage information.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* FREE */
-Commands.free = function (terminal) {
-    return "guest users are not permitted view memory information.";
+Commands.free = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted view memory information.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* PING */
-Commands.ping = function (terminal) {
-    return "guest users are not permitted to run the ping command.";
+Commands.ping = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted to run the ping command.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* CURL */
-Commands.curl = function (terminal) {
-    return "guest users are not permitted to run the curl command.";
+Commands.curl = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted to run the curl command.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* WGET */
-Commands.wget = function (terminal) {
-    return "guest users are not permitted to run the wget command.";
+Commands.wget = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted to run the wget command.",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* FINGER */
-Commands.finger = function (terminal) {
-    return "guest users are not permitted to run the finger command.";
+Commands.finger = function (terminal, args, stdin) {
+        return {
+        stdout: "guest users are not permitted to run the finger command.",
+        stderr: "",
+        exitCode: 0
+    };
 };
+
+//GREP
+//Pipes
+//Redirection
+//Environment variables
+//Aliases
