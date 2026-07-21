@@ -274,11 +274,7 @@ Commands.mkdir = function (terminal, args, stdin) {
                 children: {}
             };
         }
-        return {
-            stdout: "",
-            stderr: "",
-            exitCode: 0
-        };        
+        return results;     
     }
     
     if (parents) {
@@ -648,11 +644,7 @@ Commands.ls = function (terminal, args, stdin) {
                 output.push(listDirectory(dir.node, `${dirPath}${dir.name}/`));
             });
         }
-        return {
-            stdout: output.join(recursive || longFormat ? "\n" : "    "),
-            stderr: "",
-            exitCode: 0
-        };          
+        return output.join(recursive || longFormat ? "\n" : "    ");          
     }
     if (recursive) {
         return {
@@ -831,11 +823,7 @@ Commands.tree = function (terminal, args, stdin) {
                 output += walk(child, nextPrefix, depth + 1);
             }
         });
-        return {
-            stdout: output,
-            stderr: "",
-            exitCode: 0
-        };
+        return output;
     }
     return {
         stdout: walk(root).replace(/\r?\n$/, ""),
