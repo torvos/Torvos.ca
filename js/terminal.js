@@ -35,7 +35,7 @@ class TerminalEngine {
 
     async init() {
 
-        this.inputMode = "normal";
+        this.inputMode = INPUT_NORMAL;
 
         const savedSettings = localStorage.getItem("terminalSettings");
         if (savedSettings) {        
@@ -287,7 +287,7 @@ class TerminalEngine {
                     break;
 
                 default:
-                    if (this.inputMode === "waitingPassword"){break;}
+                    if (this.inputMode === INPUT_WAIT_FOR_PASSWORD){break;}
                     if (e.key.length === 1 &&
                         !e.metaKey &&
                         !e.altKey) {
@@ -322,7 +322,7 @@ class TerminalEngine {
         const input = this.currentInput.trim();
 
         switch (this.inputMode) {
-            case "normal":
+            case INPUT_NORMAL:
                 if (!input){
                     this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$`);
                     document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
@@ -345,17 +345,17 @@ class TerminalEngine {
                 this.currentInput = "";
                 this.renderInput();
                 break;
-            case "waitingUsername":
+            case INPUT_WAIT_FOR_USERNAME:
                 this.currentInput = "";
                 this.renderInput();
-                this.inputMode = "waitingPassword";
+                this.inputMode = INPUT_WAIT_FOR_PASSWORD;
                 this.promptEl.textContent = "password:";
                 break;
-            case "waitingPassword":
+            case INPUT_WAIT_FOR_PASSWORD:
                 this.write("Login incorrect")
                 this.currentInput = "";
                 this.renderInput();
-                this.inputMode = "normal";
+                this.inputMode = INPUT_NORMAL;
                 this.renderPrompt();
                 break;
         }
@@ -378,15 +378,25 @@ class TerminalEngine {
             const stdin = "";
             if (window.Commands && window.Commands[cmd]) {  
                 const result = await window.Commands[cmd](this, args, stdin);
-                if (result.stdout) {
-                    const lines = result.stdout.split(/\r?\n/);
-                    for (const line of lines) {
-                        this.write(line, { color: "#ffffff" });
-                        await this.sleep(50);
+                if (!result.exitCode){
+                    if (result.stdout) {
+                        const lines = result.stdout.split(/\r?\n/);
+                        for (const line of lines) {
+                            this.write(line, { color: "#ffffff" });
+                            await this.sleep(50);
+                        }
+                    }
+                } else {
+                    if (result.stderr){
+                        const lines = result.stderr.split(/\r?\n/);
+                        for (const line of lines) {
+                            this.write(line, { color: "#ff6060" });
+                            await this.sleep(50);
+                        }
                     }
                 }
             } else if (cmd === "login"){
-                this.inputMode = "waitingUsername";
+                this.inputMode = INPUT_WAIT_FOR_USERNAME;
                 this.promptEl.textContent = "user:";
             } else {
                 this.write(`command not found: ${cmd}`);
