@@ -378,20 +378,22 @@ class TerminalEngine {
             const stdin = "";
             if (window.Commands && window.Commands[cmd]) {  
                 const result = await window.Commands[cmd](this, args, stdin);
-                if (!result.exitCode){
-                    if (result.stdout) {
-                        const lines = result.stdout.split(/\r?\n/);
-                        for (const line of lines) {
-                            this.write(line, { color: "#ffffff" });
-                            await this.sleep(50);
+                if (result) {
+                    if (!result.exitCode){
+                        if (result.stdout) {
+                            const lines = result.stdout.split(/\r?\n/);
+                            for (const line of lines) {
+                                this.write(line, { color: "#ffffff" });
+                                await this.sleep(50);
+                            }
                         }
-                    }
-                } else {
-                    if (result.stderr){
-                        const lines = result.stderr.split(/\r?\n/);
-                        for (const line of lines) {
-                            this.write(line, { color: "#ff6060" });
-                            await this.sleep(50);
+                    } else {
+                        if (result.stderr){
+                            const lines = result.stderr.split(/\r?\n/);
+                            for (const line of lines) {
+                                this.write(line, { color: "#ff6060" });
+                                await this.sleep(50);
+                            }
                         }
                     }
                 }
@@ -621,6 +623,7 @@ class TerminalEngine {
             return;
         }
         this.editor.node.content = this.editorEl.value;
+        this.editor.node.modified = Date.now();
         localStorage.setItem(
             "FileSystem",
             JSON.stringify(window.FileSystem)

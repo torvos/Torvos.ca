@@ -49,6 +49,107 @@ window.getParentDirectory = function (path) {
     return {parent,name};
 };
 
+window.formatSize = function(bytes) {
+    if (bytes < 1024) {
+        return `${bytes}B`;
+    }
+    const units = ["K", "M", "G", "T"];
+    let size = bytes;
+    for (const unit of units) {
+        size /= 1024;
+        if (size < 1024) {
+            return `${size.toFixed(1)}${unit}`;
+        }
+    }
+    return `${size.toFixed(1)}P`;
+};
+
+window.getDirectorySize = function(node) {
+    if (!node) {
+        return 0;
+    }
+    if (node.type === "file") {
+        return new TextEncoder().encode(node.content || "").length;
+    }
+    let total = 0;
+    for (const child of Object.values(node.children || {})) {
+        total += getDirectorySize(child);
+    }
+    return total;
+};
+
+window.getSize = function (node) {
+    if (node.type === "file")
+        return new TextEncoder().encode(node.content).length;
+    return Object.keys(node.children).length;
+};
+
+window.formatDate = function (timestamp) {
+    return new Date(timestamp).toLocaleString("en-CA", {
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+    });
+};
+
+window.getLinkCount = function(node) {
+    if (node.type === "file") {
+        return 1;
+    }
+    const subdirs = Object.values(node.children || {})
+        .filter(child => child.type === "dir")
+        .length;
+
+    return 2 + subdirs;
+};
+
+window.formatLongEntry = function(name, node) {
+
+    const typeChar = node.type === "dir" ? "d" : "-";
+    const mode = node.mode;
+    const links = getLinkCount(node);
+    const owner = node.owner;
+    const group = node.group;
+    const size = getDirectorySize(node);
+    const modified = formatDate(node.modified);
+
+    return `${typeChar}${mode} ${String(links).padStart(2)} ${owner.padEnd(8)} ${group.padEnd(8)} ${String(size).padStart(6)} ${modified} ${name}${node.type === "dir" ? "/" : ""}`;
+};
+
+window.createFile = function(hidden = false) {
+    const now = Date.now();
+
+    return {
+        type: "file",
+        hidden,
+        mode: "rw-r--r--",
+        owner: "guest",
+        group: "guest",
+        created: now,
+        modified: now,
+        accessed: now,
+        content: ""
+    };
+};
+
+window.createDirectory = function(hidden = false) {
+    const now = Date.now();
+
+    return {
+        type: "dir",
+        hidden,
+        mode: "rwxr-xr-x",
+        owner: "guest",
+        group: "guest",
+        created: now,
+        modified: now,
+        accessed: now,
+        children: {}
+    };
+};
+
 /* HELP */
 Commands.help = function (terminal, args, stdin) {
     return {
@@ -108,11 +209,7 @@ Commands.edit = function (terminal, args, stdin) {
 
     if (!node) {
         const result = getParentDirectory(path);
-        result.parent.children[result.name] = {
-            type: "file",
-            hidden: result.name.startsWith("."),
-            content: ""
-        };
+        result.parent.children[result.name] = createFile(result.name.startsWith("."));
     }
 
     if (node.type !== "file"){
@@ -165,6 +262,7 @@ Commands.head = function (terminal, args, stdin) {
                 };        
             }
             if (node && node.type === "file") {
+                node.accessed = Date.now();
                 const content = node.content.split(/\r?\n/);
                 return {
                     stdout: content.slice(0, maxDepth).join(`\n`),
@@ -209,6 +307,7 @@ Commands.tail = function (terminal, args, stdin) {
                 };        
             }
             if (node && node.type === "file") {
+                node.accessed = Date.now();
                 const content = node.content.split(/\r?\n/);
                 return {
                     stdout: content.slice(-maxDepth).join("\n"),
@@ -267,19 +366,21 @@ Commands.mkdir = function (terminal, args, stdin) {
                     exitCode: 1
                 };        
             }
-
-            result.parent.children[result.name] = {
-                type: "dir",
-                hidden: result.name.startsWith("."),
-                children: {}
-            };
+            result.parent.modified = Date.now();
+            result.parent.children[result.name] = createDirectory(result.name.startsWith("."));
         }
-        return results;     
+
+        return {
+            stdout: "",
+            stderr: "",
+            exitCode: 0
+        };     
     }
     
     if (parents) {
+        mkdirRecursive(path); 
         return {
-            stdout: mkdirRecursive(path),
+            stdout: "",
             stderr: "",
             exitCode: 0
         };         
@@ -304,12 +405,9 @@ Commands.mkdir = function (terminal, args, stdin) {
             exitCode: 1
         };           
     }
-
-    result.parent.children[result.name] = {
-        type: "dir",
-        hidden: result.name.startsWith("."),
-        children: {}
-    };
+    
+    result.parent.modified = Date.now();
+    result.parent.children[result.name] = createDirectory(result.name.startsWith("."));
 
     return {
         stdout: "",
@@ -357,7 +455,13 @@ Commands.rmdir = function (terminal, args, stdin) {
                 };           
             }
 
+            result.parent.modified = Date.now();
             delete result.parent.children[result.name];       
+            return {
+                stdout: "",
+                stderr: "",
+                exitCode: 0
+            };            
         }
     }
     else if (node.type === "file"){
@@ -405,9 +509,18 @@ Commands.mv = function (terminal, args, stdin) {
         };           
     }
 
+    src.parent.modified = Date.now();
+    dest.parent.modified = Date.now();
+
     dest.parent.children[dest.name] = src.parent.children[src.name];
 
     delete src.parent.children[src.name];
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };    
 };
 
 /* CP */
@@ -445,7 +558,21 @@ Commands.cp = function (terminal, args, stdin) {
         };    
     }
 
-    dest.parent.children[dest.name] = structuredClone(src.parent.children[src.name]);
+    src.parent.modified = Date.now();
+    dest.parent.modified = Date.now();
+
+    const copy = structuredClone(src.parent.children[src.name]);
+    const now = Date.now();
+    copy.created = now;
+    copy.modified = now;
+    copy.accessed = now;
+    dest.parent.children[dest.name] = copy;
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* RM */
@@ -538,7 +665,14 @@ Commands.rm = function (terminal, args, stdin) {
         };          
     }
 
+    result.parent.modified = Date.now();
     delete result.parent.children[result.name];    
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };    
 };
 
 /* TOUCH */
@@ -574,11 +708,14 @@ Commands.touch = function (terminal, args, stdin) {
         };           
     }
 
-    result.parent.children[result.name] = {
-        type: "file",
-        hidden: result.name.startsWith("."),
-        content: ""
-    };
+    result.parent.modified = Date.now();
+    result.parent.children[result.name] = createFile(result.name.startsWith("."));
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };    
 };
 
 /* PWD */
@@ -619,6 +756,7 @@ Commands.ls = function (terminal, args, stdin) {
     }
 
     function listDirectory(dirNode, dirPath) {
+        dirNode.accessed = Date.now();
         const children = dirNode.children || {};
         const keys = Object.keys(children);
 
@@ -628,17 +766,21 @@ Commands.ls = function (terminal, args, stdin) {
         keys.forEach(name => {
             const child = children[name];
 
-            if (!child.hidden || showHidden) {
-                if (child.type === "dir") {
-                    output.push(`${name}/`);
-                    directories.push({
-                        name,
-                        node: child
-                    });
-                } else {
-                    output.push(name);
-                }
+            if (child.hidden && !showHidden)
+                return;
+
+            if (longFormat) {
+                output.push(formatLongEntry(name, child));
+            } else {
+                output.push(child.type === "dir" ? `${name}/` : name);
             }
+
+            if (child.type === "dir") {
+                directories.push({
+                    name,
+                    node: child
+                });
+            }            
         });
 
         if (recursive) {
@@ -694,8 +836,15 @@ Commands.cd = function (terminal, args, stdin) {
             exitCode: 1
         }; 
     }
+    node.accessed = Date.now();
     terminal.cwd = newPath;
     terminal.renderPrompt();
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };    
 };
 
 /* CAT */
@@ -742,6 +891,9 @@ Commands.cat = function (terminal, args, stdin) {
             exitCode: 0
         };        
     }
+
+    node.accessed = Date.now();
+
     return {
         stdout: node.content,
         stderr: "",
@@ -775,6 +927,8 @@ Commands.more = async function (terminal, args, stdin) {
             exitCode: 1
         };
     }
+
+    node.accessed = Date.now();
     const lines = node.content.split(/\r?\n/);
     terminal.pager.linesPrinted = 0;
     for (const line of lines) {
