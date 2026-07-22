@@ -318,6 +318,25 @@ class TerminalEngine {
             `<span>${after}</span>`;
     }
 
+    expandBraces(input) {
+        const match = input.match(/\{([^{}]+)\}/);
+        if (!match) {
+            return [input];
+        }
+        const values = match[1].split(",");
+        const results = [];
+        for (const value of values) {
+            const expanded = input.replace(
+                match[0],
+                value.trim()
+            );
+            results.push(
+                ...this.expandBraces(expanded)
+            );
+        }
+        return results;
+    }
+
     async handleEnter() {
         const input = this.currentInput.trim();
 
@@ -366,109 +385,72 @@ class TerminalEngine {
     }
 
     async execute(input) {
-
-        // Add in support for expansion { }
-        // Add in support for stdin <
-        const commandGroups = input
-            .split(";")
-            .map(cmd => cmd.trim())
-            .filter(Boolean);
-    
-        for (const group of commandGroups) {
-            const pipeline = group
-                .split("|")
+        const expandedCommands = this.expandBraces(input);
+        for (const expandedInput of expandedCommands) {
+            const commandGroups = expandedInput
+                .split(";")
                 .map(cmd => cmd.trim())
-                .filter(Boolean);           
-            let stdin = "";
-            
-            for (const command of pipeline) {
+                .filter(Boolean);
+        
+            for (const group of commandGroups) {
+                const pipeline = group
+                    .split("|")
+                    .map(cmd => cmd.trim())
+                    .filter(Boolean);           
+                let stdin = "";
+                
+                for (const command of pipeline) {
 
-                const parts = command.split(/\s+/);
-                const cmd = parts[0];
-                const args = parts.slice(1);
+                    const parts = command.split(/\s+/);
+                    const cmd = parts[0];
+                    const args = parts.slice(1);
 
-                let result;
-                if (window.Commands && window.Commands[cmd]) {
-                    result = await window.Commands[cmd](
-                        this,
-                        args,
-                        stdin
-                    );
-                } else if (cmd === "login") {
-                    this.inputMode = INPUT_WAIT_FOR_USERNAME;
-                    this.promptEl.textContent = "user:";
-                    return;
-                } else {
-                    result = {
-                        stdout: "",
-                        stderr: `command not found: ${cmd}`,
-                        exitCode: 127
-                    };
-                }
-                if (result.exitCode !== 0) {
-                    if (result.stderr) {
-                        const lines = result.stderr.split(/\r?\n/);
-                        for (const line of lines) {
-                            this.write(line, {
-                                color: "#ff6060"
-                            });
-                            await this.sleep(50);
-                        }
+                    let result;
+                    if (window.Commands && window.Commands[cmd]) {
+                        result = await window.Commands[cmd](
+                            this,
+                            args,
+                            stdin
+                        );
+                    } else if (cmd === "login") {
+                        this.inputMode = INPUT_WAIT_FOR_USERNAME;
+                        this.promptEl.textContent = "user:";
+                        return;
+                    } else {
+                        result = {
+                            stdout: "",
+                            stderr: `command not found: ${cmd}`,
+                            exitCode: 127
+                        };
                     }
-                    break;
-                }                
-                stdin = result.stdout || "";
-                if (command === pipeline[pipeline.length - 1]) {
-                    if (result.stdout) {
-                        const lines = result.stdout.split(/\r?\n/);
-                        for (const line of lines) {
-                            this.write(line, {
-                                color: "#ffffff"
-                            });
-                            await this.sleep(50);
+                    if (result.exitCode !== 0) {
+                        if (result.stderr) {
+                            const lines = result.stderr.split(/\r?\n/);
+                            for (const line of lines) {
+                                this.write(line, {
+                                    color: "#ff6060"
+                                });
+                                await this.sleep(50);
+                            }
+                        }
+                        break;
+                    }                
+                    stdin = result.stdout || "";
+                    if (command === pipeline[pipeline.length - 1]) {
+                        if (result.stdout) {
+                            const lines = result.stdout.split(/\r?\n/);
+                            for (const line of lines) {
+                                this.write(line, {
+                                    color: "#ffffff"
+                                });
+                                await this.sleep(50);
+                            }
                         }
                     }
                 }
             }
         }
     }
-/*
-        const commands = input.split("|");
-        for (let i = 0; i < commands.length; i++) {
-            const parts = commands[i].trim().split(" ");
-            const cmd = parts[0];
-            const args = parts.slice(1);
-            const stdin = "";
-            if (window.Commands && window.Commands[cmd]) {  
-                const result = await window.Commands[cmd](this, args, stdin);
-                if (result) {
-                    if (!result.exitCode){
-                        if (result.stdout) {
-                            const lines = result.stdout.split(/\r?\n/);
-                            for (const line of lines) {
-                                this.write(line, { color: "#ffffff" });
-                                await this.sleep(50);
-                            }
-                        }
-                    } else {
-                        if (result.stderr){
-                            const lines = result.stderr.split(/\r?\n/);
-                            for (const line of lines) {
-                                this.write(line, { color: "#ff6060" });
-                                await this.sleep(50);
-                            }
-                        }
-                    }
-                }
-            } else if (cmd === "login"){
-                this.inputMode = INPUT_WAIT_FOR_USERNAME;
-                this.promptEl.textContent = "user:";
-            } else {
-                this.write(`command not found: ${cmd}`);
-            }         
-        }
-    }
-*/
 
     clearScreen() {
         this.output.innerHTML = "";
