@@ -369,7 +369,70 @@ class TerminalEngine {
 
         // Add in support for expansion { }
         // Add in support for stdin <
+        const commandGroups = input
+            .split(";")
+            .map(cmd => cmd.trim())
+            .filter(Boolean);
+    
+        for (const group of commandGroups) {
+            const pipeline = group
+                .split("|")
+                .map(cmd => cmd.trim())
+                .filter(Boolean);           
+            let stdin = "";
+            
+            for (const command of pipeline) {
 
+                const parts = command.split(/\s+/);
+                const cmd = parts[0];
+                const args = parts.slice(1);
+
+                let result;
+                if (window.Commands && window.Commands[cmd]) {
+                    result = await window.Commands[cmd](
+                        this,
+                        args,
+                        stdin
+                    );
+                } else if (cmd === "login") {
+                    this.inputMode = INPUT_WAIT_FOR_USERNAME;
+                    this.promptEl.textContent = "user:";
+                    return;
+                } else {
+                    result = {
+                        stdout: "",
+                        stderr: `command not found: ${cmd}`,
+                        exitCode: 127
+                    };
+                }
+                if (result.exitCode !== 0) {
+                    if (result.stderr) {
+                        const lines = result.stderr.split(/\r?\n/);
+                        for (const line of lines) {
+                            this.write(line, {
+                                color: "#ff6060"
+                            });
+                            await this.sleep(50);
+                        }
+                    }
+                    break;
+                }                
+                stdin = result.stdout || "";
+                if (command === pipeline[pipeline.length - 1]) {
+                    if (result.stdout) {
+                        const lines = result.stdout.split(/\r?\n/);
+                        for (const line of lines) {
+                            this.write(line, {
+                                color: "#ffffff"
+                            });
+                            await this.sleep(50);
+                        }
+                    }
+                }
+            }
+        }
+    }
+/*
         const commands = input.split("|");
         for (let i = 0; i < commands.length; i++) {
             const parts = commands[i].trim().split(" ");
@@ -405,6 +468,7 @@ class TerminalEngine {
             }         
         }
     }
+*/
 
     clearScreen() {
         this.output.innerHTML = "";

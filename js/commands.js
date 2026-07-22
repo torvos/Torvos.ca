@@ -235,43 +235,47 @@ Commands.head = function (terminal, args, stdin) {
     const maxDepth = parsed.options?.n !== undefined
         ? parseInt(parsed.options.n, 10)
         : 10;
-
-    if (args.length === 0){
-        return {
-            stdout: "",
-            stderr: `head: missing file operand`,
-            exitCode: 1
-        };        
-    }
-    for (const arg of args) {
-        const fullPath = resolveRelativePath(terminal.cwd, arg);
-        const node = resolvePath(fullPath);
-        if (node != null){
-            if (!node) {
-                return {
-                    stdout: "",
-                    stderr: `head: no such file: ${arg}`,
-                    exitCode: 1
-                };        
-            }
-            if (node.type === "dir") {
-                return {
-                    stdout: "",
-                    stderr: `head: ${arg}: is a directory`,
-                    exitCode: 1
-                };        
-            }
-            if (node && node.type === "file") {
-                node.accessed = Date.now();
-                const content = node.content.split(/\r?\n/);
-                return {
-                    stdout: content.slice(0, maxDepth).join(`\n`),
-                    stderr: "",
-                    exitCode: 0
-                };        
-            }
+    const target = parsed.args[0];
+    let content = "";
+    
+    if (!target) {
+        if (!stdin) {
+            return {
+                stdout: "",
+                stderr: "head: missing file operand",
+                exitCode: 1
+            };
         }
+        content = stdin;
+    } else {
+        const fullPath = resolveRelativePath(terminal.cwd, target);
+        const node = resolvePath(fullPath);
+        if (!node) {
+            return {
+                stdout: "",
+                stderr: `head: no such file: ${target}`,
+                exitCode: 1
+            };
+        }
+        if (node.type === "dir") {
+            return {
+                stdout: "",
+                stderr: `head: ${target}: is a directory`,
+                exitCode: 1
+            };
+        }
+        node.accessed = Date.now();
+        content = node.content;
     }
+
+    return {
+        stdout: content
+            .split(/\r?\n/)
+            .slice(0,maxDepth)
+            .join("\n"),
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* TAIL */
@@ -280,43 +284,57 @@ Commands.tail = function (terminal, args, stdin) {
     const maxDepth = parsed.options?.n !== undefined
         ? parseInt(parsed.options.n, 10)
         : 10;
+    const target = parsed.args[0];
+    
+    let content = "";
 
-    if (args.length === 0){        
-        return {
-            stdout: "",
-            stderr: `tail: missing file operand`,
-            exitCode: 1
-        };
-    }
-    for (const arg of args) {
-        const fullPath = resolveRelativePath(terminal.cwd, arg);
-        const node = resolvePath(fullPath);
-        if (node != null){
-            if (!node) {
-                return {
-                    stdout: "",
-                    stderr: `tail: no such file: ${arg}`,
-                    exitCode: 1
-                };        
-            }
-            if (node.type === "dir") {
-                return {
-                    stdout: "",
-                    stderr: `tail: ${arg}: is a directory`,
-                    exitCode: 1
-                };        
-            }
-            if (node && node.type === "file") {
-                node.accessed = Date.now();
-                const content = node.content.split(/\r?\n/);
-                return {
-                    stdout: content.slice(-maxDepth).join("\n"),
-                    stderr: "",
-                    exitCode: 0
-                };                        
-            }
+    if (!target) {
+
+        if (!stdin) {
+            return {
+                stdout: "",
+                stderr: "tail: missing file operand",
+                exitCode: 1
+            };
         }
+
+        content = stdin;
+
+    } else {
+
+        const fullPath = resolveRelativePath(terminal.cwd, target);
+        const node = resolvePath(fullPath);
+
+        if (!node) {
+            return {
+                stdout: "",
+                stderr: `tail: no such file: ${target}`,
+                exitCode: 1
+            };
+        }
+
+        if (node.type === "dir") {
+            return {
+                stdout: "",
+                stderr: `tail: ${target}: is a directory`,
+                exitCode: 1
+            };
+        }
+
+        node.accessed = Date.now();
+        content = node.content;
     }
+
+
+    return {
+        stdout: content
+            .split(/\r?\n/)
+            .slice(-maxDepth)
+            .join("\n"),
+
+        stderr: "",
+        exitCode: 0
+    };
 };
 
 /* MKDIR */
@@ -854,48 +872,49 @@ Commands.cat = function (terminal, args, stdin) {
     const target = parsed.args[0];
 
     if (!target) {
-        return {
-            stdout: "",
-            stderr: "cat: missing file operand",
-            exitCode: 1
-        }; 
+        if (!stdin) {
+            return {
+                stdout: "",
+                stderr: "cat: missing file operand",
+                exitCode: 1
+            };
+        }
+
+        content = stdin;
+    } else {
+        const fullPath = resolveRelativePath(terminal.cwd, target);
+        const node = resolvePath(fullPath);
+        if (!node) {
+            return {
+                stdout: "",
+                stderr: `cat: no such file: ${target}`,
+                exitCode: 1
+            };         
+        }
+        if (node.type === "dir") {
+            return {
+                stdout: "",
+                stderr: `cat: ${target}: is a directory`,
+                exitCode: 1
+            };         
+        }
+        node.accessed = Date.now();
+        content = node.content;
     }
-    const fullPath = resolveRelativePath(terminal.cwd, target);
-    const node = resolvePath(fullPath);
-    if (!node) {
-        return {
-            stdout: "",
-            stderr: `cat: no such file: ${target}`,
-            exitCode: 1
-        };         
-    }
-    if (node.type === "dir") {
-        return {
-            stdout: "",
-            stderr: `cat: ${target}: is a directory`,
-            exitCode: 1
-        };         
-    }
-    
-    if (numberLines){
+
+    if (numberLines){        
         let lineNumber = 1;
         let returnContent = "";
-        const content = node.content.split(/\r?\n/);
-        for (const line of content) {
+        let contents = content.split(/\r?\n/);
+        for (const line of contents) {
             returnContent += `  ${lineNumber}  ${line} \n`;
             lineNumber++;
         }
-        return {
-            stdout: returnContent,
-            stderr: "",
-            exitCode: 0
-        };        
+        content = returnContent.replace(/\r?\n$/, "");
     }
 
-    node.accessed = Date.now();
-
     return {
-        stdout: node.content,
+        stdout: content,
         stderr: "",
         exitCode: 0
     };    
@@ -1099,8 +1118,34 @@ Commands.finger = function (terminal, args, stdin) {
     };
 };
 
-//GREP
-//Pipes
+Commands.grep = function (terminal, args, stdin) {
+    const pattern = args[0];
+    if (!pattern) {
+        return {
+            stdout: "",
+            stderr: "grep: missing pattern",
+            exitCode: 1
+        };
+    }
+    let content = stdin;
+    if (!content) {
+        return {
+            stdout: "",
+            stderr: "grep: no input",
+            exitCode: 1
+        };
+    }
+    const lines = content.split(/\r?\n/);
+    const matches = lines.filter(line =>
+        line.includes(pattern)
+    );
+    return {
+        stdout: matches.join("\n"),
+        stderr: "",
+        exitCode: matches.length ? 0 : 1
+    };
+};
+
 //Redirection
 //Environment variables
 //Aliases
