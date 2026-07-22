@@ -1118,6 +1118,7 @@ Commands.finger = function (terminal, args, stdin) {
     };
 };
 
+/* GREP */
 Commands.grep = function (terminal, args, stdin) {
     const pattern = args[0];
     if (!pattern) {
