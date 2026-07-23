@@ -1232,6 +1232,72 @@ Commands.wc = function (terminal, args, stdin) {
 };
 
 /* SORT */
+Commands.sort = function (terminal, args, stdin) {
+
+    const parsed = terminal.parseFlags(args, {r: false, n: false});
+    const reverse = parsed.flags.has("r");
+    const numeric = parsed.flags.has("n");
+    let text = "";
+
+    if (stdin !== undefined && stdin !== null && stdin !== "") {
+        text = stdin;
+    } else {
+        if (parsed.args.length === 0) {
+            return {
+                stdout: "",
+                stderr: "sort: missing operand",
+                exitCode: 1                
+            };
+        }
+        const contents = [];
+
+        for (const file of parsed.args) {
+            const path = resolveRelativePath(terminal.cwd, file);
+            const node = resolvePath(path);
+            if (!node) {
+                return {
+                    stdout: "",                    
+                    stderr: `sort: ${file}: No such file or directory`,
+                    exitCode: 1  
+                };
+            }
+            if (node.type !== "file") {
+                return {
+                    stdout: "",                    
+                    stderr: `sort: ${file}: Is a directory`,
+                    exitCode: 1  
+                };
+            }
+            contents.push(node.content);
+        }
+        text = contents.join("\n");
+    }
+    let lines = text.split(/\r?\n/);
+    if (lines.length && lines[lines.length - 1] === "") {
+        lines.pop();
+    }
+    lines.sort((a, b) => {
+        if (numeric) {
+            const na = Number(a);
+            const nb = Number(b);
+
+            if (Number.isNaN(na) || Number.isNaN(nb)) {
+                return a.localeCompare(b);
+            }
+
+            return na - nb;
+        }
+    });
+    if (reverse) {
+        lines.reverse();
+    }
+    return {
+        stdout: lines.join("\n"),
+        stderr: "",
+        exitCode: 0
+    };    
+};
+
 /* UNIQ */
 /* Redirection */
 /* Environment variables */
