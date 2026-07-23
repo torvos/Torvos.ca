@@ -168,6 +168,10 @@ Commands.help = function (terminal, args, stdin) {
 |  head -n <number> <file>   Outputs the beginning portion of a file |
 |  tail -n <number> <file>   Outputs the last portion of a file      |
 |  more <file>               Display file one screen at a time       |
+|  sort [-r|-n] <file>       Sort lines                              |
+|  uniq [-c|-d|-u] <file>    Remove duplicate adjacent lines         |
+|  wc [-l|-w|-c] <file>      Count lines, words, bytes               |
+|  grep <pattern>            Search stdin                            |
 +--------------------------------------------------------------------+
 |System:                                                             |
 |  help            Show this help message                            |
@@ -1234,9 +1238,11 @@ Commands.wc = function (terminal, args, stdin) {
 /* SORT */
 Commands.sort = function (terminal, args, stdin) {
 
-    const parsed = terminal.parseFlags(args, {r: false, n: false});
+    const parsed = terminal.parseFlags(args, {r: false, n: false, f: false, u: false});
     const reverse = parsed.flags.has("r");
     const numeric = parsed.flags.has("n");
+    const ignoreCase = parsed.flags.has("f");
+    const unique = parsed.flags.has("u");
     let text = "";
 
     if (stdin !== undefined && stdin !== null && stdin !== "") {
@@ -1276,21 +1282,41 @@ Commands.sort = function (terminal, args, stdin) {
     if (lines.length && lines[lines.length - 1] === "") {
         lines.pop();
     }
-    lines.sort((a, b) => {
+    lines.sort((a,b)=>{
+        let left = a;
+        let right = b;
+        if (ignoreCase) {
+            left = left.toLowerCase();
+            right = right.toLowerCase();
+        }
         if (numeric) {
-            const na = Number(a);
-            const nb = Number(b);
+            const na = Number(left);
+            const nb = Number(right);
+            if (!Number.isNaN(na) && !Number.isNaN(nb)) {
+                return na - nb;
+            }
+        }
+        return left.localeCompare(right);
+    });
 
-            if (Number.isNaN(na) || Number.isNaN(nb)) {
-                return a.localeCompare(b);
+    if (unique) {
+        lines = lines.filter((line, index) => {
+            if (index === 0) {
+                return true;
             }
 
-            return na - nb;
-        }
-    });
+            if (ignoreCase) {
+                return line.toLowerCase() !== lines[index - 1].toLowerCase();
+            }
+
+            return line !== lines[index - 1];
+        });
+    }
     if (reverse) {
         lines.reverse();
     }
+
+
     return {
         stdout: lines.join("\n"),
         stderr: "",
