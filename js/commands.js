@@ -1299,6 +1299,76 @@ Commands.sort = function (terminal, args, stdin) {
 };
 
 /* UNIQ */
+Commands.uniq = function (terminal, args, stdin) {
+    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
+    const count = parsed.flags.has("c");
+    const duplicatesOnly = parsed.flags.has("d");
+    const uniqueOnly = parsed.flags.has("u");
+
+    let text = "";
+    if (stdin !== undefined && stdin !== null && stdin !== "") {
+        text = stdin;
+    } else {
+        if (parsed.args.length === 0) {
+            return {
+                stdout: "",
+                stderr: "uniq: missing operand",
+                exitCode: 1
+            };
+        }
+        const path = resolveRelativePath(terminal.cwd, parsed.args[0]);
+        const node = resolvePath(path);
+        if (!node) {
+            return {
+                stdout: "",
+                stderr: `uniq: ${parsed.args[0]}: No such file or directory`,
+                exitCode: 1
+            };
+        }
+        if (node.type !== "file") {
+            return {
+                stdout: "",
+                stderr: `uniq: ${parsed.args[0]}: Is a directory`,
+                exitCode: 1
+            };
+        }
+        text = node.content;
+    }
+    let lines = text.split(/\r?\n/);
+    if (lines.length && lines[lines.length - 1] === "") {
+        lines.pop();
+    }
+    const output = [];
+    for (let i = 0; i < lines.length; ) {
+        const line = lines[i];
+        let occurrences = 1;
+        while (
+            i + occurrences < lines.length &&
+            lines[i + occurrences] === line
+        ) {
+            occurrences++;
+        }
+        if (duplicatesOnly) {
+            if (occurrences > 1) {
+                output.push(count ? `${occurrences} ${line}` : line);
+            }
+        } else if (uniqueOnly) {
+            if (occurrences === 1) {
+                output.push(count ? `${occurrences} ${line}` : line);
+            }
+        } else {
+            output.push(count ? `${occurrences} ${line}` : line);
+        }
+        i += occurrences;
+    }
+
+    return {
+        stdout: output.join("\n"),
+        stderr: "",
+        exitCode: 0
+    };
+};
+
 /* Redirection */
 /* Environment variables */
 /* Aliases */
