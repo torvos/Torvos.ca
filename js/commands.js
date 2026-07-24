@@ -1395,6 +1395,5 @@ Commands.uniq = function (terminal, args, stdin) {
     };
 };
 
-/* Redirection */
 /* Environment variables */
 /* Aliases */

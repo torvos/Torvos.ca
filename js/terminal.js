@@ -384,65 +384,218 @@ class TerminalEngine {
         this.scrollToBottom();
     }
 
+    parseCommand(command) {
+        const redirectRegex = /\s*(2>>|2>|>>|>|<)\s*([^\s]+)\s*$/;
+        const match = command.match(redirectRegex);
+        let redirects = {};
+        if (match) {
+            redirects = {
+                operator: match[1],
+                target: match[2]
+            };
+            command = command.slice(0, match.index).trim();
+        }
+        const parts = command.match(/"[^"]*"|'[^']*'|\S+/g) || [];
+
+        return {
+            cmd: parts[0],
+            args: parts.slice(1).map(a =>
+                a.replace(/^["']|["']$/g, "")
+            ),
+            redirects
+        };
+    }    
+
+    writeRedirect(path, text, append = false) {
+        const resolved = resolveRelativePath(this.cwd, path);
+        let node = resolvePath(resolved);
+        if (!node) {
+            const parts = resolved
+                .split(ROOT)
+                .filter(Boolean);
+            const filename = parts.pop();
+            const parentPath =
+                ROOT + parts.join(ROOT);
+            const parent = resolvePath(parentPath);
+            if (!parent || parent.type !== "dir") {
+                console.log("Invalid parent directory", parentPath);
+                return false;
+            }
+            parent.children[filename] = {
+                type: "file",
+                hidden: false,
+                mode: "rw-r--r--",
+                owner: "guest",
+                group: "guest",
+                created: Date.now(),
+                modified: Date.now(),
+                accessed: Date.now(),
+                content: ""
+            };
+            node = parent.children[filename];
+        }
+        if (node.type !== "file") {
+            return false;
+        }
+
+        node.content = append
+            ? ((node.content ?? "") 
+                ? node.content + "\n" + (text ?? "")
+                : (text ?? ""))
+            : (text ?? "");
+
+        node.modified = Date.now();
+        node.accessed = Date.now();
+
+
+        this.saveSettings();
+
+        return true;
+    }
+
     async execute(input) {
+
         const expandedCommands = this.expandBraces(input);
         for (const expandedInput of expandedCommands) {
             const commandGroups = expandedInput
                 .split(";")
                 .map(cmd => cmd.trim())
                 .filter(Boolean);
-        
+
             for (const group of commandGroups) {
                 const pipeline = group
                     .split("|")
                     .map(cmd => cmd.trim())
-                    .filter(Boolean);           
-                let stdin = "";
-                
-                for (const command of pipeline) {
+                    .filter(Boolean);
 
-                    const parts = command.split(/\s+/);
-                    const cmd = parts[0];
-                    const args = parts.slice(1);
+                let stdin = "";
+
+                for (let index = 0; index < pipeline.length; index++) {
+
+                    const parsed = this.parseCommand(pipeline[index]);
+                    const cmd = parsed.cmd;
+                    const args = parsed.args;
+                    const redirects = parsed.redirects;
+                    if (redirects.operator === "<") {
+                        const node = resolvePath(
+                            resolveRelativePath(
+                                this.cwd,
+                                redirects.target
+                            )
+                        );
+                        if (!node || node.type !== "file") {
+                            stdin = "";
+                            if (index === pipeline.length - 1) {
+                                this.write(
+                                    `${redirects.target}: No such file`,
+                                    {
+                                        color:"#ff6060"
+                                    }
+                                );
+                            }
+                            break;
+                        }
+                        stdin = node.content ?? "";
+                    }
 
                     let result;
+
                     if (window.Commands && window.Commands[cmd]) {
                         result = await window.Commands[cmd](
                             this,
                             args,
                             stdin
                         );
-                    } else if (cmd === "login") {
+                    }
+                    else if (cmd === "login") {
                         this.inputMode = INPUT_WAIT_FOR_USERNAME;
                         this.promptEl.textContent = "user:";
                         return;
-                    } else {
+                    }
+                    else {
                         result = {
-                            stdout: "",
-                            stderr: `command not found: ${cmd}`,
-                            exitCode: 127
+                            stdout:"",
+                            stderr:`command not found: ${cmd}`,
+                            exitCode:127
                         };
                     }
+
+                    if (typeof result === "string") {
+                        result = {
+                            stdout: result,
+                            stderr:"",
+                            exitCode:0
+                        };
+                    }
+
+                    result.stdout ??= "";
+                    result.stderr ??= "";
+                    result.exitCode ??= 0;
+
+                    switch (redirects.operator) {
+                        case ">":
+                            this.writeRedirect(
+                                redirects.target,
+                                result.stdout,
+                                false
+                            );
+                            result.stdout = "";
+                            break;
+                        case ">>":
+                            this.writeRedirect(
+                                redirects.target,
+                                result.stdout,
+                                true
+                            );
+                            result.stdout = "";
+                            break;
+                        case "2>":
+                            this.writeRedirect(
+                                redirects.target,
+                                result.stderr,
+                                false
+                            );
+                            result.stderr = "";
+                            break;
+                        case "2>>":
+                            this.writeRedirect(
+                                redirects.target,
+                                result.stderr,
+                                true
+                            );
+                            result.stderr = "";
+                            break;
+                    }
+
                     if (result.exitCode !== 0) {
                         if (result.stderr) {
                             const lines = result.stderr.split(/\r?\n/);
                             for (const line of lines) {
-                                this.write(line, {
-                                    color: "#ff6060"
-                                });
+                                this.write(
+                                    line,
+                                    {
+                                        color:"#ff6060"
+                                    }
+                                );
                                 await this.sleep(50);
                             }
                         }
                         break;
-                    }                
-                    stdin = result.stdout || "";
-                    if (command === pipeline[pipeline.length - 1]) {
+                    }
+
+                    stdin = result.stdout;
+
+                    if (index === pipeline.length - 1) {
                         if (result.stdout) {
-                            const lines = result.stdout.split(/\r?\n/);
+                            const lines =
+                                result.stdout.split(/\r?\n/);
                             for (const line of lines) {
-                                this.write(line, {
-                                    color: "#ffffff"
-                                });
+                                this.write(
+                                    line,
+                                    {
+                                        color:"#ffffff"
+                                    }
+                                );
                                 await this.sleep(50);
                             }
                         }
