@@ -1020,8 +1020,14 @@ Commands.cd = function (terminal, args, stdin) {
         }; 
 
     }
-    const newPath = resolveRelativePath(terminal.cwd, target);
-    const result = resolvePath(newPath);
+
+    let newPath = resolveRelativePath(terminal.cwd, target);
+    let result = resolvePath(newPath);
+    
+    if(args[0] === "-"){
+        newPath = resolveRelativePath(terminal.cwd, terminal.env.OLDPWD);
+        result = resolvePath(newPath);    
+    }
 
     if (!result) {
         return {
@@ -1686,6 +1692,146 @@ Commands.uniq = function (terminal, args, stdin) {
 
     return {
         stdout: output.join("\n"),
+        stderr: "",
+        exitCode: 0
+    };
+};
+
+/* FIND */
+Commands.find = function (terminal, args, stdin) {
+    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
+    const count = parsed.flags.has("c");
+    const duplicatesOnly = parsed.flags.has("d");
+    const uniqueOnly = parsed.flags.has("u");
+
+    let text = "";
+
+    if (stdin !== undefined && stdin !== null && stdin !== "") {
+        text = stdin;
+    } else {
+        if (parsed.args.length === 0) {
+            return {
+                stdout: "",
+                stderr: "find: missing operand",
+                exitCode: 1                
+            };
+        }
+    }
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };
+};
+
+/* CHMOD */
+Commands.chmod = function (terminal, args, stdin) {
+    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
+    const count = parsed.flags.has("c");
+    const duplicatesOnly = parsed.flags.has("d");
+    const uniqueOnly = parsed.flags.has("u");
+
+    let text = "";
+
+    if (stdin !== undefined && stdin !== null && stdin !== "") {
+        text = stdin;
+    } else {
+        if (parsed.args.length === 0) {
+            return {
+                stdout: "",
+                stderr: "find: missing operand",
+                exitCode: 1                
+            };
+        }
+    }
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };
+};
+
+/* STAT */
+Commands.stat = function (terminal, args, stdin) {
+    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
+    const count = parsed.flags.has("c");
+    const duplicatesOnly = parsed.flags.has("d");
+    const uniqueOnly = parsed.flags.has("u");
+
+    let text = "";
+
+    if (stdin !== undefined && stdin !== null && stdin !== "") {
+        text = stdin;
+    } else {
+        if (parsed.args.length === 0) {
+            return {
+                stdout: "",
+                stderr: "find: missing operand",
+                exitCode: 1                
+            };
+        }
+    }
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };
+};
+
+/* SED */
+Commands.sed = function (terminal, args, stdin) {
+    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
+    const count = parsed.flags.has("c");
+    const duplicatesOnly = parsed.flags.has("d");
+    const uniqueOnly = parsed.flags.has("u");
+
+    let text = "";
+
+    if (stdin !== undefined && stdin !== null && stdin !== "") {
+        text = stdin;
+    } else {
+        if (parsed.args.length === 0) {
+            return {
+                stdout: "",
+                stderr: "find: missing operand",
+                exitCode: 1                
+            };
+        }
+    }
+
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };
+};
+
+/* WHICH */
+Commands.which = function (terminal, args, stdin) {
+    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
+    const count = parsed.flags.has("c");
+    const duplicatesOnly = parsed.flags.has("d");
+    const uniqueOnly = parsed.flags.has("u");
+
+    let text = "";
+
+    if (stdin !== undefined && stdin !== null && stdin !== "") {
+        text = stdin;
+    } else {
+        if (parsed.args.length === 0) {
+            return {
+                stdout: "",
+                stderr: "find: missing operand",
+                exitCode: 1                
+            };
+        }
+    }
+
+    return {
+        stdout: "",
         stderr: "",
         exitCode: 0
     };
