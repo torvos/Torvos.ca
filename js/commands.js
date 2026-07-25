@@ -305,7 +305,6 @@ Commands.head = function (terminal, args, stdin) {
 
         const node = pathresult ? pathresult.node : null;
 
-        const node = pathresult.node;        
         if (!node) {
             return {
                 stdout: "",
@@ -362,7 +361,6 @@ Commands.tail = function (terminal, args, stdin) {
         let pathresult = resolvePath(fullPath);
 
         const node = pathresult ? pathresult.node : null;
-        const node = pathresult.node;
         if (!node) {
             return {
                 stdout: "",
@@ -461,7 +459,6 @@ Commands.mkdir = function (terminal, args, stdin) {
 
     let pathresult = resolvePath(path);
     const node = pathresult ? pathresult.node : null;
-    const node = pathresult.node;
 
     if (node) {
         return {

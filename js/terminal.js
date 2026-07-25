@@ -532,7 +532,7 @@ class TerminalEngine {
                     }
 
                     let result;
-
+                    
                     if (window.Commands && window.Commands[cmd]) {
                         result = await window.Commands[cmd](
                             this,

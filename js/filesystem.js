@@ -75,7 +75,8 @@
                                 group: "guest",
                                 created: Date.parse("2020-01-01T08:00:00Z"),
                                 modified: Date.parse("2026-07-01T10:00:00Z"),
-                                accessed: Date.parse("2026-07-01T10:00:00Z")
+                                accessed: Date.parse("2026-07-01T10:00:00Z"),
+                                children: {}
                             },                            
                             "contact.md": {
                                 type: "file",
