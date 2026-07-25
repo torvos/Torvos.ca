@@ -758,6 +758,56 @@ Commands.reset = function (terminal, args, stdin) {
     };                  
 };
 
+/* ALIAS */
+Commands.alias = function (terminal, args, stdin) {
+    const target = args[0];
+    const value = args[1];
+    if(target in terminal.aliases){
+        return {
+            stdout: "",
+            stderr: "alias: alias already exsists",
+            exitCode: 1
+        };
+    }
+    else{
+        if (value !== null && value !== undefined) {
+            terminal.aliases[target] = value;
+            return {
+                stdout: "",
+                stderr: "",
+                exitCode: 0
+            };        
+        }
+        else{
+            return {
+                stdout: "",
+                stderr: "alias: missing operand",
+                exitCode: 1
+            };            
+        }
+    }                   
+};
+
+/* UNALIAS */
+Commands.unalias = function (terminal, args, stdin) {
+    const target = args[0];
+    if(target in terminal.aliases){
+        delete terminal.aliases[target];
+        return {
+            stdout: "",
+            stderr: "",
+            exitCode: 0
+        };
+    }
+    else{
+        return {
+            stdout: "",
+            stderr: "unalias: alias doesn't exsist",
+            exitCode: 1
+        };        
+    }                 
+};
+
 /* LS */
 Commands.ls = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{l: false,a: false,R: false});
@@ -899,16 +949,23 @@ Commands.export = function (terminal, args, stdin){
         };
     }
     else{
-        //check that value is set
-        terminal.env[target] = value;
-        return {
-            stdout: "",
-            stderr: "",
-            exitCode: 0
-        };        
+        if (value !== null && value !== undefined) {
+            terminal.env[target] = value;
+            return {
+                stdout: "",
+                stderr: "",
+                exitCode: 0
+            };               
+        }
+        else{
+            return {
+                stdout: "",
+                stderr: "export: missing operand",
+                exitCode: 1
+            };            
+        }
     }
 };
-
 
 /* UNSET */
 Commands.unset = function (terminal, args, stdin){
@@ -1474,6 +1531,3 @@ Commands.uniq = function (terminal, args, stdin) {
         exitCode: 0
     };
 };
-
-/* Environment variables */
-/* Aliases */

@@ -38,6 +38,10 @@ class TerminalEngine {
             SHELL: "/bin/bash",
             PATH: "/bin:/usr/bin",
             EDITOR: "edit"
+        };
+        this.aliases = {
+            "ll": "ls -la",
+            "cd..": "cd .."
         };        
         this.editorContainer = document.getElementById("editor-container");
         this.editorEl = document.getElementById("editor");
@@ -470,8 +474,19 @@ class TerminalEngine {
         );
     }
 
-    async execute(input) {
+    expandAlias(input) {
+        const parts = input.trim().split(/\s+/);
+        if (!parts.length)
+            return input;
+        if (this.aliases[parts[0]]) {
+            parts[0] = this.aliases[parts[0]];
+            return parts.join(" ");
+        }
+        return input;
+    }
 
+    async execute(input) {
+        input = this.expandAlias(input);
         input = this.expandVariables(input);
         const expandedCommands = this.expandBraces(input);
         for (const expandedInput of expandedCommands) {
