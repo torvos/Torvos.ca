@@ -861,12 +861,92 @@ Commands.cd = function (terminal, args, stdin) {
     node.accessed = Date.now();
     terminal.cwd = newPath;
     terminal.renderPrompt();
-
+    terminal.env.OLDPWD = terminal.env.PWD;
+    terminal.env.PWD = terminal.cwd;
+    
     return {
         stdout: "",
         stderr: "",
         exitCode: 0
     };    
+};
+
+/* PRINTENV */
+Commands.printenv = function (terminal, args, stdin){
+    let listing = "";
+    for (const key in terminal.env) {
+        if (terminal.env.hasOwnProperty(key)) {
+        listing += `${key}: ${terminal.env[key]}\n`;
+        }
+    }
+    
+    return {
+        stdout: listing.replace(/\r?\n$/, ""),
+        stderr: "",
+        exitCode: 0
+    };        
+};
+
+/* EXPORT */
+Commands.export = function (terminal, args, stdin){
+    const target = args[0];
+    const value = args[1];
+    if(target in terminal.env){
+        return {
+            stdout: "",
+            stderr: "env: variable already set",
+            exitCode: 1
+        };
+    }
+    else{
+        //check that value is set
+        terminal.env[target] = value;
+        return {
+            stdout: "",
+            stderr: "",
+            exitCode: 0
+        };        
+    }
+};
+
+
+/* UNSET */
+Commands.unset = function (terminal, args, stdin){
+    const target = args[0];
+    if(target in terminal.env){
+        delete terminal.env[target];
+        return {
+            stdout: "",
+            stderr: "",
+            exitCode: 0
+        };
+    }
+    else{
+        return {
+            stdout: "",
+            stderr: "env: variable not set",
+            exitCode: 1
+        };        
+    }
+};
+
+/* ENV */
+Commands.env = function (terminal, args, stdin){
+    const target = args[0];
+    if(target in terminal.env){
+        return {
+            stdout: terminal.env[args[0]],
+            stderr: "",
+            exitCode: 0
+        };
+    }
+    else{
+        return {
+            stdout: "",
+            stderr: "env: variable not set",
+            exitCode: 1
+        };        
+    }
 };
 
 /* CAT */

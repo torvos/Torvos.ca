@@ -29,6 +29,16 @@ class TerminalEngine {
             cursor: 0,
             modified: false
         };
+        this.env = {
+            HOME: "/home/guest",
+            USER: "guest",
+            HOSTNAME: "torvos",
+            PWD: "/home/guest",
+            OLDPWD: "/home/guest",
+            SHELL: "/bin/bash",
+            PATH: "/bin:/usr/bin",
+            EDITOR: "edit"
+        };        
         this.editorContainer = document.getElementById("editor-container");
         this.editorEl = document.getElementById("editor");
     }
@@ -453,8 +463,16 @@ class TerminalEngine {
         return true;
     }
 
+    expandVariables(input) {
+        return input.replace(
+            /\$([A-Za-z_][A-Za-z0-9_]*)/g,
+            (_, name) => this.env[name] ?? ""
+        );
+    }
+
     async execute(input) {
 
+        input = this.expandVariables(input);
         const expandedCommands = this.expandBraces(input);
         for (const expandedInput of expandedCommands) {
             const commandGroups = expandedInput
