@@ -1,15 +1,41 @@
 window.Commands = {};
 
-window.resolvePath = function (path) {
+window.resolvePath = function(path, depth = 0) {
+
+    if (depth > 20) {return null;}
     const parts = path.replace("~", "").split(ROOT).filter(Boolean);
     let node = window.FileSystem[ROOT];
+    let currentPath = ROOT;
     for (const part of parts) {
-        if (!node.children || !node.children[part]) {
-            return null;
-        }
+        if (!node.children || !node.children[part]) {return null;}
         node = node.children[part];
+        currentPath = currentPath === ROOT
+            ? ROOT + part
+            : currentPath + ROOT + part;
+
+        while (node.type === "symlink") {
+            const linkTarget = node.target.startsWith(ROOT)
+                ? node.target
+                : resolveRelativePath(
+                    currentPath.substring(0, currentPath.lastIndexOf(ROOT)),
+                    node.target
+                );
+
+            const result = resolvePath(linkTarget, depth + 1);
+
+            if (!result) {
+                return null;
+            }
+
+            node = result.node;
+            currentPath = result.path;
+        }
     }
-    return node;
+
+    return {
+        node,
+        path: currentPath
+    };
 };
 
 window.resolveRelativePath = function (cwd, path) {
@@ -73,15 +99,19 @@ window.getDirectorySize = function(node) {
     }
     let total = 0;
     for (const child of Object.values(node.children || {})) {
-        total += getDirectorySize(child);
+        total += window.getDirectorySize(child);
     }
     return total;
 };
 
-window.getSize = function (node) {
-    if (node.type === "file")
-        return new TextEncoder().encode(node.content).length;
-    return Object.keys(node.children).length;
+window.getSize = function(node) {
+    if (node.type === "file") {
+        return new TextEncoder().encode(node.content || "").length;
+    }
+    if (node.type === "dir") {
+        return Object.keys(node.children || {}).length;
+    }
+    return 0;
 };
 
 window.formatDate = function (timestamp) {
@@ -107,15 +137,28 @@ window.getLinkCount = function(node) {
 
 window.formatLongEntry = function(name, node) {
 
-    const typeChar = node.type === "dir" ? "d" : "-";
+    const typeChar = node.type === "dir" ? "d" : node.type === "symlink" ? "l" : "-";
     const mode = node.mode;
-    const links = getLinkCount(node);
-    const owner = node.owner;
+    const links = window.getLinkCount(node);
     const group = node.group;
-    const size = getDirectorySize(node);
-    const modified = formatDate(node.modified);
+    const size = window.getDirectorySize(node);
+    const modified = window.formatDate(node.modified);    const owner = node.owner;
 
-    return `${typeChar}${mode} ${String(links).padStart(2)} ${owner.padEnd(8)} ${group.padEnd(8)} ${String(size).padStart(6)} ${modified} ${name}${node.type === "dir" ? "/" : ""}`;
+    return `${typeChar}${mode} ${String(links).padStart(2)} ${owner.padEnd(8)} ${group.padEnd(8)} ${String(size).padStart(6)} ${modified} ${name}${node.type === "dir" ? "/" : ""}${node.type === "symlink" ? ` -> ${node.target}` : ""}`;
+};
+
+window.createLink = function(target) {
+    const now = Date.now();
+
+    return {
+        type: "symlink",
+        target: target,
+        mode: "rwxrwxrwx",
+        owner: "guest",
+        group: "guest",
+        created: now,
+        modified: now
+    };
 };
 
 window.createFile = function(hidden = false) {
@@ -209,23 +252,28 @@ Commands.edit = function (terminal, args, stdin) {
     }
     const path = resolveRelativePath(terminal.cwd,target);
 
-    let node = resolvePath(path);
+    let pathresult = resolvePath(path);
 
-    if (!node) {
+    let node;
+
+    if (!pathresult) {
         const result = getParentDirectory(path);
+
+        if (!result) {
+            return {
+                stdout:"",
+                stderr:`edit: invalid path ${target}`,
+                exitCode:1
+            };
+        }
+
         result.parent.children[result.name] = createFile(result.name.startsWith("."));
+        node = result.parent.children[result.name];
+
+    } else {
+        node = pathresult.node;
     }
-
-    if (node.type !== "file"){
-        return {
-            stdout: "",
-            stderr: `edit: ${target}: Is a directory`,
-            exitCode: 1
-        };                
-    }
-
-    terminal.openEditor(node, path);
-
+    
     return {
         stdout: "",
         stderr: "",
@@ -253,7 +301,11 @@ Commands.head = function (terminal, args, stdin) {
         content = stdin;
     } else {
         const fullPath = resolveRelativePath(terminal.cwd, target);
-        const node = resolvePath(fullPath);
+        let pathresult = resolvePath(fullPath);
+
+        const node = pathresult ? pathresult.node : null;
+
+        const node = pathresult.node;        
         if (!node) {
             return {
                 stdout: "",
@@ -307,8 +359,10 @@ Commands.tail = function (terminal, args, stdin) {
     } else {
 
         const fullPath = resolveRelativePath(terminal.cwd, target);
-        const node = resolvePath(fullPath);
+        let pathresult = resolvePath(fullPath);
 
+        const node = pathresult ? pathresult.node : null;
+        const node = pathresult.node;
         if (!node) {
             return {
                 stdout: "",
@@ -365,7 +419,9 @@ Commands.mkdir = function (terminal, args, stdin) {
         for (const part of parts) {
             currentPath += ROOT + part;
 
-            let node = resolvePath(currentPath);
+            let pathresult = resolvePath(currentPath);
+
+            const node = pathresult ? pathresult.node : null;
 
             if (node) {
                 if (node.type !== "dir") {
@@ -400,15 +456,12 @@ Commands.mkdir = function (terminal, args, stdin) {
     }
     
     if (parents) {
-        mkdirRecursive(path); 
-        return {
-            stdout: "",
-            stderr: "",
-            exitCode: 0
-        };         
+        return mkdirRecursive(path);
     }
 
-    const node = resolvePath(path);
+    let pathresult = resolvePath(path);
+    const node = pathresult ? pathresult.node : null;
+    const node = pathresult.node;
 
     if (node) {
         return {
@@ -430,7 +483,7 @@ Commands.mkdir = function (terminal, args, stdin) {
     
     result.parent.modified = Date.now();
     result.parent.children[result.name] = createDirectory(result.name.startsWith("."));
-
+    
     return {
         stdout: "",
         stderr: "",
@@ -449,7 +502,9 @@ Commands.rmdir = function (terminal, args, stdin) {
         };          
     }
     const path = resolveRelativePath(terminal.cwd, target);
-    const node = resolvePath(path);
+    let pathresult = resolvePath(path);
+
+    const node = pathresult ? pathresult.node : null;
     if (!node){
         return {
             stdout: "",
@@ -632,7 +687,7 @@ Commands.rm = function (terminal, args, stdin) {
 
     const node = result.parent.children[result.name];
 
-    if (node.type === "file") {
+    if (node.type === "file" || node.type === "symlink") {
         delete result.parent.children[result.name];
         return {
             stdout: "",
@@ -710,8 +765,9 @@ Commands.touch = function (terminal, args, stdin) {
     }
 
     const path = resolveRelativePath(terminal.cwd, target);
-    const node = resolvePath(path);
+    let pathresult = resolvePath(path);
 
+    const node = pathresult ? pathresult.node : null;
     if (node){
         return {
             stdout: "",
@@ -817,7 +873,9 @@ Commands.ls = function (terminal, args, stdin) {
     const target = parsed.args[0] || terminal.cwd;
 
     const path = resolveRelativePath(terminal.cwd, target);
-    const node = resolvePath(path);
+
+    let pathresult = resolvePath(path);
+    const node = pathresult ? pathresult.node : null;
 
     if (!node || node.type !== "dir") {
         return {
@@ -880,6 +938,80 @@ Commands.ls = function (terminal, args, stdin) {
 
 };
 
+/* LN */
+Commands.ln = function (terminal, args, stdin) {
+    const parsed = terminal.parseFlags(args,{s: false});
+    const SymbolicLink = parsed.flags.has("s");
+    const target = parsed.args[0];
+    const link = parsed.args[1];
+
+    if(!SymbolicLink){
+        return {
+            stdout: "",
+            stderr: "ln: Hard links are not supported use -s",
+            exitCode: 1
+        };         
+    }
+    else{
+        if(target !== null && target !== undefined || link !== null && link !== undefined){
+            
+            const targetPath = resolveRelativePath(terminal.cwd, target);
+            const tpathresult = resolvePath(targetPath);
+            const targetNode = tpathresult ? tpathresult.node : null;
+
+            const linkPath = resolveRelativePath(terminal.cwd, link);
+            const lpathresult = resolvePath(linkPath);
+            const linkNode = lpathresult ? lpathresult.node : null;
+
+            if (!targetNode) {
+                return {
+                    stdout:"",
+                    stderr:`ln: ${target}: No such file or directory`,
+                    exitCode:1
+                };
+            }            
+            if (targetNode){
+                return {
+                    stdout: "",
+                    stderr: `ln: ${target} already exists`,
+                    exitCode: 1
+                };           
+            }
+            if (!linkNode){
+                return {
+                    stdout: "",
+                    stderr: `ln: ${link} doesnt exists`,
+                    exitCode: 1
+                };           
+            }
+
+            const result = getParentDirectory(targetPath);
+            if (!result) {
+                return {
+                    stdout: "",
+                    stderr: `ln: invalid path ${target}`,
+                    exitCode: 1
+                };           
+            }
+
+            result.parent.modified = Date.now();
+            result.parent.children[result.name] = createLink(linkPath);
+        }
+        else{
+            return {
+                stdout: "",
+                stderr: "ln: missing operand",
+                exitCode: 1
+            };               
+        }
+    }
+    return {
+        stdout: "",
+        stderr: "",
+        exitCode: 0
+    };    
+};
+
 /* CD */
 Commands.cd = function (terminal, args, stdin) {
     const target = args[0];
@@ -892,33 +1024,37 @@ Commands.cd = function (terminal, args, stdin) {
 
     }
     const newPath = resolveRelativePath(terminal.cwd, target);
-    const node = resolvePath(newPath);
-    if (!node) {
+    const result = resolvePath(newPath);
+
+    if (!result) {
         return {
             stdout: "",
             stderr: `cd: no such file or directory: ${target}`,
             exitCode: 1
-        }; 
-
+        };
     }
-    if (node.type !== "dir") {
+
+    if (result.node.type !== "dir") {
         return {
             stdout: "",
             stderr: `cd: not a directory: ${target}`,
             exitCode: 1
-        }; 
+        };
     }
-    node.accessed = Date.now();
-    terminal.cwd = newPath;
+
+    result.node.accessed = Date.now();
+
+    terminal.cwd = result.path;
     terminal.renderPrompt();
+
     terminal.env.OLDPWD = terminal.env.PWD;
     terminal.env.PWD = terminal.cwd;
-    
+
     return {
         stdout: "",
         stderr: "",
         exitCode: 0
-    };    
+    };
 };
 
 /* PRINTENV */
@@ -1011,6 +1147,7 @@ Commands.cat = function (terminal, args, stdin) {
     const parsed = terminal.parseFlags(args,{n: false});
     const numberLines = parsed.flags.has("n");
     const target = parsed.args[0];
+    let content = "";
 
     if (!target) {
         if (!stdin) {
@@ -1024,7 +1161,10 @@ Commands.cat = function (terminal, args, stdin) {
         content = stdin;
     } else {
         const fullPath = resolveRelativePath(terminal.cwd, target);
-        const node = resolvePath(fullPath);
+        let pathresult = resolvePath(fullPath);
+
+        const node = pathresult ? pathresult.node : null;
+
         if (!node) {
             return {
                 stdout: "",
@@ -1072,7 +1212,10 @@ Commands.more = async function (terminal, args, stdin) {
         };        
     }
     const fullPath = resolveRelativePath(terminal.cwd, target);
-    const node = resolvePath(fullPath);
+    let pathresult = resolvePath(fullPath);
+
+    const node = pathresult ? pathresult.node : null;      
+
     if (!node) {
         return {
             stdout: "",
@@ -1102,6 +1245,11 @@ Commands.more = async function (terminal, args, stdin) {
         }
         await terminal.sleep(20);
     }
+    return {
+        stdout:"",
+        stderr:"",
+        exitCode:0
+    };    
 };
 
 /* TREE */
@@ -1115,7 +1263,8 @@ Commands.tree = function (terminal, args, stdin) {
 
     const target = parsed.args[0] || terminal.cwd;
     const path = resolveRelativePath(terminal.cwd, target);
-    const root = resolvePath(path);
+    let pathresult = resolvePath(path);
+    const root = pathresult ? pathresult.node : null;
 
     function walk(node, prefix = "", depth = 1) {
         let output = "";
@@ -1143,6 +1292,15 @@ Commands.tree = function (terminal, args, stdin) {
         });
         return output;
     }
+
+    if (!root) {
+        return {
+            stdout:"",
+            stderr:`tree: ${target}: no such file or directory`,
+            exitCode:1
+        };
+    }
+
     return {
         stdout: walk(root).replace(/\r?\n$/, ""),
         stderr: "",
@@ -1308,7 +1466,9 @@ Commands.wc = function (terminal, args, stdin) {
         content = stdin;
     } else {
         const fullPath = resolveRelativePath(terminal.cwd, target);
-        const node = resolvePath(fullPath);
+        let pathresult = resolvePath(fullPath);
+        const node = pathresult ? pathresult.node : null;
+
         if (!node) {
             return {
                 stdout: "",
@@ -1396,7 +1556,8 @@ Commands.sort = function (terminal, args, stdin) {
 
         for (const file of parsed.args) {
             const path = resolveRelativePath(terminal.cwd, file);
-            const node = resolvePath(path);
+            let pathresult = resolvePath(path);
+            const node = pathresult ? pathresult.node : null;
             if (!node) {
                 return {
                     stdout: "",                    
@@ -1480,7 +1641,8 @@ Commands.uniq = function (terminal, args, stdin) {
             };
         }
         const path = resolveRelativePath(terminal.cwd, parsed.args[0]);
-        const node = resolvePath(path);
+        let pathresult = resolvePath(path);
+        const node = pathresult ? pathresult.node : null;
         if (!node) {
             return {
                 stdout: "",
