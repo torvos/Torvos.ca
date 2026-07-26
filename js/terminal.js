@@ -139,38 +139,75 @@ class TerminalEngine {
         localStorage.setItem("FileSystem", JSON.stringify(window.FileSystem));
     }
 
-    parseFlags(args, flagDefs = {}) {
+    parseFlags(args, flagSpec = {}) {
         const flags = new Set();
         const options = {};
         const remaining = [];
-
         for (let i = 0; i < args.length; i++) {
             const arg = args[i];
-
-            if (!arg.startsWith("-") || arg === "-") {
-                remaining.push(arg);
+            if (arg === "--") {
+                remaining.push(...args.slice(i + 1));
+                break;
+            }
+            if (arg.startsWith("--")) {
+                const eq = arg.indexOf("=");
+                if (eq !== -1) {
+                    const name = arg.substring(2, eq);
+                    const value = arg.substring(eq + 1);
+                    if (flagSpec[name] === true) {
+                        options[name] = value;
+                    } else {
+                        flags.add(name);
+                    }
+                } else {
+                    const name = arg.substring(2);
+                    if (flagSpec[name] === true) {
+                        if (i + 1 >= args.length) {
+                            throw new Error(`Missing value for --${name}`);
+                        }
+                        options[name] = args[++i];
+                    } else {
+                        flags.add(name);
+                    }
+                }
                 continue;
             }
 
-            const chars = arg.slice(1);
+            const wholeFlag = arg.substring(1);
 
-            for (let j = 0; j < chars.length; j++) {
-                const flag = chars[j];
-                if (!(flag in flagDefs)) {
-                    remaining.push("-" + chars.slice(j));
-                    break;
-                }
-                flags.add(flag);
-                if (flagDefs[flag]) {
-                    if (j + 1 < chars.length) {
-                        options[flag] = chars.slice(j + 1);
+            if (flagSpec.hasOwnProperty(wholeFlag)) {
+                if (flagSpec[wholeFlag] === true) {
+                    if (i + 1 >= args.length) {
+                        throw new Error(`Missing value for -${wholeFlag}`);
                     }
-                    else if (i + 1 < args.length) {
-                        options[flag] = args[++i];
-                    }
-                    break;
+                    options[wholeFlag] = args[++i];
+                } else {
+                    flags.add(wholeFlag);
                 }
+                continue;
             }
+
+            if (arg.startsWith("-") && arg.length > 1) {
+                const cluster = arg.substring(1);
+                for (let j = 0; j < cluster.length; j++) {
+                    const flag = cluster[j];
+                    if (flagSpec[flag] === true) {
+                        if (j < cluster.length - 1) {
+                            options[flag] = cluster.substring(j + 1);
+                            break;
+                        }
+                        if (i + 1 >= args.length) {
+                            throw new Error(`Missing value for -${flag}`);
+                        }
+                        options[flag] = args[++i];
+                        break;
+                    } else {
+                        flags.add(flag);
+                    }
+                }
+                continue;
+            }
+            remaining.push(arg);
         }
 
         return {
@@ -178,7 +215,8 @@ class TerminalEngine {
             options,
             args: remaining
         };
-    }
+
+    };
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
