@@ -1,5 +1,88 @@
 window.Commands = {};
 
+window.numericToMode = function(value) {
+    value = value.slice(-3);
+    const map = {
+        0: "---",
+        1: "--x",
+        2: "-w-",
+        3: "-wx",
+        4: "r--",
+        5: "r-x",
+        6: "rw-",
+        7: "rwx"
+    };
+    return (
+        map[value[0]] +
+        map[value[1]] +
+        map[value[2]]
+    );
+};
+
+window.symbolicToMode = function(current, operation) {
+
+    let chars = current.split("");
+
+    const groups = {
+        u: [0,1,2],
+        g: [3,4,5],
+        o: [6,7,8],
+        a: [0,1,2,3,4,5,6,7,8]
+    };
+
+    const match = operation.match(/^([ugoa]+)([+-=])([rwx]+)$/);
+
+    if (!match) {
+        return current;
+    }
+
+    const users = match[1];
+    const action = match[2];
+    const permissions = match[3];
+
+    for (const user of users) {
+        const indexes = groups[user];
+        for (const perm of permissions) {
+            let offset;
+            if (perm === "r") offset = 0;
+            if (perm === "w") offset = 1;
+            if (perm === "x") offset = 2;
+            for (const index of indexes) {
+                const relative = index % 3;
+                if (relative === offset) {
+                    if (action === "+") {
+                        chars[index] = perm;
+                    }
+                    else if (action === "-") {
+                        chars[index] = "-";
+                    }
+                    else if (action === "=") {
+                        chars[index] = "-";
+                    }
+                }
+            }
+        }
+
+        if (action === "=") {
+            for (const index of indexes) {
+                chars[index] = "-";
+            }
+            for (const perm of permissions) {
+                let offset;
+                if (perm === "r") offset = 0;
+                if (perm === "w") offset = 1;
+                if (perm === "x") offset = 2;
+                for (const index of indexes) {
+                    if (index % 3 === offset) {
+                        chars[index] = perm;
+                    }
+                }
+            }
+        }
+    }
+    return chars.join("");
+};
+
 window.resolvePath = function(path, depth = 0) {
 
     if (depth > 20) {return null;}
@@ -1781,29 +1864,66 @@ Commands.find = function (terminal, args, stdin) {
 
 /* CHMOD */
 Commands.chmod = function (terminal, args, stdin) {
-    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
-    const count = parsed.flags.has("c");
-    const duplicatesOnly = parsed.flags.has("d");
-    const uniqueOnly = parsed.flags.has("u");
+    const parsed = terminal.parseFlags(args, { R: false });
+    const recursive = parsed.flags.has("R");
 
-    let text = "";
+    if (parsed.args.length < 2) {
+        return {
+            stdout: "",
+            stderr: "chmod: missing operand",
+            exitCode: 1
+        };
+    }
 
-    if (stdin !== undefined && stdin !== null && stdin !== "") {
-        text = stdin;
-    } else {
-        if (parsed.args.length === 0) {
-            return {
-                stdout: "",
-                stderr: "find: missing operand",
-                exitCode: 1                
-            };
+    const mode = parsed.args[0];
+    const paths = parsed.args.slice(1);
+    let funcStdout = "";
+    let funcStderr = "";
+    let funcExitCode = 0;
+
+    function applyMode(node) {
+        if (!node.mode) {
+            node.mode = "---------";
+        }
+        if (/^[0-7]{3,4}$/.test(mode)) {
+            node.mode = numericToMode(mode);
+        }
+        else {
+            node.mode = symbolicToMode(node.mode, mode);
+        }
+        node.modified = Date.now();
+    }
+
+    function chmodNode(wrapper) {
+        const node = wrapper.node;
+        const fileOwner = node.owner;
+        if (fileOwner == DEFAULT_USER) {
+            applyMode(node);
+        }
+        if (recursive && node.type === "dir" && node.children) {
+           for (const child of Object.values(node.children)) {
+                chmodNode({
+                    node: child
+                });
+            }
         }
     }
 
+    for (const path of paths) {
+        const fullPath = resolveRelativePath(terminal.cwd, path);
+        const node = resolvePath(fullPath);
+        if (!node) {
+            stderr += `chmod: ${path}: No such file or directory\n`;
+            exitCode = 1;
+            continue;
+        }
+        chmodNode(node);
+    }
+
     return {
-        stdout: "",
-        stderr: "",
-        exitCode: 0
+        stdout: funcStdout,
+        stderr: funcStderr,
+        exitCode: funcExitCode
     };
 };
 
