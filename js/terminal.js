@@ -112,6 +112,7 @@ class TerminalEngine {
         const lineHeight = parseFloat(style.lineHeight) || parseFloat(getComputedStyle(document.body).lineHeight);
         this.pager.pageSize = Math.floor(document.getElementById("terminal").clientHeight / lineHeight) - 1;
         
+        createVirtualBin();
         this.renderPrompt();     
         this.renderInput();   
         this.saveSettings();

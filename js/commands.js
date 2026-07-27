@@ -333,15 +333,13 @@ Commands.edit = function (terminal, args, stdin) {
             exitCode: 1
         };        
     }
+
     const path = resolveRelativePath(terminal.cwd,target);
-
     let pathresult = resolvePath(path);
-
     let node;
 
     if (!pathresult) {
         const result = getParentDirectory(path);
-
         if (!result) {
             return {
                 stdout:"",
@@ -349,14 +347,19 @@ Commands.edit = function (terminal, args, stdin) {
                 exitCode:1
             };
         }
-
         result.parent.children[result.name] = createFile(result.name.startsWith("."));
-        node = result.parent.children[result.name];
-
+        node = result.parent.children[result.name];        
     } else {
         node = pathresult.node;
+        if (node.type === "dir") {
+            return {
+                stdout: "",
+                stderr: `edit: ${target}: is a directory`,
+                exitCode: 1
+            };
+        }
     }
-    
+
     return {
         stdout: "",
         stderr: "",
@@ -1000,7 +1003,7 @@ Commands.ls = function (terminal, args, stdin) {
                 output.push(listDirectory(dir.node, `${dirPath}${dir.name}/`));
             });
         }
-        return output.join(recursive || longFormat ? "\n" : "    ");          
+        return output.join(recursive || longFormat ? "\n" : "  ");          
     }
     if (recursive) {
         return {
@@ -2139,28 +2142,63 @@ Commands.sed = function (terminal, args, stdin) {
 
 /* WHICH */
 Commands.which = function (terminal, args, stdin) {
-    const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
-    const count = parsed.flags.has("c");
-    const duplicatesOnly = parsed.flags.has("d");
-    const uniqueOnly = parsed.flags.has("u");
-
-    let text = "";
-
+    const parsed = terminal.parseFlags(args, {a: false, all: false});
+    const displayall = parsed.flags.has("a") || parsed.flags.has("all");
+    let command = parsed.args[0];
+ 
     if (stdin !== undefined && stdin !== null && stdin !== "") {
-        text = stdin;
+        command = stdin;
     } else {
         if (parsed.args.length === 0) {
             return {
                 stdout: "",
-                stderr: "find: missing operand",
+                stderr: "which: missing operand",
                 exitCode: 1                
             };
         }
     }
 
-    return {
-        stdout: "",
-        stderr: "",
-        exitCode: 0
+    const path = `/bin/${command}`;
+
+    if (resolvePath(path)) {
+        return {
+            stdout: path,
+            stderr: "",
+            exitCode: 0
+        };
+    } else {
+        return {
+            stdout: "",
+            stderr: `${command}: not found`,
+            exitCode: 1
+        };
+    }
+};
+
+window.createVirtualBin = function() {
+    const bin = {
+        type: "dir",
+        hidden: false,
+        mode: "rwxr-xr-x",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        children: {}
     };
+    for (const command of Object.keys(Commands).sort()) {
+        bin.children[command] = {
+            type: "file",
+            hidden: false,
+            mode: "rwxr-xr-x",
+            owner: "root",
+            group: "root",
+            created: Date.parse("2020-01-01T08:00:00Z"),
+            modified: Date.parse("2026-07-01T10:00:00Z"),
+            accessed: Date.parse("2026-07-01T10:00:00Z"),
+            content: ""
+        };
+    }
+    window.FileSystem[ROOT].children["bin"] = bin;
 };
