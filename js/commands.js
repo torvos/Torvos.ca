@@ -350,7 +350,16 @@ Commands.edit = function (terminal, args, stdin) {
         result.parent.children[result.name] = createFile(result.name.startsWith("."));
         node = result.parent.children[result.name];        
     } else {
-        node = pathresult.node;
+        if(!pathresult.path.includes("/bin/")){
+            node = pathresult.node;
+        }
+        else{
+            return {
+                stdout: "",
+                stderr: `edit: cannot open file in /bin`,
+                exitCode: 1
+            };
+        }
         if (node.type === "dir") {
             return {
                 stdout: "",
@@ -359,6 +368,8 @@ Commands.edit = function (terminal, args, stdin) {
             };
         }
     }
+
+    terminal.openEditor(node, path);
 
     return {
         stdout: "",
@@ -846,8 +857,16 @@ Commands.touch = function (terminal, args, stdin) {
             exitCode: 1
         };           
     }
-
     const path = resolveRelativePath(terminal.cwd, target);
+
+    if(path.includes("/bin/")){
+        return {
+            stdout: "",
+            stderr: `touch: cannot create file in /bin`,
+            exitCode: 1
+        };
+    }
+
     let pathresult = resolvePath(path);
 
     const node = pathresult ? pathresult.node : null;
@@ -1039,6 +1058,13 @@ Commands.ln = function (terminal, args, stdin) {
         if(target !== null && target !== undefined || link !== null && link !== undefined){
             
             const targetPath = resolveRelativePath(terminal.cwd, target);
+            if(targetPath.includes("/bin/")){
+                return {
+                    stdout: "",
+                    stderr: `ln: cannot create link in /bin`,
+                    exitCode: 1
+                };
+            }            
             const tpathresult = resolvePath(targetPath);
             const targetNode = tpathresult ? tpathresult.node : null;
 
@@ -1250,6 +1276,7 @@ Commands.cat = function (terminal, args, stdin) {
         content = stdin;
     } else {
         const fullPath = resolveRelativePath(terminal.cwd, target);
+
         let pathresult = resolvePath(fullPath);
 
         const node = pathresult ? pathresult.node : null;
@@ -1261,6 +1288,15 @@ Commands.cat = function (terminal, args, stdin) {
                 exitCode: 1
             };         
         }
+
+        if(fullPath.includes("/bin/")){
+            return {
+                stdout: "",
+                stderr: `cat: cannot display files in /bin`,
+                exitCode: 1
+            };
+        }             
+
         if (node.type === "dir") {
             return {
                 stdout: "",
@@ -1312,6 +1348,15 @@ Commands.more = async function (terminal, args, stdin) {
             exitCode: 1
         };        
     }
+
+    if(fullPath.includes("/bin/")){
+        return {
+            stdout: "",
+            stderr: `cat: cannot display files in /bin`,
+            exitCode: 1
+        };
+    }             
+
     if (node.type === "dir") {
         return {
             stdout: "",
@@ -1565,6 +1610,15 @@ Commands.wc = function (terminal, args, stdin) {
                 exitCode: 1
             };
         }
+
+        if(fullPath.includes("/bin/")){
+            return {
+                stdout: "",
+                stderr: `wc: cannot access files in /bin`,
+                exitCode: 1
+            };
+        }             
+
         if (node.type === "dir") {
             return {
                 stdout: "",
@@ -1654,6 +1708,15 @@ Commands.sort = function (terminal, args, stdin) {
                     exitCode: 1  
                 };
             }
+
+            if(path.includes("/bin/")){
+                return {
+                    stdout: "",
+                    stderr: `sort: cannot display files in /bin`,
+                    exitCode: 1
+                };
+            }             
+
             if (node.type !== "file") {
                 return {
                     stdout: "",                    
@@ -1739,6 +1802,15 @@ Commands.uniq = function (terminal, args, stdin) {
                 exitCode: 1
             };
         }
+
+        if(path.includes("/bin/")){
+            return {
+                stdout: "",
+                stderr: `uniq: cannot display files in /bin`,
+                exitCode: 1
+            };
+        }             
+
         if (node.type !== "file") {
             return {
                 stdout: "",
@@ -1920,6 +1992,13 @@ Commands.chmod = function (terminal, args, stdin) {
             exitCode = 1;
             continue;
         }
+        if(fullPath.includes("/bin/")){
+            return {
+                stdout: "",
+                stderr: `chmod: cannot access files in /bin`,
+                exitCode: 1
+            };
+        }             
         chmodNode(node);
     }
 
@@ -1954,12 +2033,18 @@ Commands.stat = function (terminal, args, stdin) {
             const pathresult = resolvePath(fullPath);
             const node = pathresult ? pathresult.node : null;
 
-
             if (!node) {
                 funcStderr += `stat: no such file: ${target}\n`;
                 funcExitCode = 1;
                 continue;
             }
+            if(fullPath.includes("/bin/")){
+                return {
+                    stdout: "",
+                    stderr: `stat: cannot display files in /bin`,
+                    exitCode: 1
+                };
+            }             
 
             function printStat(name, item) {
 
@@ -2034,6 +2119,15 @@ Commands.sed = function (terminal, args, stdin) {
                 exitCode: 1
             };
         }
+
+        if(fullPath.includes("/bin/")){
+            return {
+                stdout: "",
+                stderr: `sed: cannot display files in /bin`,
+                exitCode: 1
+            };
+        }             
+        
 
         if (node.type === "dir") {
             return {

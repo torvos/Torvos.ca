@@ -462,19 +462,20 @@ class TerminalEngine {
     writeRedirect(path, text, append = false) {
         const resolved = resolveRelativePath(this.cwd, path);
         let node = resolvePath(resolved);
+        if(resolved.includes("/bin/")){
+            return `Cannot create files in /bin`;
+        }             
         if (!node) {
             const parts = resolved
                 .split(ROOT)
                 .filter(Boolean);
             const filename = parts.pop();
-            const parentPath =
-                ROOT + parts.join(ROOT);
+            const parentPath = ROOT + parts.join(ROOT);
             const parent = resolvePath(parentPath);
-            if (!parent || parent.type !== "dir") {
-                console.log("Invalid parent directory", parentPath);
-                return false;
+            if (!parent.node || parent.node.type !== "dir") {
+                return `Invalid parent directory`;
             }
-            parent.children[filename] = {
+            parent.node.children[filename] = {
                 type: "file",
                 hidden: false,
                 mode: "rw-r--r--",
@@ -485,10 +486,10 @@ class TerminalEngine {
                 accessed: Date.now(),
                 content: ""
             };
-            node = parent.children[filename];
+            node = parent.node.children[filename];
         }
         if (node.type !== "file") {
-            return false;
+            return `Invalid directory specified in redirection operator`;
         }
 
         node.content = append
@@ -603,39 +604,52 @@ class TerminalEngine {
                     result.stdout ??= "";
                     result.stderr ??= "";
                     result.exitCode ??= 0;
+                    let redirectreturn = "";
 
                     switch (redirects.operator) {
                         case ">":
-                            this.writeRedirect(
+                            redirectreturn = this.writeRedirect(
                                 redirects.target,
                                 result.stdout,
                                 false
                             );
-                            result.stdout = "";
+                            if (typeof redirectreturn === 'string'){
+                                result.stderr = redirectreturn;
+                                result.exitCode = 1;
+                            }
                             break;
                         case ">>":
-                            this.writeRedirect(
+                            redirectreturn = this.writeRedirect(
                                 redirects.target,
                                 result.stdout,
                                 true
                             );
-                            result.stdout = "";
+                            if (typeof redirectreturn === 'string'){
+                                result.stderr = redirectreturn;
+                                result.exitCode = 1;
+                            }
                             break;
                         case "2>":
-                            this.writeRedirect(
+                            redirectreturn = this.writeRedirect(
                                 redirects.target,
                                 result.stderr,
                                 false
                             );
-                            result.stderr = "";
+                            if (typeof redirectreturn === 'string'){
+                                result.stderr = redirectreturn;
+                                result.exitCode = 1;
+                            }
                             break;
                         case "2>>":
-                            this.writeRedirect(
+                            redirectreturn = this.writeRedirect(
                                 redirects.target,
                                 result.stderr,
                                 true
                             );
-                            result.stderr = "";
+                            if (typeof redirectreturn === 'string'){
+                                result.stderr = redirectreturn;
+                                result.exitCode = 1;
+                            }
                             break;
                     }
 
