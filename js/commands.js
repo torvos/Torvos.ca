@@ -279,35 +279,26 @@ window.createDirectory = function(hidden = false) {
 /* HELP */
 Commands.help = function (terminal, args, stdin) {
     return {
-        stdout: `Torvos Terminal Commands
+        stdout: `+--------------------------------------------------------------------+
+|  Welcome to Torvos.ca the following are some commands you can use  |
+|  To view the contensts of this site.                               |
 +--------------------------------------------------------------------+
 |Navigation:                                                         |
-|  ls <dir>        List directory contents                           |
+|  ls              Lists directory contents                          |
+|  ls -l           Lists directory contents with additional details  |
 |  cd <dir>        Change directory                                  |
-|  cd ..           Return to parent directory                        |
+|  cd ..           Go to the parent directory                        |
 |  pwd             Print working directory                           |
-|  tree            Show directory structure                          |
 +--------------------------------------------------------------------+
 |Files:                                                              |
-|  cat <file>                Display file contents                   |
-|  edit <file>               Edit file contents                      |
-|  head -n <number> <file>   Outputs the beginning portion of a file |
-|  tail -n <number> <file>   Outputs the last portion of a file      |
-|  more <file>               Display file one screen at a time       |
-|  sort [-r|-n] <file>       Sort lines                              |
-|  uniq [-c|-d|-u] <file>    Remove duplicate adjacent lines         |
-|  wc [-l|-w|-c] <file>      Count lines, words, bytes               |
-|  grep <pattern>            Search stdin                            |
+|  cat <file>      Display file contents, example cat readme.md      |
+|  edit <file>     Edit file contents                                |
+|  more <file>     Display file one screen at a time                 |
 +--------------------------------------------------------------------+
 |System:                                                             |
 |  help            Show this help message                            |
 |  reset           reverts terminal to original settings             |
 |  clear           Clear terminal                                    |
-|  whoami          Show current user                                 |
-|  login           Login to a diffrent user account                  |
-|  sudo            Execute commands with administrative              |
-|  history         Displays history of commands                      |
-|  echo <text>     Displays the text on the terminal                 |
 +--------------------------------------------------------------------+`,
         stderr: "",
         exitCode: 0
@@ -1369,7 +1360,7 @@ Commands.more = async function (terminal, args, stdin) {
     const lines = node.content.split(/\r?\n/);
     terminal.pager.linesPrinted = 0;
     for (const line of lines) {
-        terminal.write(line);
+        terminal.write(line,{color:"#ffffff"});
         terminal.pager.linesPrinted++;
         if (terminal.pager.linesPrinted >= terminal.pager.pageSize) {
             const keepGoing = await terminal.pageBreak();
