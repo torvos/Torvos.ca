@@ -241,10 +241,28 @@ class TerminalEngine {
             this.pager.pageSize = this.getPageSize();
         });
 
+        output.addEventListener("click", () => {
+            this.hiddenInput.focus();
+        });
+
         document.addEventListener("click", () => {
             this.hiddenInput.focus();
         });
+
+        document.addEventListener("pointerdown", () => {
+            this.hiddenInput.focus();
+        });
+
+        window.addEventListener("focus", () => {
+            this.hiddenInput.focus();
+        });        
         
+        if (window.visualViewport) {
+            visualViewport.addEventListener("resize", () => {
+                window.scrollTo(0, document.body.scrollHeight);
+            });
+        }
+
         this.editorKeyHandler = (event) => {
 
             if (event.ctrlKey && event.key.toLowerCase() === "s") {
@@ -413,7 +431,7 @@ class TerminalEngine {
                 document.getElementById("input-line").classList.add("hidden");
                 await this.execute(input);
                 document.getElementById("input-line").classList.remove("hidden");
-
+                this.hiddenInput.focus();
                 this.currentInput = "";
                 this.renderInput();
                 break;
@@ -935,3 +953,31 @@ class TerminalEngine {
     }    
 
 }
+
+window.createVirtualBin = function() {
+    const bin = {
+        type: "dir",
+        hidden: false,
+        mode: "rwxr-xr-x",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        children: {}
+    };
+    for (const command of Object.keys(Commands).sort()) {
+        bin.children[command] = {
+            type: "file",
+            hidden: false,
+            mode: "rwxr-xr-x",
+            owner: "root",
+            group: "root",
+            created: Date.parse("2020-01-01T08:00:00Z"),
+            modified: Date.parse("2026-07-01T10:00:00Z"),
+            accessed: Date.parse("2026-07-01T10:00:00Z"),
+            content: ""
+        };
+    }
+    window.FileSystem[ROOT].children["bin"] = bin;
+};
