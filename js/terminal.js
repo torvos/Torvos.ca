@@ -1,7 +1,6 @@
 class TerminalEngine {
     
-    constructor(config) {
-        this.config = config;
+    constructor() {
         this.output = document.getElementById("output");
         this.promptEl = document.getElementById("prompt");
         this.commandEl = document.getElementById("command");
@@ -15,6 +14,7 @@ class TerminalEngine {
         this.cwd = HOME;
         this.bindEvents();
         this.version = TERMINAL_VERSION;
+
         this.pager = {
             active: false,
             linesPrinted: 0,
@@ -48,36 +48,28 @@ class TerminalEngine {
     }
 
     async init() {
-
         this.inputMode = INPUT_NORMAL;
-
         const savedSettings = localStorage.getItem("terminalSettings");
         if (savedSettings) {        
             const settings = JSON.parse(savedSettings);
- 
             if(settings.version != TERMINAL_VERSION){
                 localStorage.removeItem("terminalSettings");
                 localStorage.removeItem("FileSystem");
                 this.cwd = HOME;
                 location.reload();
             }            
-
             this.history = settings.history ?? [];
             this.historyIndex = settings.historyIndex ?? "-1";
             this.cursorPos = settings.cursorPos ?? "0";
             this.hasbooted = settings.hasbooted ?? "0";
             this.cwd = settings.cwd ?? HOME;
         }
-
         const savedFileSystem = localStorage.getItem("FileSystem");
         if (savedFileSystem) {
             window.FileSystem = JSON.parse(savedFileSystem);
         }
-
         const params = new URLSearchParams(window.location.search);
-        
         await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
-
         if (this.hasbooted === 1){
             await this.write(`[INFO] Resuming previous session.................[ OK ]`, {color: "#ffffff"});
         } else if (this.hasbooted === 0 || params.has("quickboot")) {
@@ -101,7 +93,7 @@ class TerminalEngine {
         if (params.has("run")) {
             const command = params.get("run");
             this.currentInput = command;
-            this.promptEl.textContent = `${this.config.username}@${this.config.hostname}:${this.cwd}$ ${command}`;   
+            this.promptEl.textContent = `${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$ ${command}`;   
             this.cursorPos = command.length;
             this.renderInput();   
             this.hiddenInput.focus();
@@ -390,7 +382,7 @@ class TerminalEngine {
 
     renderPrompt() {
         this.promptEl.textContent =
-            `${this.config.username}@${this.config.hostname}:${this.cwd}$`;
+            `${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$`;
     }
 
     renderInput() {
@@ -428,7 +420,7 @@ class TerminalEngine {
         switch (this.inputMode) {
             case INPUT_NORMAL:
                 if (!input){
-                    this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$`);
+                    this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$`);
                     document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
                     return;
                 }
@@ -440,7 +432,7 @@ class TerminalEngine {
                 } 
                 this.history.push(input);
                 this.historyIndex = this.history.length;
-                this.write(`${this.config.username}@${this.config.hostname}:${this.cwd}$${input}`);
+                this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$${input}`);
     
                 document.getElementById("input-line").classList.add("hidden");
                 await this.execute(input);
@@ -771,6 +763,7 @@ class TerminalEngine {
 
             if (match) {
                 this.currentInput = match;
+                this.cursorPos = this.currentInput.length;
                 this.renderInput();
             }
 
