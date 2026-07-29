@@ -19,9 +19,9 @@ body {
     padding: 0;
     width: 100%;
     min-height: 100dvh;
+    height: 100%;
     font-family: "JetBrains Mono", monospace;
     font-size: var(--terminal-font-size);
-    /*font-size: 17px;*/
     line-height: 1.2;
 }
 
@@ -57,11 +57,6 @@ body {
 
 #output{
     white-space: pre-wrap;
-}
-
-.output {
-    user-select: text;
-    -webkit-user-select: text;
 }
 
 #editor-container {

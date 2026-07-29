@@ -237,6 +237,20 @@ class TerminalEngine {
 
     bindEvents() {
 
+        function updateVisualViewportHeight() {
+            if (window.visualViewport) {
+                const layoutHeight = window.visualViewport.height;
+                document.documentElement.style.setProperty('--visual-vh', `${layoutHeight}px`);
+            }
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateVisualViewportHeight);
+            window.visualViewport.addEventListener('scroll', updateVisualViewportHeight);
+        }
+
+        window.addEventListener('DOMContentLoaded', updateVisualViewportHeight);
+
         window.addEventListener("resize", () => {
             this.pager.pageSize = this.getPageSize();
         });
