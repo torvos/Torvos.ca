@@ -257,9 +257,11 @@ window.expandWildcards = function(arg, cwd = "/") {
     if (!arg.includes("*") && !arg.includes("?")) {
         return [arg];
     }
-
-    const parts = arg.split("/");
     const results = [];
+    const pattern = arg.startsWith("/")
+        ? arg
+        : resolveRelativePath(cwd, arg);
+    const parts = pattern.split("/");
 
     function walk(node, index, currentPath) {
         if (index >= parts.length) {
@@ -271,8 +273,7 @@ window.expandWildcards = function(arg, cwd = "/") {
             walk(node, index + 1, currentPath);
             return;
         }
-console.log("Wildcard walk:", node, index, currentPath);
-        if (!node.children) {
+        if (!node || !node.children) {
             return;
         }
         if (part.includes("*") || part.includes("?")) {
@@ -285,39 +286,33 @@ console.log("Wildcard walk:", node, index, currentPath);
                 +
                 "$"
             );
-            Object.keys(node.children).forEach(name => {
+            for (const name of Object.keys(node.children)) {
+                const child = node.children[name];
                 if (regex.test(name)) {
                     walk(
-                        node.children[name],
+                        child,
                         index + 1,
                         currentPath + "/" + name
                     );
                 }
-            });
-        } 
+            }
+        }
         else {
-            if (node.children[part]) {
+            const child = node.children[part];
+            if (child) {
                 walk(
-                    node.children[part],
+                    child,
                     index + 1,
                     currentPath + "/" + part
                 );
             }
         }
     }
-
     let startNode = window.FileSystem["/"];
-    let startPath = "";
-    if (arg.startsWith("/")) {
-        startNode = window.FileSystem["/"];
-        startPath = "";
-    }
-    else {
-        const resolved = resolvePath(this.cwd ?? HOME);
-
-        startNode = resolved.node ?? resolved;
-        startPath = this.cwd ?? HOME;
-    }
-    walk(startNode, 0, startPath);
-    return results.length ? results : [arg];
+    walk(
+        startNode,
+        0,
+        ""
+    );
+    return results;
 };

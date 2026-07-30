@@ -12,6 +12,7 @@ class TerminalEngine {
         this.cursorPos = 0;
         this.hasbooted = 0;
         this.cwd = HOME;
+        this.lastExpansionEmpty = false;
         this.bindEvents();
         this.version = TERMINAL_VERSION;
 
@@ -550,6 +551,7 @@ class TerminalEngine {
     }
 
     async execute(input) {
+        this.lastExpansionEmpty = false;
         input = this.expandAlias(input);
         input = this.expandVariables(input);
         const expandedCommands = this.expandBraces(input);
@@ -572,8 +574,16 @@ class TerminalEngine {
                     const cmd = parsed.cmd;
                     let args = [];
                     for (const arg of parsed.args) {
-                        args.push(...expandWildcards(arg, this.cwd));
-                    }
+                        const expanded = expandWildcards(arg, this.cwd);
+                        if (expanded.length > 0) {
+                            args.push(...expanded);
+                        } else {
+                            if (arg.includes("*") || arg.includes("?")) {
+                                this.lastExpansionEmpty = true;
+                            }
+                            args.push(arg);
+                        }
+                    }                    
                     const redirects = parsed.redirects;
                     if (redirects.operator === "<") {
                         const node = resolvePath(
