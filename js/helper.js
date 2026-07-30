@@ -252,3 +252,72 @@ window.createDirectory = function(hidden = false) {
         children: {}
     };
 };
+
+window.expandWildcards = function(arg, cwd = "/") {
+    if (!arg.includes("*") && !arg.includes("?")) {
+        return [arg];
+    }
+
+    const parts = arg.split("/");
+    const results = [];
+
+    function walk(node, index, currentPath) {
+        if (index >= parts.length) {
+            results.push(currentPath || "/");
+            return;
+        }
+        const part = parts[index];
+        if (part === "") {
+            walk(node, index + 1, currentPath);
+            return;
+        }
+console.log("Wildcard walk:", node, index, currentPath);
+        if (!node.children) {
+            return;
+        }
+        if (part.includes("*") || part.includes("?")) {
+            const regex = new RegExp(
+                "^" +
+                part
+                    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+                    .replace(/\*/g, ".*")
+                    .replace(/\?/g, ".")
+                +
+                "$"
+            );
+            Object.keys(node.children).forEach(name => {
+                if (regex.test(name)) {
+                    walk(
+                        node.children[name],
+                        index + 1,
+                        currentPath + "/" + name
+                    );
+                }
+            });
+        } 
+        else {
+            if (node.children[part]) {
+                walk(
+                    node.children[part],
+                    index + 1,
+                    currentPath + "/" + part
+                );
+            }
+        }
+    }
+
+    let startNode = window.FileSystem["/"];
+    let startPath = "";
+    if (arg.startsWith("/")) {
+        startNode = window.FileSystem["/"];
+        startPath = "";
+    }
+    else {
+        const resolved = resolvePath(this.cwd ?? HOME);
+
+        startNode = resolved.node ?? resolved;
+        startPath = this.cwd ?? HOME;
+    }
+    walk(startNode, 0, startPath);
+    return results.length ? results : [arg];
+};

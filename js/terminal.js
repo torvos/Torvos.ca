@@ -568,10 +568,12 @@ class TerminalEngine {
                 let stdin = "";
 
                 for (let index = 0; index < pipeline.length; index++) {
-
                     const parsed = this.parseCommand(pipeline[index]);
                     const cmd = parsed.cmd;
-                    const args = parsed.args;
+                    let args = [];
+                    for (const arg of parsed.args) {
+                        args.push(...expandWildcards(arg, this.cwd));
+                    }
                     const redirects = parsed.redirects;
                     if (redirects.operator === "<") {
                         const node = resolvePath(
@@ -957,8 +959,7 @@ class TerminalEngine {
         this.inputMode = "normal";
         this.hiddenInput.focus();
         this.showPrompt();
-    }    
-
+    }
 }
 
 window.createVirtualBin = function() {

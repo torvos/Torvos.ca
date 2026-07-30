@@ -691,15 +691,31 @@ Commands.ls = function (terminal, args, stdin) {
     const path = resolveRelativePath(terminal.cwd, target);
 
     let pathresult = resolvePath(path);
+
     const node = pathresult ? pathresult.node : null;
 
-    if (!node || node.type !== "dir") {
+    if (!node) {
         return {
             stdout:"",
-            stderr: `ls: ${target} is not a directory`,
+            stderr: `ls: cannot access '${target}': No such file or directory`,
             exitCode: 1
-        };                  
+        };
     }
+
+    if (node.type === "file" || node.type === "symlink") {
+        if (longFormat) {
+            return {
+                stdout: formatLongEntry(target.split(ROOT).pop(), node),
+                stderr: "",
+                exitCode: 0
+            };
+        }
+        return {
+            stdout: target.split(ROOT).pop(),
+            stderr: "",
+            exitCode: 0
+        };
+    }    
 
     function listDirectory(dirNode, dirPath) {
         dirNode.accessed = Date.now();
