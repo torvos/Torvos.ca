@@ -1,4 +1,4 @@
-    window.FileSystem = {
+window.FileSystem = {
 
     "/": {
         type: "dir",
@@ -130,5 +130,107 @@ Developer - Application Development
                 }
             }
         }
+    }
+};
+
+window.FileSystemAPI = {
+
+    get(path, cwd = "/") {
+        const fullPath = resolveRelativePath(cwd, path);
+        const result = resolvePath(fullPath);
+
+        if (!result || !result.node) {
+            return null;
+        }
+
+        return result.node;
+    },
+
+    exists(path, cwd = "/") {
+        return this.get(path, cwd) !== null;
+    },
+
+    isInBin(path, cwd = "/") {
+        const fullPath = resolveRelativePath(cwd, path);
+        return fullPath.includes("/bin/");
+    },
+
+    stat(path, cwd = "/") {
+        const node = this.get(path, cwd);
+
+        if (!node) {
+            return null;
+        }
+
+        return {
+            type: node.type,
+            mode: node.mode,
+            owner: node.owner,
+            group: node.group,
+            size: getSize(node),
+            created: node.created,
+            modified: node.modified,
+            accessed: node.accessed
+        };
+    },
+
+
+    mkdir(path, options = {}) {
+        const {
+            cwd = "/",
+            parents = false,
+            mode = "rwxr-xr-x",
+            owner = "guest",
+            group = "guest"
+        } = options;
+
+
+        const fullPath = resolveRelativePath(cwd, path);
+
+        return createDirectory(fullPath, {
+            parents,
+            mode,
+            owner,
+            group
+        });
+    },
+
+
+    remove(path, options = {}) {
+        const {
+            cwd = "/",
+            recursive = false
+        } = options;
+
+
+        const fullPath = resolveRelativePath(cwd, path);
+
+        return removePath(fullPath, {
+            recursive
+        });
+    },
+
+
+    copy(src, dst, options = {}) {
+        const {
+            cwd = "/"
+        } = options;
+
+        const source = resolveRelativePath(cwd, src);
+        const destination = resolveRelativePath(cwd, dst);
+
+        return copyPath(source, destination);
+    },
+
+
+    move(src, dst, options = {}) {
+        const {
+            cwd = "/"
+        } = options;
+
+        const source = resolveRelativePath(cwd, src);
+        const destination = resolveRelativePath(cwd, dst);
+
+        return movePath(source, destination);
     }
 };

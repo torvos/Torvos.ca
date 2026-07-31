@@ -6,6 +6,9 @@ class TerminalEngine {
         this.commandEl = document.getElementById("command");
         this.cursorEl = document.getElementById("cursor");
         this.hiddenInput = document.getElementById("hidden-input");
+        this.editorContainer = document.getElementById("editor-container");
+        this.editorEl = document.getElementById("editor");
+
         this.currentInput = "";
         this.history = [];
         this.historyIndex = -1;
@@ -22,6 +25,7 @@ class TerminalEngine {
             pageSize: 0,
             resolver: null
         };
+
         this.editor = {
             active: false,
             node: null,
@@ -30,6 +34,7 @@ class TerminalEngine {
             cursor: 0,
             modified: false
         };
+
         this.env = {
             HOME: "/home/guest",
             USER: "guest",
@@ -40,12 +45,13 @@ class TerminalEngine {
             PATH: "/bin:/usr/bin",
             EDITOR: "edit"
         };
+
         this.aliases = {
             "ll": "ls -la",
             "cd..": "cd .."
-        };        
-        this.editorContainer = document.getElementById("editor-container");
-        this.editorEl = document.getElementById("editor");
+        };
+
+        this.fs = FileSystemAPI;
     }
 
     async init() {

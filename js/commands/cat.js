@@ -18,12 +18,7 @@ registerCommand("cat", {
 
             content = stdin;
         } else {
-            const fullPath = resolveRelativePath(terminal.cwd, target);
-
-            let pathresult = resolvePath(fullPath);
-
-            const node = pathresult ? pathresult.node : null;
-
+            const node = terminal.fs.get(target, terminal.cwd);
             if (!node) {
                 return {
                     stdout: "",
@@ -32,7 +27,7 @@ registerCommand("cat", {
                 };         
             }
 
-            if(fullPath.includes("/bin/")){
+            if(terminal.fs.isInBin(target, terminal.cwd)){
                 return {
                     stdout: "",
                     stderr: `cat: cannot display files in /bin`,
