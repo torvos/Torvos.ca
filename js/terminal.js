@@ -609,17 +609,14 @@ class TerminalEngine {
 
                     let result;
                     
-                    if (window.Commands && window.Commands[cmd]) {
-                        result = await window.Commands[cmd](
+                    const command = window.Commands?.[cmd];
+
+                    if (command?.execute) {
+                        result = await command.execute(
                             this,
                             args,
                             stdin
                         );
-                    }
-                    else if (cmd === "login") {
-                        this.inputMode = INPUT_WAIT_FOR_USERNAME;
-                        this.promptEl.textContent = "user:";
-                        return;
                     }
                     else {
                         result = {
