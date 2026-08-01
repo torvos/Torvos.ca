@@ -1,27 +1,41 @@
 registerCommand("help", {
-    description: "",
-    usage: "",
+    name: "Display basic commands summary.",
+    synopsis : "help",
+    description: "Displays a few basic commands for users to get started.",
+    options: [],
+    examples: [
+        "help"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }        
         return {
             stdout: `+--------------------------------------------------------------------+
     |  Welcome to Torvos.ca the following are some commands you can use  |
     |  To view the contensts of this site.                               |
     +--------------------------------------------------------------------+
     |Navigation:                                                         |
-    |  ls              Lists directory contents                          |
-    |  ls -l           Lists directory contents with additional details  |
-    |  cd <dir>        Change directory                                  |
-    |  cd ..           Go to the parent directory                        |
+    |  ls               Lists directory contents                         |
+    |  ls -l            Lists directory contents with additional details |
+    |  cd <dir>         Change directory                                 |
+    |  cd ..            Go to the parent directory                       |
     +--------------------------------------------------------------------+
     |Files:                                                              |
-    |  cat <file>      Display file contents, example cat readme.md      |
-    |  edit <file>     Edit file contents                                |
-    |  more <file>     Display file one screen at a time                 |
+    |  cat <file>       Display file contents, example cat readme.md     |
+    |  edit <file>      Edit file contents                               |
+    |  more <file>      Display file one screen at a time                |
     +--------------------------------------------------------------------+
     |System:                                                             |
-    |  help            Show this help message                            |
-    |  reset           reverts terminal to original settings             |
-    |  clear           Clear terminal display                            |
+    |  man <command>    Show help for a command                          |
+    |  <command> --help Show help for a command                          |
+    |  help             Show this help message                           |
+    |  reset            Reverts terminal to original settings            |
+    |  clear            Clear terminal display                           |
     +--------------------------------------------------------------------+`,
             stderr: "",
             exitCode: 0

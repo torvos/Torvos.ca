@@ -1,7 +1,24 @@
 registerCommand("sed", {
-    description: "",
-    usage: "",
+    name: "Perform stream editing on text.",
+    synopsis : "sed [OPTIONS] 'command' file_name",
+    description: "is a powerful command-line tool used to parse, filter, and transform text line-by-line. It is most commonly used for finding and replacing text without opening the file.",
+    options: [
+        "-i    Modifies the original file directly.",
+        "-n    Suppresses automatic printing of the pattern space."
+    ],
+    examples: [
+        "sed 's/apple/orange/' fruits.txt",
+        "sed 's/apple/orange/g' fruits.txt",
+        "sed '4s/apple/orange/' fruits.txt"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args, {i: false, n: false});
         const inPlace = parsed.flags.has("i");
         const silent = parsed.flags.has("n");

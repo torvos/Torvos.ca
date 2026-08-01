@@ -1,7 +1,20 @@
 registerCommand("rmdir", {
-    description: "",
-    usage: "",
+    name: "Remove empty directories.",
+    synopsis : "rmdir DIRECTORY_NAME ",
+    description: "is used exclusively to remove empty directories from the filesystem. It acts as a safety mechanism, failing completely if the folder contains any files or subdirectories to prevent accidental data loss.",
+    options: [],
+    examples: [
+        "rmdir test",
+        "rmdir Documents"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         let target = args[0];
         if (target === undefined) {
             return {

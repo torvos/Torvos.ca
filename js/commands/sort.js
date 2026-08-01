@@ -1,7 +1,26 @@
 registerCommand("sort", {
-    description: "",
-    usage: "",
+    name: "Sort lines of text",
+    synopsis : "sort [OPTIONS] [FILE...]",
+    description: " is a powerful utility used to arrange lines of text in files or from standard input. By default, it outputs lines in alphabetical (ASCII) ascending order without modifying the original source file.",
+    options: [
+        "-r    Reverses the sorting order to descending.",
+        "-n    Sorts values numerically rather than alphabetically.",
+        "-f    Folds lowercase characters into uppercase to ignore case sensitivity.",
+        "-u    Suppresses duplicate lines, returning only unique records"
+    ],
+    examples: [
+        "sort names.txt",
+        "sort -n numbers.txt",
+        "sort -u raw_logs.txt"
+    ],
     execute(terminal, args, stdin) {    
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args, {r: false, n: false, f: false, u: false});
         const reverse = parsed.flags.has("r");
         const numeric = parsed.flags.has("n");

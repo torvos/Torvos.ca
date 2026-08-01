@@ -1,7 +1,23 @@
 registerCommand("cat", {
-    description: "",
-    usage: "",
+    name: "Display the contents of one or more files.",
+    synopsis : "cat [OPTIONS] FILE...",
+    description: "Read each specified file and write its contents to standard output in the order provided. Multiple files are concatenated together.",
+    options: [
+        "-n    Add line numbers to the output."
+    ],
+    examples: [
+        "cat notes.txt",
+        "cat -n logs.txt",
+        "cat part1.txt part2.txt"
+    ],
     execute(terminal, args, stdin) {    
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args,{n: false});
         const numberLines = parsed.flags.has("n");
         const target = parsed.args[0];

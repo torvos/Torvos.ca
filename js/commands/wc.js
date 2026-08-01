@@ -1,7 +1,24 @@
 registerCommand("wc", {
-    description: "",
-    usage: "",
+    name: "Count lines, words, and characters.",
+    synopsis : "wc [OPTIONS] FILE...",
+    description: "is a built-in terminal utility used to count lines, words, characters, and bytes in text files or pipeline outputs.",
+    options: [
+        "-l.   only show the number of lines.",
+        "-w    only show the number of words.",
+        "-c    only show the size of Bytes."
+    ],
+    examples: [
+        "wc -l notes.txt",
+        "wc -w file1.txt file2.txt"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }        
         const parsed = terminal.parseFlags(args, {l: false, w: false, c: false});
         const countLines = parsed.flags.has("l");
         const countWords = parsed.flags.has("w");

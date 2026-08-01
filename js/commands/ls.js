@@ -1,7 +1,25 @@
 registerCommand("ls", {
-    description: "List directory contents",
-    usage: "ls [OPTION]... [FILE]...",
+    name: "List directory contents.",
+    synopsis : "ls [OPTIONS] directory",
+    description: "The ls command is used to list files and directories within your current working directory or a specified path in Linux. It is one of the most fundamental tools for terminal navigation, functioning as the command-line equivalent of opening a folder in a graphical file explorer.",
+    options: [
+        "-l.   long format with file information",
+        "-a.   show hidden files and folders",
+        "-R    apply permissions recursively to contents of a folder."
+    ],
+    examples: [
+        "ls -R /",
+        "ls -la ~",
+        "ls"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args,{l: false,a: false,R: false});
         const longFormat = parsed.flags.has("l");
         const showHidden = parsed.flags.has("a");

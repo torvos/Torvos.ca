@@ -1,13 +1,26 @@
 registerCommand("export", {
-    description: "",
-    usage: "",
+    name: "Set or update environment variables.",
+    synopsis : "export NAME=VALUE",
+    description: "Create or modify an environment variable that will be available to subsequently executed commands.",
+    options: [],
+    examples: [
+        "export EDITOR=vim",
+        "export PATH=/bin",
+    ],
     execute(terminal, args, stdin) {    
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const target = args[0];
         const value = args[1];
         if(target in terminal.env){
             return {
                 stdout: "",
-                stderr: "env: variable already set",
+                stderr: "export: variable already set",
                 exitCode: 1
             };
         }

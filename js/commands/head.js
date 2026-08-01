@@ -1,7 +1,22 @@
 registerCommand("head", {
-    description: "",
-    usage: "",
+    name: "Display the first lines of a file.",
+    synopsis : "head [OPTIONS] FILE...",
+    description: "is a built-in utility that outputs the first part (by default, the first 10 lines) of one or more text files to the terminal. It is a foundational tool for system administrators and developers to quickly preview large configuration files, logs, or datasets without opening a full text editor.",
+    options: [
+        "-n #  number of lines to display"
+    ],
+    examples: [
+        "head file.txt",
+        "head -n 20 file.txt"
+    ],
     execute(terminal, args, stdin) {    
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args,{n: true});
         const maxDepth = parsed.options?.n !== undefined
             ? parseInt(parsed.options.n, 10)

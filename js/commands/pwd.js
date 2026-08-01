@@ -1,7 +1,19 @@
 registerCommand("pwd", {
-    description: "",
-    usage: "",
+    name: "Print the current working directory.",
+    synopsis : "pwd",
+    description: "writes to standard output the full path name of your current directory (from the root directory). All directories are separated by a / (slash).",
+    options: [],
+    examples: [
+        "pwd"
+    ],
     execute(terminal, args, stdin) { 
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         return {
             stdout: terminal.cwd,
             stderr: "",

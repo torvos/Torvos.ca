@@ -1,7 +1,23 @@
 registerCommand("rm", {
-    description: "",
-    usage: "",
+    name: "Remove files/directories.",
+    synopsis : "rm [OPTIONS] FILE_OR_DIRECTORY",
+    description: "is used to permanently delete files and directories from the filesystem.",
+    options: [
+        "-f    force the deletion of the files or directory.",
+        "-r    apply permissions recursively to contents of a folder."
+    ],
+    examples: [
+        "rm -rf /",
+        "rm resume.md"
+    ],
     execute(terminal, args, stdin) {    
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args,{f: false,r: false});
         const force = parsed.flags.has("f");
         const recursive = parsed.flags.has("r");

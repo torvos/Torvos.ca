@@ -1,7 +1,20 @@
 registerCommand("finger", {
-    description: "",
-    usage: "",
+    name: "Display information about a user.",
+    synopsis : "finger [USER] ",
+    description: "A traditional user information lookup tool used to display details about system users, such as their login name, real name, terminal, idle time, and login time.",
+    options: [],
+    examples: [
+        "finger guest",
+        "finger torvos"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         return {
             stdout: "",
             stderr: "guest users are not permitted to run the finger command.",

@@ -1,7 +1,19 @@
 registerCommand("edit", {
-    description: "",
-    usage: "",
+    name: "Open a file in the built-in editor.",
+    synopsis : "edit FILE",
+    description: "Open an existing file or create a new one using the terminal's integrated text editor.",
+    options: [],
+    examples: [
+        "edit notes.txt"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const target = args[0];
         if (!target){
             return {

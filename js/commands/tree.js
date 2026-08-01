@@ -1,7 +1,25 @@
 registerCommand("tree", {
-    description: "",
-    usage: "",
+    name: "Display the directory hierarchy.",
+    synopsis : "tree [OPTIONS] [DIRECTORY]",
+    description: "is a command-line utility used to display the contents of a directory in a deeply indented, hierarchical structure.",
+    options: [
+        "-d    Lists directories only and hides individual files",
+        "-a    Includes hidden files and directories.",
+        "-L #  Limits the recursion to a maximum depth of X levels"
+    ],
+    examples: [
+        "tree",
+        "tree -d /",
+        "tree -a ~"
+    ],
     execute(terminal, args, stdin) {    
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args,{d: false,a: false,L: true});
         const onlyDirectory = parsed.flags.has("d");
         const showHidden = parsed.flags.has("a");

@@ -1,7 +1,23 @@
 registerCommand("chmod", {
-    description: "",
-    usage: "",
+    name: "Change file or directory permissions.",
+    synopsis : "chmod [OPTIONS] MODE FILE...",
+    description: "Modify the permission bits associated with one or more files or directories. Only symbolic or numeric modes supported by this shell are accepted.",
+    options: [
+        "-R    apply permissions recursively to contents of a folder."
+    ],
+    examples: [
+        "chmod 755 script.sh",
+        "chmod 644 notes.txt",
+        "chmod -R 755 /home/guest"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args, { R: false });
         const recursive = parsed.flags.has("R");
 

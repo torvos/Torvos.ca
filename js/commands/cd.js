@@ -1,7 +1,22 @@
 registerCommand("cd", {
-    description: "",
-    usage: "",
+    name: "Change the current working directory.",
+    synopsis : "cd [DIRECTORY]",
+    description: "Change the shell's current working directory. If no directory is specified, the user's home directory is used.",
+    options: [],
+    examples: [
+        "cd Documents",
+        "cd ..",
+        "cd -",
+        "cd /"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const target = args[0];
         if (!target) {
             return {

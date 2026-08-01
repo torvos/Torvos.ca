@@ -1,7 +1,21 @@
 registerCommand("cp", {
-    description: "",
-    usage: "",
+    name: "Copy files and directories.",
+    synopsis : "cp SOURCE... DESTINATION",
+    description: "Copy one or more files to another location. Directories may be copied recursively using the recursive option.",
+    options: [],
+    examples: [
+        "cp notes.txt backup.txt",
+        "cp *.txt backup/",
+        "cp -R Documents Archive"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         let source = args[0];
         let destination = args[1];
 

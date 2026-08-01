@@ -1,7 +1,25 @@
 registerCommand("find", {
-    description: "",
-    usage: "",
+    name: "Search for files and directories.",
+    synopsis : "find [PATH] [OPTIONS]",
+    description: "Recursively search a directory tree for files or directories matching specified criteria.",
+    options: [
+        "-name PATTERN      Match file names.",
+        "-type TYPE         Match object type.",
+        "-maxdepth N        Limit recursion depth."
+    ],
+    examples: [
+        "find . -name '*.txt'",
+        "find / -type d",
+        "find . -maxdepth 2"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args, {name: true, type: true, maxdepth: true});
         const namePattern = parsed.options?.name ?? null;
         const typeFilter = parsed.options?.type ?? null;

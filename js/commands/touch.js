@@ -1,7 +1,19 @@
 registerCommand("touch", {
-    description: "",
-    usage: "",
+    name: "Create files or update timestamps.",
+    synopsis : "touch [FILE]",
+    description: "is primarily used to create empty files and update file timestamps (access time and modification time).",
+    options: [],
+    examples: [
+        "touch myfile.txt"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         let target = args[0];
 
         if (target === undefined) {

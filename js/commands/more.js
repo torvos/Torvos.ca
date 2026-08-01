@@ -1,9 +1,20 @@
 registerCommand("more", {
-    description: "",
-    usage: "",
+    name: "View a file one page at a time.",
+    synopsis : "mode FILE...",
+    description: "is a terminal utility used to view the contents of a text file one screen or page at a time. It prevents long files or heavy command outputs from flooding your terminal window.",
+    options: [],
+    examples: [
+        "more resume.md"
+    ],
     async execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const target = args[0];
-
         if (!target) {
             return {
                 stdout: "",

@@ -1,7 +1,22 @@
 registerCommand("stat", {
-    description: "",
-    usage: "",
+    name: "Display detailed file metadata.",
+    synopsis : "stat [OPTIONS] [FILE_OR_DIRECTORY]",
+    description: "is a built-in command-line utility used to display detailed metadata about files, directories, or filesystems.",
+    options: [
+        "-R    apply recursively to contents of a directory."
+    ],
+    examples: [
+        "stat resume.md",
+        "stat -R ~"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args, { R: false });
         const recursive = parsed.flags.has("R");
         args = parsed.args;

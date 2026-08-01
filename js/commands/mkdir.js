@@ -1,7 +1,22 @@
 registerCommand("mkdir", {
-    description: "",
-    usage: "",
+    name: "Create directories.",
+    synopsis : "mkdir [OPTIONS] DIRECTORY",
+    description: "is used to create one or more new folders inside your file system.",
+    options: [
+        "-p    create all directorys in a chain"
+    ],
+    examples: [
+        "mkdir test",
+        "mkdir -p /test1/test2/test3"
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }
         const parsed = terminal.parseFlags(args, { p: false });
         const parents = parsed.flags.has("p");
         const target = parsed.args[0];

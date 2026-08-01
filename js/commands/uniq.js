@@ -1,7 +1,25 @@
 registerCommand("uniq", {
-    description: "",
-    usage: "",
+    name: "Filter adjacent duplicate lines.",
+    synopsis : "uniq [OPTIONS] [INPUT_FILE]",
+    description: "is a text processing utility used to filter, omit, or report repeated lines from a file or standard input.",
+    options: [
+        "-c    count the number of unique lines",
+        "-d    only show/count duplicate lines",
+        "-u    only show/count unique lines"
+    ],
+    examples: [
+        "",
+        "",
+        ""
+    ],
     execute(terminal, args, stdin) {
+        if (args.includes("--help")) {
+            return {
+                stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
+                stderr: "",
+                exitCode: 0
+            };                
+        }        
         const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
         const count = parsed.flags.has("c");
         const duplicatesOnly = parsed.flags.has("d");
