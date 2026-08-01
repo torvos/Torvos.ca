@@ -64,14 +64,13 @@ registerCommand("chmod", {
         }
 
         for (const path of paths) {
-            const fullPath = resolveRelativePath(terminal.cwd, path);
-            const node = resolvePath(fullPath);
+            const node = terminal.fs.get(path, terminal.cwd);
             if (!node) {
                 stderr += `chmod: ${path}: No such file or directory\n`;
                 exitCode = 1;
                 continue;
             }
-            if(fullPath.includes("/bin/")){
+            if(terminal.fs.isInBin(path, terminal.cwd)){
                 return {
                     stdout: "",
                     stderr: `chmod: cannot access files in /bin`,

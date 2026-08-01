@@ -26,11 +26,10 @@ registerCommand("cp", {
                 exitCode: 1
             };    
         }
-
-        const sourcePath = resolveRelativePath(terminal.cwd, source);
-        const destinationPath = resolveRelativePath(terminal.cwd, destination);
-
+        
+        const sourcePath = terminal.fs.getFullPath(source, terminal.cwd);
         const src = getParentDirectory(sourcePath);
+        const destinationPath = terminal.fs.getFullPath(destination, terminal.cwd);
         const dest = getParentDirectory(destinationPath);
 
         if (!src || !dest) {

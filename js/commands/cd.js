@@ -26,36 +26,24 @@ registerCommand("cd", {
             }; 
 
         }
-
-        let newPath = resolveRelativePath(terminal.cwd, target);
-        let result = resolvePath(newPath);
-        
-        if(args[0] === "-"){
-            newPath = resolveRelativePath(terminal.cwd, terminal.env.OLDPWD);
-            result = resolvePath(newPath);    
-        }
-
-        if (!result) {
+        let node = terminal.fs.get(target, terminal.cwd);
+        if (!node) {
             return {
                 stdout: "",
                 stderr: `cd: no such file or directory: ${target}`,
                 exitCode: 1
             };
         }
-
-        if (result.node.type !== "dir") {
+        if (node.type !== "dir") {
             return {
                 stdout: "",
                 stderr: `cd: not a directory: ${target}`,
                 exitCode: 1
             };
         }
-
-        result.node.accessed = Date.now();
-
-        terminal.cwd = result.path;
+        node.accessed = Date.now();
+        terminal.cwd = terminal.fs.getFullPath(target, terminal.cwd);
         terminal.renderPrompt();
-
         terminal.env.OLDPWD = terminal.env.PWD;
         terminal.env.PWD = terminal.cwd;
 
