@@ -66,16 +66,14 @@ registerCommand("chmod", {
         for (const path of paths) {
             const node = terminal.fs.get(path, terminal.cwd);
             if (!node) {
-                stderr += `chmod: ${path}: No such file or directory\n`;
-                exitCode = 1;
+                funcStderr += `chmod: ${path}: No such file or directory\n`;
+                funcExitCode = 1;
                 continue;
             }
             if(terminal.fs.isInBin(path, terminal.cwd)){
-                return {
-                    stdout: "",
-                    stderr: `chmod: cannot access files in /bin`,
-                    exitCode: 1
-                };
+                funcStderr += `chmod: cannot access files in /bin\n`;
+                funcExitCode = 1;
+                continue;
             }             
             chmodNode({node});
         }

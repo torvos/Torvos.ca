@@ -301,7 +301,7 @@ Developer - Application Development
         }
         let total = 0;
         for (const child of Object.values(node.children || {})) {
-            total += window.getDirectorySize(child);
+            total += getDirectorySize(child);
         }
         return total;
     }
@@ -339,10 +339,10 @@ Developer - Application Development
     function formatLongEntry(name, node) {
         const typeChar = node.type === "dir" ? "d" : node.type === "symlink" ? "l" : node.type === "device" ? "c" : "-";
         const mode = node.mode;
-        const links = window.getLinkCount(node);
+        const links = getLinkCount(node);
         const group = node.group;
-        const size = window.getDirectorySize(node);
-        const modified = window.formatDate(node.modified);    const owner = node.owner;
+        const size = getDirectorySize(node);
+        const modified = formatDate(node.modified);    const owner = node.owner;
         return `${typeChar}${mode} ${String(links).padStart(2)} ${owner.padEnd(8)} ${group.padEnd(8)} ${String(size).padStart(6)} ${modified} ${name}${node.type === "dir" ? "/" : ""}${node.type === "symlink" ? ` -> ${node.target}` : ""}`;
     }
 
