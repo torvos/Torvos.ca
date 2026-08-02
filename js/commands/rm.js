@@ -31,8 +31,7 @@ registerCommand("rm", {
             };    
         }
 
-        const path = resolveRelativePath(terminal.cwd, target);
-        const result = getParentDirectory(path);
+        const result = terminal.fs.getParent(target, terminal.cwd);
 
         if (!result || !result.parent.children[result.name]) {
             if (force) {

@@ -36,9 +36,7 @@ registerCommand("wc", {
             }
             content = stdin;
         } else {
-            const fullPath = resolveRelativePath(terminal.cwd, target);
-            let pathresult = resolvePath(fullPath);
-            const node = pathresult ? pathresult.node : null;
+            const node = terminal.fs.get(target, terminal.cwd);
 
             if (!node) {
                 return {
@@ -48,7 +46,7 @@ registerCommand("wc", {
                 };
             }
 
-            if(fullPath.includes("/bin/")){
+            if(terminal.fs.isInBin(target, terminal.cwd)){
                 return {
                     stdout: "",
                     stderr: `wc: cannot access files in /bin`,

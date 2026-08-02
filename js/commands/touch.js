@@ -23,9 +23,7 @@ registerCommand("touch", {
                 exitCode: 1
             };           
         }
-        const path = resolveRelativePath(terminal.cwd, target);
-
-        if(path.includes("/bin/")){
+        if(terminal.fs.isInBin(target, terminal.cwd)){
             return {
                 stdout: "",
                 stderr: `touch: cannot create file in /bin`,
@@ -33,9 +31,7 @@ registerCommand("touch", {
             };
         }
 
-        let pathresult = resolvePath(path);
-
-        const node = pathresult ? pathresult.node : null;
+        const node = terminal.fs.get(target, terminal.cwd);
         if (node){
             return {
                 stdout: "",
@@ -44,7 +40,7 @@ registerCommand("touch", {
             };           
         }
 
-        const result = getParentDirectory(path);
+        const result = terminal.fs.getParent(target, terminal.cwd);
 
         if (!result) {
             return {
@@ -55,7 +51,7 @@ registerCommand("touch", {
         }
 
         result.parent.modified = Date.now();
-        result.parent.children[result.name] = createFile(result.name.startsWith("."));
+        result.parent.children[result.name] = terminal.fs.createFile(result.name.startsWith("."));
 
         return {
             stdout: "",

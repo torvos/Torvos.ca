@@ -35,7 +35,7 @@ registerCommand("which", {
 
         const path = `/bin/${command}`;
 
-        if (resolvePath(path)) {
+        if (terminal.fs.get(path)) {
             return {
                 stdout: path,
                 stderr: "",

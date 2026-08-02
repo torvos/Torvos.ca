@@ -56,7 +56,7 @@ registerCommand("ls", {
                     return;
                 }
                 if (longFormat) {
-                    entries.push(formatLongEntry(name, child));
+                    entries.push(terminal.fs.formatLongEntry(name, child));
                 }
                 else {
                     entries.push(
@@ -96,15 +96,7 @@ registerCommand("ls", {
         }
 
         for (const target of targets) {
-            const path = resolveRelativePath(
-                terminal.cwd,
-                target
-            );
-
-            const pathresult = resolvePath(path);
-            const node = pathresult
-                ? pathresult.node
-                : null;
+            const node = terminal.fs.get(target, terminal.cwd);
 
             if (!node) {
                 errors.push(
@@ -116,7 +108,7 @@ registerCommand("ls", {
             if (node.type === "file" || node.type === "symlink") {
                 if (longFormat) {
                     output.push(
-                        formatLongEntry(
+                        terminal.fs.formatLongEntry(
                             target.split(ROOT).pop(),
                             node
                         )

@@ -27,10 +27,8 @@ registerCommand("cp", {
             };    
         }
         
-        const sourcePath = terminal.fs.getFullPath(source, terminal.cwd);
-        const src = getParentDirectory(sourcePath);
-        const destinationPath = terminal.fs.getFullPath(destination, terminal.cwd);
-        const dest = getParentDirectory(destinationPath);
+        const src = terminal.fs.getParent(source, terminal.cwd);
+        const dest = terminal.fs.getParent(destination, terminal.cwd);
 
         if (!src || !dest) {
             return {

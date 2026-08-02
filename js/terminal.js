@@ -492,33 +492,17 @@ class TerminalEngine {
     }    
 
     writeRedirect(path, text, append = false) {
-        const resolved = resolveRelativePath(this.cwd, path);
-        let node = resolvePath(resolved);
-        if(resolved.includes("/bin/")){
+        if(this.fs.isInBin(path, this.cwd)){
             return `Cannot create files in /bin`;
         }             
+        let node = this.fs.get(path, this.cwd);
         if (!node) {
-            const parts = resolved
-                .split(ROOT)
-                .filter(Boolean);
-            const filename = parts.pop();
-            const parentPath = ROOT + parts.join(ROOT);
-            const parent = resolvePath(parentPath);
-            if (!parent.node || parent.node.type !== "dir") {
+            const parent = this.fs.getParent(path, this.cwd);
+            if (!parent || parent.parent.type !== "dir") {
                 return `Invalid parent directory`;
             }
-            parent.node.children[filename] = {
-                type: "file",
-                hidden: false,
-                mode: "rw-r--r--",
-                owner: "guest",
-                group: "guest",
-                created: Date.now(),
-                modified: Date.now(),
-                accessed: Date.now(),
-                content: ""
-            };
-            node = parent.node.children[filename];
+            parent.parent.children[parent.name] = this.fs.createFile(parent.name.startsWith("."));
+            node = parent.parent.children[parent.name];
         }
         if (node.type !== "file") {
             return `Invalid directory specified in redirection operator`;
@@ -581,7 +565,7 @@ class TerminalEngine {
                     const cmd = parsed.cmd;
                     let args = [];
                     for (const arg of parsed.args) {
-                        const expanded = expandWildcards(arg, this.cwd);
+                        const expanded = this.fs.expandWildcards(arg, this.cwd);
                         if (expanded.length > 0) {
                             args.push(...expanded);
                         } else {
@@ -593,12 +577,7 @@ class TerminalEngine {
                     }                    
                     const redirects = parsed.redirects;
                     if (redirects.operator === "<") {
-                        const node = resolvePath(
-                            resolveRelativePath(
-                                this.cwd,
-                                redirects.target
-                            )
-                        );
+                        const node = this.fs.get(redirects.target, this.cwd);
                         if (!node || node.type !== "file") {
                             stdin = "";
                             if (index === pipeline.length - 1) {
@@ -799,7 +778,7 @@ class TerminalEngine {
 
     getNode(path) {
         if (!path.startsWith(ROOT))
-            path = resolveRelativePath(this.cwd, path);
+            path = this.fs.getFullPath(path, this.cwd);
 
         let node = window.FileSystem[ROOT];
         const parts = path.split(ROOT).filter(Boolean);
@@ -828,7 +807,7 @@ class TerminalEngine {
             if (directory === "") {
                 directory = ROOT;
             } else {
-                directory = resolveRelativePath(this.cwd, directory);
+                directory = this.fs.getFullPath(directory, this.cwd);
             }
 
         } else {
@@ -856,7 +835,7 @@ class TerminalEngine {
     }
 
     changeDirectory(path) {
-        const resolved = resolveRelativePath(this.cwd, path);
+        const resolved = this.fs.getFullPath(path, this.cwd);
         const node = this.getNode(resolved);
         if (!node) {
             return `cd: ${path}: No such file or directory`;

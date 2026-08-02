@@ -36,9 +36,7 @@ registerCommand("uniq", {
                     exitCode: 1
                 };
             }
-            const path = resolveRelativePath(terminal.cwd, parsed.args[0]);
-            let pathresult = resolvePath(path);
-            const node = pathresult ? pathresult.node : null;
+            const node = terminal.fs.get(parsed.args[0], terminal.cwd);
             if (!node) {
                 return {
                     stdout: "",
@@ -47,7 +45,7 @@ registerCommand("uniq", {
                 };
             }
 
-            if(path.includes("/bin/")){
+            if(terminal.fs.isInBin(parsed.args[0], terminal.cwd)){
                 return {
                     stdout: "",
                     stderr: `uniq: cannot display files in /bin`,

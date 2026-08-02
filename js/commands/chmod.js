@@ -40,10 +40,10 @@ registerCommand("chmod", {
                 node.mode = "---------";
             }
             if (/^[0-7]{3,4}$/.test(mode)) {
-                node.mode = numericToMode(mode);
+                node.mode = terminal.fs.numericToMode(mode);
             }
             else {
-                node.mode = symbolicToMode(node.mode, mode);
+                node.mode = terminal.fs.symbolicToMode(node.mode, mode);
             }
             node.modified = Date.now();
         }
@@ -77,7 +77,7 @@ registerCommand("chmod", {
                     exitCode: 1
                 };
             }             
-            chmodNode(node);
+            chmodNode({node});
         }
 
         return {

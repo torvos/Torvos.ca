@@ -23,12 +23,12 @@ registerCommand("edit", {
             };        
         }
 
-        const path = resolveRelativePath(terminal.cwd,target);
-        let pathresult = resolvePath(path);
+        const path = terminal.fs.getFullPath(target, terminal.cwd);
+        let pathresult = terminal.fs.resolve(target, terminal.cwd);
         let node;
 
         if (!pathresult) {
-            const result = getParentDirectory(path);
+            const result = terminal.fs.getParent(target, terminal.cwd);
             if (!result) {
                 return {
                     stdout:"",
@@ -36,7 +36,7 @@ registerCommand("edit", {
                     exitCode:1
                 };
             }
-            result.parent.children[result.name] = createFile(result.name.startsWith("."));
+            result.parent.children[result.name] = terminal.fs.createFile(result.name.startsWith("."));
             node = result.parent.children[result.name];        
         } else {
             if(!pathresult.path.includes("/bin/")){

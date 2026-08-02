@@ -22,10 +22,7 @@ registerCommand("more", {
                 exitCode: 1
             };        
         }
-        const fullPath = resolveRelativePath(terminal.cwd, target);
-        let pathresult = resolvePath(fullPath);
-
-        const node = pathresult ? pathresult.node : null;      
+        const node = terminal.fs.get(target, terminal.cwd);
 
         if (!node) {
             return {
@@ -35,7 +32,7 @@ registerCommand("more", {
             };        
         }
 
-        if(fullPath.includes("/bin/")){
+        if(terminal.fs.isInBin(target, terminal.cwd)){
             return {
                 stdout: "",
                 stderr: `more: cannot display files in /bin`,

@@ -28,9 +28,7 @@ registerCommand("tree", {
             : Infinity;
 
         const target = parsed.args[0] || terminal.cwd;
-        const path = resolveRelativePath(terminal.cwd, target);
-        let pathresult = resolvePath(path);
-        const root = pathresult ? pathresult.node : null;
+        const root = terminal.fs.get(target, terminal.cwd);
 
         function walk(node, prefix = "", depth = 1) {
             let output = "";

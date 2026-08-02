@@ -32,20 +32,18 @@ registerCommand("ln", {
         else{
             if(target !== null && target !== undefined || link !== null && link !== undefined){
                 
-                const targetPath = resolveRelativePath(terminal.cwd, target);
-                if(targetPath.includes("/bin/")){
+                const targetPath = terminal.fs.getFullPath(target, terminal.cwd);
+                if(terminal.fs.isInBin(target, terminal.cwd)){
                     return {
                         stdout: "",
                         stderr: `ln: cannot create link in /bin`,
                         exitCode: 1
                     };
                 }            
-                const tpathresult = resolvePath(targetPath);
-                const targetNode = tpathresult ? tpathresult.node : null;
+                const targetNode = terminal.fs.get(target, terminal.cwd);
 
-                const linkPath = resolveRelativePath(terminal.cwd, link);
-                const lpathresult = resolvePath(linkPath);
-                const linkNode = lpathresult ? lpathresult.node : null;
+                const linkPath = terminal.fs.getFullPath(link, terminal.cwd);
+                const linkNode = terminal.fs.get(link, terminal.cwd);
 
                 if (!targetNode) {
                     return {
@@ -69,7 +67,7 @@ registerCommand("ln", {
                     };           
                 }
 
-                const result = getParentDirectory(targetPath);
+                const result = terminal.fs.getParent(targetPath, terminal.cwd);
                 if (!result) {
                     return {
                         stdout: "",
@@ -79,7 +77,7 @@ registerCommand("ln", {
                 }
 
                 result.parent.modified = Date.now();
-                result.parent.children[result.name] = createLink(linkPath);
+                result.parent.children[result.name] = terminal.fs.createLink(linkPath);
             }
             else{
                 return {

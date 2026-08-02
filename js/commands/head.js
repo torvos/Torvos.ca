@@ -34,10 +34,7 @@ registerCommand("head", {
             }
             content = stdin;
         } else {
-            const fullPath = resolveRelativePath(terminal.cwd, target);
-            let pathresult = resolvePath(fullPath);
-
-            const node = pathresult ? pathresult.node : null;
+            const node = terminal.fs.get(target, terminal.cwd);
 
             if (!node) {
                 return {

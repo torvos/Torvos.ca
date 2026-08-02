@@ -38,10 +38,7 @@ registerCommand("sed", {
 
         if (target) {
 
-            const fullPath = resolveRelativePath(terminal.cwd, target);
-            const result = resolvePath(fullPath);
-
-            node = result ? result.node : null;
+            node = terminal.fs.get(target, terminal.cwd);
             if (!node) {
                 return {
                     stdout: "",
@@ -50,7 +47,7 @@ registerCommand("sed", {
                 };
             }
 
-            if(fullPath.includes("/bin/")){
+            if(terminal.fs.isInBin(target, terminal.cwd)){
                 return {
                     stdout: "",
                     stderr: `sed: cannot display files in /bin`,

@@ -25,11 +25,8 @@ registerCommand("mv", {
             };           
         }
 
-        const sourcePath = resolveRelativePath(terminal.cwd, source);
-        const destinationPath = resolveRelativePath(terminal.cwd, destination);
-
-        const src = getParentDirectory(sourcePath);
-        const dest = getParentDirectory(destinationPath);
+        const src = terminal.fs.getParent(source, terminal.cwd);
+        const dest = terminal.fs.getParent(destination, terminal.cwd);
 
         if (!src || !dest) {
             return {

@@ -27,9 +27,8 @@ registerCommand("find", {
         const regex = namePattern ? new RegExp("^" + namePattern.replace(/\./g, "\\.").replace(/\*/g, ".*").replace(/\?/g, ".") + "$"): null;
 
         const target = parsed.args[0] || terminal.cwd;
-        const path = resolveRelativePath(terminal.cwd, target);
-        let pathresult = resolvePath(path);
-        const root = pathresult ? pathresult.node : null;
+        const path = terminal.fs.getFullPath(target, terminal.cwd);
+        const root = terminal.fs.get(target, terminal.cwd);
 
         if (!root) {
             return {

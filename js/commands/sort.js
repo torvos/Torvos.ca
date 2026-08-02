@@ -41,9 +41,7 @@ registerCommand("sort", {
             const contents = [];
 
             for (const file of parsed.args) {
-                const path = resolveRelativePath(terminal.cwd, file);
-                let pathresult = resolvePath(path);
-                const node = pathresult ? pathresult.node : null;
+                const node = terminal.fs.get(file, terminal.cwd);
                 if (!node) {
                     return {
                         stdout: "",                    
@@ -52,7 +50,7 @@ registerCommand("sort", {
                     };
                 }
 
-                if(path.includes("/bin/")){
+                if(terminal.fs.isInBin(file, terminal.cwd)){
                     return {
                         stdout: "",
                         stderr: `sort: cannot display files in /bin`,

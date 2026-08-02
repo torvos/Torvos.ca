@@ -30,7 +30,7 @@ registerCommand("mkdir", {
 
         }
 
-        const path = resolveRelativePath(terminal.cwd, target);
+        const path = terminal.fs.getFullPath(target, terminal.cwd);
 
         function mkdirRecursive(path) {
             const parts = path.split(ROOT).filter(Boolean);
@@ -39,9 +39,7 @@ registerCommand("mkdir", {
             for (const part of parts) {
                 currentPath += ROOT + part;
 
-                let pathresult = resolvePath(currentPath);
-
-                const node = pathresult ? pathresult.node : null;
+                const node = terminal.fs.get(currentPath, terminal.cwd);
 
                 if (node) {
                     if (node.type !== "dir") {
@@ -55,7 +53,7 @@ registerCommand("mkdir", {
                     continue;
                 }
 
-                const result = getParentDirectory(currentPath);
+                const result = terminal.fs.getParent(currentPath, terminal.cwd);
 
                 if (!result) {
                     return {
@@ -65,7 +63,7 @@ registerCommand("mkdir", {
                     };        
                 }
                 result.parent.modified = Date.now();
-                result.parent.children[result.name] = createDirectory(result.name.startsWith("."));
+                result.parent.children[result.name] = terminal.fs.createDirectory(result.name.startsWith("."));
             }
 
             return {
@@ -79,8 +77,7 @@ registerCommand("mkdir", {
             return mkdirRecursive(path);
         }
 
-        let pathresult = resolvePath(path);
-        const node = pathresult ? pathresult.node : null;
+        const node = terminal.fs.get(path, terminal.cwd);
 
         if (node) {
             return {
@@ -90,7 +87,7 @@ registerCommand("mkdir", {
             };           
         }
 
-        const result = getParentDirectory(path);
+        const result = terminal.fs.getParent(path, terminal.cwd);
 
         if (!result) {
             return {
@@ -101,7 +98,7 @@ registerCommand("mkdir", {
         }
         
         result.parent.modified = Date.now();
-        result.parent.children[result.name] = createDirectory(result.name.startsWith("."));
+        result.parent.children[result.name] = terminal.fs.createDirectory(result.name.startsWith("."));
         
         return {
             stdout: "",

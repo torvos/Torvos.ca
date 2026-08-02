@@ -23,10 +23,7 @@ registerCommand("rmdir", {
                 exitCode: 1
             };          
         }
-        const path = resolveRelativePath(terminal.cwd, target);
-        let pathresult = resolvePath(path);
-
-        const node = pathresult ? pathresult.node : null;
+        const node = terminal.fs.get(target, terminal.cwd);
         if (!node){
             return {
                 stdout: "",
@@ -43,8 +40,7 @@ registerCommand("rmdir", {
                 };           
             }
             else{
-                const path = resolveRelativePath(terminal.cwd, target);
-                const result = getParentDirectory(path);
+                const result = terminal.fs.getParent(target, terminal.cwd);
 
                 if (!result) {
                     return {

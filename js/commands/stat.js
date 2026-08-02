@@ -34,16 +34,14 @@ registerCommand("stat", {
         else{
             for (const target of args) {
 
-                const fullPath = resolveRelativePath(terminal.cwd, target);
-                const pathresult = resolvePath(fullPath);
-                const node = pathresult ? pathresult.node : null;
+                const node = terminal.fs.get(target, terminal.cwd);
 
                 if (!node) {
                     funcStderr += `stat: no such file: ${target}\n`;
                     funcExitCode = 1;
                     continue;
                 }
-                if(fullPath.includes("/bin/")){
+                if(terminal.fs.isInBin(target, terminal.cwd)){
                     return {
                         stdout: "",
                         stderr: `stat: cannot display files in /bin`,
@@ -55,13 +53,13 @@ registerCommand("stat", {
 
                     funcStdout += `    File: ${name}\n`;
                     funcStdout += `    Type: ${item.type}\n`;
-                    funcStdout += `    Size: ${window.getDirectorySize(item)}\n`;
+                    funcStdout += `    Size: ${terminal.fs.getDirectorySize(item)}\n`;
                     funcStdout += `    Mode: ${item.mode}\n`;
                     funcStdout += `   Owner: ${item.owner}\n`;
                     funcStdout += `   Group: ${item.group}\n`;
-                    funcStdout += ` Created: ${window.formatDate(item.created)}\n`;
-                    funcStdout += `Modified: ${window.formatDate(item.modified)}\n`;
-                    funcStdout += `Accessed: ${window.formatDate(item.accessed)}\n\n`;
+                    funcStdout += ` Created: ${terminal.fs.formatDate(item.created)}\n`;
+                    funcStdout += `Modified: ${terminal.fs.formatDate(item.modified)}\n`;
+                    funcStdout += `Accessed: ${terminal.fs.formatDate(item.accessed)}\n\n`;
                 }
 
 
