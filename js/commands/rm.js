@@ -30,24 +30,25 @@ registerCommand("rm", {
                 exitCode: 1
             };    
         }
-
-        const result = terminal.fs.getParent(target, terminal.cwd);
-
-        if (!result || !result.parent.children[result.name]) {
-            if (force) {
+        
+        if(target === ROOT){
                 return {
                     stdout: "",
-                    stderr: "",
-                    exitCode: 0
-                };    
-            }
+                    stderr: "rm: prohibited to use on '/'",
+                    exitCode: 1
+                };          
+        }
+
+        const result = terminal.fs.getParent(target, terminal.cwd);
+        
+        if (!result || !result.parent.children[result.name]) {
             return {
                 stdout: "",
                 stderr: `rm: cannot remove '${target}': No such file or directory`,
                 exitCode: 1
             };   
         }
-
+        
         const node = result.parent.children[result.name];
 
         if (node.type === "file" || node.type === "symlink") {
@@ -86,14 +87,6 @@ registerCommand("rm", {
 
                     delete dir.children[key];
                 }
-            }
-
-            if(target === ROOT){
-                return {
-                    stdout: "",
-                    stderr: "rm: it is dangerous to operate recursively on '/'",
-                    exitCode: 1
-                };          
             }
             removeChildren(node);
         }
