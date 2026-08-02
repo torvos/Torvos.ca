@@ -10,7 +10,7 @@ registerCommand("cat", {
         "cat -n logs.txt",
         "cat part1.txt part2.txt"
     ],
-    execute(terminal, args, stdin) {    
+    async execute(terminal, args, stdin) {    
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

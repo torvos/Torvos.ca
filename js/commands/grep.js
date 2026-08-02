@@ -7,7 +7,7 @@ registerCommand("grep", {
         "grep \"error\" log.txt",
         "cat text.txt | grep \"error\""
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

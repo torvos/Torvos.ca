@@ -11,7 +11,7 @@ registerCommand("sed", {
         "sed 's/apple/orange/g' fruits.txt",
         "sed '4s/apple/orange/' fruits.txt"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

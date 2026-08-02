@@ -13,7 +13,7 @@ registerCommand("sort", {
         "sort -n numbers.txt",
         "sort -u raw_logs.txt"
     ],
-    execute(terminal, args, stdin) {    
+   async execute(terminal, args, stdin) {    
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

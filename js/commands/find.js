@@ -12,7 +12,7 @@ registerCommand("find", {
         "find / -type d",
         "find . -maxdepth 2"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

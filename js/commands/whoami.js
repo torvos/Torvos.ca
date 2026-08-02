@@ -6,14 +6,15 @@ registerCommand("whoami", {
     examples: [
         "whoami"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
                 exitCode: 0
             };                
-        }        
+        }
+        
         return {
             stdout: DEFAULT_USER,
             stderr: "",

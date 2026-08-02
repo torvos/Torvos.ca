@@ -158,4 +158,44 @@ window.FileSystemAPI = {
         const fullPath = resolveRelativePath(cwd, path);
         return fullPath.includes("/bin/");
     }
+
+};
+
+window.FileDevices = {
+    null: {
+        read() {
+            return "";
+        },
+        write(data) {
+            return true;
+        }
+    },
+
+    zero: {
+        read(count = 4096) {
+            return "\0".repeat(count);
+        },
+        write(data) {
+            return true;
+        }
+    },
+
+    random: {
+        read(count = 4096) {
+            const chars =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            let output = "";
+
+            for (let i = 0; i < count; i++) {
+                output += chars[Math.floor(Math.random() * chars.length)];
+            }
+
+            return output;
+        },
+
+        write(data) {
+            return true;
+        }
+    }
 };

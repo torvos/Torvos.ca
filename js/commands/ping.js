@@ -7,7 +7,7 @@ registerCommand("ping", {
         "ping 127.0.0.1",
         "ping 1.2.3.4"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

@@ -6,7 +6,7 @@ registerCommand("mv", {
     examples: [
         "mv resumer.md cv.txt"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

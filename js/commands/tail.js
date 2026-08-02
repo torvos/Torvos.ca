@@ -9,7 +9,7 @@ registerCommand("tail", {
         "tail file.txt",
         "tail -n 20 file.txt"
     ],
-    execute(terminal, args, stdin) {    
+    async execute(terminal, args, stdin) {    
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

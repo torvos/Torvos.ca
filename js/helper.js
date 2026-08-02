@@ -201,7 +201,7 @@ window.getLinkCount = function(node) {
 };
 
 window.formatLongEntry = function(name, node) {
-    const typeChar = node.type === "dir" ? "d" : node.type === "symlink" ? "l" : "-";
+    const typeChar = node.type === "dir" ? "d" : node.type === "symlink" ? "l" : node.type === "device" ? "c" : "-";
     const mode = node.mode;
     const links = window.getLinkCount(node);
     const group = node.group;

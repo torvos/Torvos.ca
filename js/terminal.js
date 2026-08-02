@@ -112,6 +112,7 @@ class TerminalEngine {
         this.pager.pageSize = Math.floor(document.getElementById("terminal").clientHeight / lineHeight) - 1;
         
         createVirtualBin();
+        createVirtualDev();
         this.renderPrompt();     
         this.renderInput();   
         this.saveSettings();
@@ -1001,4 +1002,59 @@ window.createVirtualBin = function() {
         };
     }
     window.FileSystem[ROOT].children["bin"] = bin;
+};
+
+window.createVirtualDev = function() {
+    const dev = {
+        type: "dir",
+        hidden: false,
+        mode: "rwxr-xr-x",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        children: {}
+    };
+
+    dev.children["null"] = {
+        type: "device",
+        device: "null",
+        hidden: false,
+        mode: "rw-rw-rw-",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        content: ""
+    };
+
+    dev.children["zero"] = {
+        type: "device",
+        device: "zero",
+        hidden: false,
+        mode: "rw-rw-rw-",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        content: ""
+    };    
+
+    dev.children["random"] = {
+        type: "device",
+        device: "random",
+        hidden: false,
+        mode: "rw-rw-rw-",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        content: ""
+    };    
+
+    window.FileSystem[ROOT].children["dev"] = dev;
 };

@@ -6,7 +6,7 @@ registerCommand("login", {
     examples: [
         "login"
     ],
-    execute(terminal) {
+    async execute(terminal) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

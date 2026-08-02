@@ -9,7 +9,7 @@ registerCommand("ln", {
         "ln -s /bin/ls /home/guest/ls",
         "ln -s /home/guest/resume.md /home/guest/bio.md"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

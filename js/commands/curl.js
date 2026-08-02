@@ -6,7 +6,7 @@ registerCommand("curl", {
     examples: [
         "curl https://example.com"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

@@ -9,7 +9,7 @@ registerCommand("man", {
         "man mkdir"
     ],
 
-    execute(terminal, args) {
+    async execute(terminal, args) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

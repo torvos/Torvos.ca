@@ -8,7 +8,7 @@ registerCommand("cp", {
         "cp *.txt backup/",
         "cp -R Documents Archive"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

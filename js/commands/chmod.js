@@ -10,7 +10,7 @@ registerCommand("chmod", {
         "chmod 644 notes.txt",
         "chmod -R 755 /home/guest"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

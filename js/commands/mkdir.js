@@ -9,7 +9,7 @@ registerCommand("mkdir", {
         "mkdir test",
         "mkdir -p /test1/test2/test3"
     ],
-    execute(terminal, args, stdin) {
+    async execute(terminal, args, stdin) {
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
