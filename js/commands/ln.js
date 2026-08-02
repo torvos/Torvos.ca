@@ -32,18 +32,26 @@ registerCommand("ln", {
         else{
             if(target !== null && target !== undefined || link !== null && link !== undefined){
                 
-                const targetPath = terminal.fs.getFullPath(target, terminal.cwd);
-                if(terminal.fs.isInBin(target, terminal.cwd)){
+                const targetPath = terminal.fs.getFullPath(target, terminal.cwd);        
+                const targetNode = terminal.fs.get(target, terminal.cwd);
+
+                const linkPath = terminal.fs.getFullPath(link, terminal.cwd);
+                const linkNode = terminal.fs.get(link, terminal.cwd);
+
+                if(terminal.fs.isInBin(link, terminal.cwd)){
                     return {
                         stdout: "",
                         stderr: `ln: cannot create link in /bin`,
                         exitCode: 1
                     };
-                }            
-                const targetNode = terminal.fs.get(target, terminal.cwd);
-
-                const linkPath = terminal.fs.getFullPath(link, terminal.cwd);
-                const linkNode = terminal.fs.get(link, terminal.cwd);
+                }    
+                if(terminal.fs.isInBin(target, terminal.cwd)){
+                    return {
+                        stdout: "",
+                        stderr: `ln: cannot create link to files in /bin`,
+                        exitCode: 1
+                    };
+                }    
 
                 if (!targetNode) {
                     return {
@@ -51,33 +59,20 @@ registerCommand("ln", {
                         stderr:`ln: ${target}: No such file or directory`,
                         exitCode:1
                     };
-                }            
-                if (targetNode){
-                    return {
-                        stdout: "",
-                        stderr: `ln: ${target} already exists`,
-                        exitCode: 1
-                    };           
-                }
-                if (!linkNode){
-                    return {
-                        stdout: "",
-                        stderr: `ln: ${link} doesnt exists`,
-                        exitCode: 1
-                    };           
                 }
 
-                const result = terminal.fs.getParent(targetPath, terminal.cwd);
+                const result = terminal.fs.getParent(linkPath, terminal.cwd);
+
                 if (!result) {
                     return {
                         stdout: "",
-                        stderr: `ln: invalid path ${target}`,
+                        stderr: `ln: invalid path ${link}`,
                         exitCode: 1
                     };           
                 }
 
                 result.parent.modified = Date.now();
-                result.parent.children[result.name] = terminal.fs.createLink(linkPath);
+                result.parent.children[result.name] = terminal.fs.createLink(targetPath);
             }
             else{
                 return {

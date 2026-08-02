@@ -4,5 +4,6 @@ const HOME = "/home/guest";
 const DEFAULT_USER = "guest";
 const HOSTNAME = "torvos";
 const INPUT_NORMAL = "normal";
+const INPUT_EDITOR = "editor";
 const INPUT_WAIT_FOR_USERNAME = "waitingUsername";
 const INPUT_WAIT_FOR_PASSWORD = "waitingPassword";

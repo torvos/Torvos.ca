@@ -256,20 +256,31 @@ class TerminalEngine {
         });
 
         output.addEventListener("click", () => {
-            this.hiddenInput.focus();
+            if (this.inputMode === INPUT_NORMAL) {            
+                this.hiddenInput.focus();
+            }
+            else if (this.inputMode === INPUT_EDITOR) {
+                this.editorEl.focus();
+            }
         });
 
         document.addEventListener("click", () => {
-            this.hiddenInput.focus();
+            if (this.inputMode === INPUT_NORMAL) {            
+                this.hiddenInput.focus();
+            }
+            else if (this.inputMode === INPUT_EDITOR) {
+                this.editorEl.focus();
+            }
         });
 
         document.addEventListener("pointerdown", () => {
-            this.hiddenInput.focus();
+            if (this.inputMode === INPUT_NORMAL) {            
+                this.hiddenInput.focus();
+            }
+            else if (this.inputMode === INPUT_EDITOR) {
+                this.editorEl.focus();
+            }
         });
-
-        window.addEventListener("focus", () => {
-            this.hiddenInput.focus();
-        });        
         
         if (window.visualViewport) {
             visualViewport.addEventListener("resize", () => {
@@ -909,17 +920,20 @@ class TerminalEngine {
         this.editor.node = node;
         this.editor.path = path;
         this.editor.modified = false;
-        this.inputMode = "editor";
+        this.inputMode = INPUT_EDITOR;
         document.getElementById("input-line").style.display = "none";
         document.getElementById("output").style.display = "none";
         this.editorEl.addEventListener("keydown", this.editorKeyHandler);
         this.editorContainer.style.display = "flex";
         this.editorEl.value = node.content ?? "";
-        this.editorEl.focus();
-        this.editorEl.setSelectionRange(
-            this.editorEl.value.length,
-            this.editorEl.value.length
-        );
+
+        requestAnimationFrame(() => {
+            this.editorEl.focus();
+            this.editorEl.setSelectionRange(
+                this.editorEl.value.length,
+                this.editorEl.value.length
+            );
+        });
         document.getElementById("editor-header").innerHTML =`Editing: ${path} | Ctrl+S Save | Ctrl+X Save & Exit | Esc Exit`;
     }
 
@@ -949,7 +963,7 @@ class TerminalEngine {
         this.editorEl.removeEventListener("keydown",this.editorKeyHandler);
         document.getElementById("input-line").style.display = "";
         document.getElementById("output").style.display = "";
-        this.inputMode = "normal";
+        this.inputMode = INPUT_NORMAL;
         this.hiddenInput.focus();
         this.showPrompt();
     }
