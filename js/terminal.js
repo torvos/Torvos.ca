@@ -408,10 +408,17 @@ class TerminalEngine {
         const before = this.currentInput.slice(0, this.cursorPos);
         const after = this.currentInput.slice(this.cursorPos);
 
-        this.commandEl.innerHTML =
-            `<span>${before}</span>` +
-            `<span id="cursor">█</span>` +
-            `<span>${after}</span>`;
+        const beforeSpan = document.createElement("span");
+        beforeSpan.textContent = before;
+
+        const cursorSpan = document.createElement("span");
+        cursorSpan.id = "cursor";
+        cursorSpan.textContent = "█";
+
+        const afterSpan = document.createElement("span");
+        afterSpan.textContent = after;
+
+        this.commandEl.replaceChildren(beforeSpan, cursorSpan, afterSpan);
     }
 
     expandBraces(input) {
@@ -870,13 +877,20 @@ class TerminalEngine {
 
     write(text, options = {}) {
         const div = document.createElement("div");
-        let output = text ?? "";
+        const raw = text ?? "";
+
+        const escapeHtml = (str) => str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
 
         const pattern1 = /\b(https?:\/\/[^\s<]+)/gi;
         const pattern2 = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
- 
-        if (pattern1.test(output) || pattern2.test(output)){
-            output = output
+
+        if (pattern1.test(raw) || pattern2.test(raw)){
+            const output = escapeHtml(raw)
             .replace(
                 /\b(https?:\/\/[^\s<]+)/gi,
                 '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
@@ -887,7 +901,7 @@ class TerminalEngine {
             );        
             div.innerHTML = output;
         } else {
-            div.innerText = output || "\u00A0";
+            div.innerText = raw || "\u00A0";
         }
         
         if (options.color) {
@@ -934,7 +948,7 @@ class TerminalEngine {
                 this.editorEl.value.length
             );
         });
-        document.getElementById("editor-header").innerHTML =`Editing: ${path} | Ctrl+S Save | Ctrl+X Save & Exit | Esc Exit`;
+        document.getElementById("editor-header").textContent = `Editing: ${path} | Ctrl+S Save | Ctrl+X Save & Exit | Esc Exit`;
     }
 
     saveEditor() {
