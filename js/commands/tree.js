@@ -40,16 +40,16 @@ registerCommand("tree", {
                 keys = keys.filter(key => !node.children[key].hidden);
             }        
             if (onlyDirectory){
-                keys = keys.filter(key => node.children[key].type === "dir");
+                keys = keys.filter(key => terminal.fs.isDirectory(node.children[key]));
             }
             
             keys.forEach((key, index) => {
                 const child = node.children[key];
                 const isLast = index === keys.length - 1;
                 const connector = isLast ? "└── " : "├── ";
-                output += `${prefix}${connector}${key}${child.type === "dir" ? ROOT : ""}\n`;
+                output += `${prefix}${connector}${key}${terminal.fs.isDirectory(child) ? ROOT : ""}\n`;
 
-                if (child.type === "dir" && depth < maxDepth) {
+                if (terminal.fs.isDirectory(child) && depth < maxDepth) {
                     const nextPrefix = prefix + (isLast ? "    " : "│   ");
                     output += walk(child, nextPrefix, depth + 1);
                 }

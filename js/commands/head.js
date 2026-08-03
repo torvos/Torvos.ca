@@ -43,7 +43,7 @@ registerCommand("head", {
                     exitCode: 1
                 };
             }
-            if (node.type === "dir") {
+            if (terminal.fs.isDirectory(node)) {
                 return {
                     stdout: "",
                     stderr: `head: ${target}: is a directory`,

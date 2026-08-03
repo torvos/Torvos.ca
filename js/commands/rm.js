@@ -51,7 +51,7 @@ registerCommand("rm", {
         
         const node = result.parent.children[result.name];
 
-        if (node.type === "file" || node.type === "symlink") {
+        if (terminal.fs.isDirectory(node) || terminal.fs.isSymlink(node)) {
             delete result.parent.children[result.name];
             return {
                 stdout: "",
@@ -81,7 +81,7 @@ registerCommand("rm", {
                 for (const key of Object.keys(dir.children)) {
                     const child = dir.children[key];
 
-                    if (child.type === "dir") {
+                    if (terminal.fs.isDirectory(child)) {
                         removeChildren(child);
                     }
 

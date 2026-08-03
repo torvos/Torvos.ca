@@ -60,12 +60,12 @@ registerCommand("ls", {
                 }
                 else {
                     entries.push(
-                        child.type === "dir"
+                        terminal.fs.isDirectory(child)
                             ? `${name}/`
                             : name
                     );
                 }
-                if (child.type === "dir") {
+                if (terminal.fs.isDirectory(child)) {
                     directories.push({
                         name,
                         node: child
@@ -105,7 +105,7 @@ registerCommand("ls", {
                 continue;
             }
 
-            if (node.type === "file" || node.type === "symlink") {
+            if (terminal.fs.isFile(node) || terminal.fs.isSymlink(node)) {
                 if (longFormat) {
                     output.push(
                         terminal.fs.formatLongEntry(

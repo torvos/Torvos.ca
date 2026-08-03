@@ -31,7 +31,7 @@ registerCommand("rmdir", {
                 exitCode: 1
             };          
         }
-        if (node && node.type === "dir"){
+        if (node && terminal.fs.isDirectory(node)){
             if (Object.keys(node.children).length > 0) {
                 return {
                     stdout: "",
@@ -59,7 +59,7 @@ registerCommand("rmdir", {
                 };            
             }
         }
-        else if (node.type === "file"){
+        else if (terminal.fs.isFile(node)){
             return {
                 stdout: "",
                 stderr: `rmdir: ${target} is a file please use rm`,

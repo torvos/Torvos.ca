@@ -48,7 +48,7 @@ registerCommand("tail", {
                 };
             }
 
-            if (node.type === "dir") {
+            if (terminal.fs.isDirectory(node)) {
                 return {
                     stdout: "",
                     stderr: `tail: ${target}: is a directory`,

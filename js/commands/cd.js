@@ -34,7 +34,7 @@ registerCommand("cd", {
                 exitCode: 1
             };
         }
-        if (node.type !== "dir") {
+        if (!terminal.fs.isDirectory(node)) {
             return {
                 stdout: "",
                 stderr: `cd: not a directory: ${target}`,

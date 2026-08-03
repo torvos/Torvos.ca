@@ -54,7 +54,7 @@ registerCommand("chmod", {
             if (fileOwner == DEFAULT_USER) {
                 applyMode(node);
             }
-            if (recursive && node.type === "dir" && node.children) {
+            if (recursive && terminal.fs.isDirectory(node) && node.children) {
             for (const child of Object.values(node.children)) {
                     chmodNode({
                         node: child

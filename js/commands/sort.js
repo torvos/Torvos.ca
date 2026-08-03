@@ -58,7 +58,7 @@ registerCommand("sort", {
                     };
                 }             
 
-                if (node.type !== "file") {
+                if (terminal.fs.isDirectory(node)) {
                     return {
                         stdout: "",                    
                         stderr: `sort: ${file}: Is a directory`,

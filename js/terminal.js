@@ -516,13 +516,13 @@ class TerminalEngine {
         let node = this.fs.get(path, this.cwd);
         if (!node) {
             const parent = this.fs.getParent(path, this.cwd);
-            if (!parent || parent.parent.type !== "dir") {
+            if (!parent || !this.fs.isDirectory(parent.parent)) {
                 return `Invalid parent directory`;
             }
             parent.parent.children[parent.name] = this.fs.createFile(parent.name.startsWith("."));
             node = parent.parent.children[parent.name];
         }
-        if (node.type !== "file") {
+        if (!this.fs.isFile(node)) {
             return `Invalid directory specified in redirection operator`;
         }
 
@@ -596,7 +596,7 @@ class TerminalEngine {
                     const redirects = parsed.redirects;
                     if (redirects.operator === "<") {
                         const node = this.fs.get(redirects.target, this.cwd);
-                        if (!node || node.type !== "file") {
+                        if (!node || !this.fs.isFile(node)) {
                             stdin = "";
                             if (index === pipeline.length - 1) {
                                 this.write(
@@ -835,7 +835,7 @@ class TerminalEngine {
 
         const node = this.getNode(directory);
 
-        if (!node || node.type !== "dir") {
+        if (!node || !terminal.fs.isDirectory(node)) {
             return [];
         }
 
@@ -848,7 +848,7 @@ class TerminalEngine {
                     ? partial.substring(0, partial.lastIndexOf(ROOT) + 1)
                     : "";
 
-                return base + name + (child.type === "dir" ? ROOT : "");
+                return base + name + (terminal.fs.isDirectory(child) ? ROOT : "");
             });
     }
 
@@ -858,7 +858,7 @@ class TerminalEngine {
         if (!node) {
             return `cd: ${path}: No such file or directory`;
         }
-        if (node.type !== "dir") {
+        if (!terminal.fs.isDirectory(node)) {
             return `cd: ${path}: Not a directory`;
         }
         this.cwd = resolved;

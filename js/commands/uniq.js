@@ -53,7 +53,7 @@ registerCommand("uniq", {
                 };
             }             
 
-            if (node.type !== "file") {
+            if (terminal.fs.isDirectory(node)) {
                 return {
                     stdout: "",
                     stderr: `uniq: ${parsed.args[0]}: Is a directory`,

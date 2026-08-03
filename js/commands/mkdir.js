@@ -42,7 +42,7 @@ registerCommand("mkdir", {
                 const node = terminal.fs.get(currentPath, terminal.cwd);
 
                 if (node) {
-                    if (node.type !== "dir") {
+                    if (!terminal.fs.isDirectory(node)) {
                         return {
                             stdout: "",
                             stderr: `mkdir: ${part}: Not a directory`,

@@ -40,7 +40,7 @@ registerCommand("more", {
             };
         }             
 
-        if (node.type === "dir") {
+        if (terminal.fs.isDirectory(node)) {
             return {
                 stdout: "",
                 stderr: `more: ${target}: is a directory`,

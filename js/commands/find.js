@@ -50,7 +50,7 @@ registerCommand("find", {
             keys.forEach((key, index) => {
                 const child = node.children[key];
                 if (typeFilter === "f"){
-                    if(child.type === "file"){
+                    if(terminal.fs.isFile(child)){
                         if(namePattern){
                             if(regex.test(key)){
                                 output += `${path}/${key}\n`;
@@ -62,7 +62,7 @@ registerCommand("find", {
                     }
                 }                
                 else if (typeFilter === "d"){
-                    if(child.type === "dir"){
+                    if(terminal.fs.isDirectory(child)){
                         if(namePattern){
                             if(regex.test(key)){
                                 output += `${path}/${key}\n`;
@@ -83,7 +83,7 @@ registerCommand("find", {
                         output += `${path}/${key}\n`;
                     }
                 }
-                if (child.type === "dir" && depth < maxDepth) {
+                if (terminal.fs.isDirectory(child) && depth < maxDepth) {
                     const nextPath = path + "/" + key;
                     output += walk(child, nextPath, depth + 1);
                 }

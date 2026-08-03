@@ -67,7 +67,7 @@ registerCommand("stat", {
 
                     printStat(path, item);
 
-                    if (recursive && item.type === "dir" && item.children) {
+                    if (recursive && terminal.fs.isDirectory(item) && item.children) {
 
                         for (const [childName, childNode] of Object.entries(item.children)) {
 

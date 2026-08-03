@@ -51,7 +51,7 @@ registerCommand("cat", {
                 };
             }             
 
-            if (node.type === "dir") {
+            if (terminal.fs.isDirectory(node)) {
                 return {
                     stdout: "",
                     stderr: `cat: ${target}: is a directory`,

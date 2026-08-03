@@ -479,6 +479,30 @@ Developer - Application Development
             return fullPath.includes("/bin/");
         },
 
+        isDirectory(pathOrNode, cwd = "/") {
+            const node = typeof pathOrNode === "string"
+                ? this.get(pathOrNode, cwd)
+                : pathOrNode;
+
+            return node?.type === "dir";
+        },
+
+        isFile(pathOrNode, cwd = "/") {
+            const node = typeof pathOrNode === "string"
+                ? this.get(pathOrNode, cwd)
+                : pathOrNode;
+
+            return node?.type === "file";
+        },
+
+        isSymlink(pathOrNode, cwd = "/") {
+            const node = typeof pathOrNode === "string"
+                ? this.get(pathOrNode, cwd)
+                : pathOrNode;
+
+            return node?.type === "symlink";
+        },
+
         resolve(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
             return resolvePath(fullPath);
