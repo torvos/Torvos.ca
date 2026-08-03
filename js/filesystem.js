@@ -559,7 +559,23 @@ Developer - Application Development
 
         expandWildcards(arg, cwd = "/") {
             return expandWildcards(arg, cwd);
-        }    
+        },
+        
+        getNode(path) {
+            if (!path.startsWith(ROOT))
+                path = this.fs.getFullPath(path, this.cwd);
+
+            let node = window.FileSystem[ROOT];
+            const parts = path.split(ROOT).filter(Boolean);
+
+            for (const part of parts) {
+                if (!node.children || !node.children[part]) {
+                    return null;
+                }
+                node = node.children[part];
+            }
+            return node;
+        }        
 
     };
 

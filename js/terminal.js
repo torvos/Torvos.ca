@@ -794,22 +794,6 @@ class TerminalEngine {
         this.cursorPos = this.currentInput.length;
     }
 
-    getNode(path) {
-        if (!path.startsWith(ROOT))
-            path = this.fs.getFullPath(path, this.cwd);
-
-        let node = window.FileSystem[ROOT];
-        const parts = path.split(ROOT).filter(Boolean);
-
-        for (const part of parts) {
-            if (!node.children || !node.children[part]) {
-                return null;
-            }
-            node = node.children[part];
-        }
-        return node;
-    }
-
     findPathMatches(partial) {
 
         let directory;
@@ -833,9 +817,9 @@ class TerminalEngine {
             prefix = partial;
         }
 
-        const node = this.getNode(directory);
+        const node = this.fs.getNode(directory);
 
-        if (!node || !terminal.fs.isDirectory(node)) {
+        if (!node || !this.fs.isDirectory(node)) {
             return [];
         }
 
@@ -848,7 +832,7 @@ class TerminalEngine {
                     ? partial.substring(0, partial.lastIndexOf(ROOT) + 1)
                     : "";
 
-                return base + name + (terminal.fs.isDirectory(child) ? ROOT : "");
+                return base + name + (this.fs.isDirectory(child) ? ROOT : "");
             });
     }
 
@@ -858,7 +842,7 @@ class TerminalEngine {
         if (!node) {
             return `cd: ${path}: No such file or directory`;
         }
-        if (!terminal.fs.isDirectory(node)) {
+        if (!this.fs.isDirectory(node)) {
             return `cd: ${path}: Not a directory`;
         }
         this.cwd = resolved;
