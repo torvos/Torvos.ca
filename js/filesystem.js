@@ -563,7 +563,7 @@ Developer - Application Development
         
         getNode(path) {
             if (!path.startsWith(ROOT))
-                path = this.fs.getFullPath(path, this.cwd);
+                path = resolveRelativePath(ROOT, path);
 
             let node = window.FileSystem[ROOT];
             const parts = path.split(ROOT).filter(Boolean);
