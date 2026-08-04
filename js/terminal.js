@@ -461,8 +461,11 @@ class TerminalEngine {
                 this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$${input}`);
     
                 document.getElementById("input-line").classList.add("hidden");
-                await this.execute(input);
-                document.getElementById("input-line").classList.remove("hidden");
+                try {
+                    await this.execute(input);
+                } finally {
+                    document.getElementById("input-line").classList.remove("hidden");
+                }
                 this.hiddenInput.focus();
                 this.currentInput = "";
                 this.renderInput();
@@ -498,16 +501,67 @@ class TerminalEngine {
             };
             command = command.slice(0, match.index).trim();
         }
-        const parts = command.match(/"[^"]*"|'[^']*'|\S+/g) || [];
+        const parts = this.tokenize(command);
 
         return {
             cmd: parts[0],
-            args: parts.slice(1).map(a =>
-                a.replace(/^["']|["']$/g, "")
-            ),
+            args: parts.slice(1),
             redirects
         };
-    }    
+    }
+
+    tokenize(command) {
+        const parts = [];
+        let current = "";
+        let inSingle = false;
+        let inDouble = false;
+        let hasToken = false;
+
+        for (let i = 0; i < command.length; i++) {
+            const ch = command[i];
+            if (inSingle) {
+                if (ch === "'") {
+                    inSingle = false;
+                } else {
+                    current += ch;
+                }
+                continue;
+            }
+            if (inDouble) {
+                if (ch === '"') {
+                    inDouble = false;
+                } else {
+                    current += ch;
+                }
+                continue;
+            }
+            if (ch === "'") {
+                inSingle = true;
+                hasToken = true;
+                continue;
+            }
+            if (ch === '"') {
+                inDouble = true;
+                hasToken = true;
+                continue;
+            }
+            if (/\s/.test(ch)) {
+                if (hasToken) {
+                    parts.push(current);
+                    current = "";
+                    hasToken = false;
+                }
+                continue;
+            }
+            current += ch;
+            hasToken = true;
+        }
+
+        if (hasToken) {
+            parts.push(current);
+        }
+        return parts;
+    }
 
     writeRedirect(path, text, append = false) {
         if(this.fs.isInBin(path, this.cwd)){
@@ -616,11 +670,19 @@ class TerminalEngine {
                     const command = window.Commands?.[cmd];
 
                     if (command?.execute) {
-                        result = await command.execute(
-                            this,
-                            args,
-                            stdin
-                        );
+                        try {
+                            result = await command.execute(
+                                this,
+                                args,
+                                stdin
+                            );
+                        } catch (err) {
+                            result = {
+                                stdout: "",
+                                stderr: `${cmd}: ${err.message}`,
+                                exitCode: 1
+                            };
+                        }
                     }
                     else {
                         result = {
@@ -838,7 +900,7 @@ class TerminalEngine {
 
     changeDirectory(path) {
         const resolved = this.fs.getFullPath(path, this.cwd);
-        const node = this.getNode(resolved);
+        const node = this.fs.getNode(resolved);
         if (!node) {
             return `cd: ${path}: No such file or directory`;
         }
