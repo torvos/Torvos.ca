@@ -59,15 +59,13 @@ registerCommand("rm", {
                 exitCode: 0
             };   
         }
-
-        if (!force) {
+        if (!force && terminal.fs.isDirectory(node)) {
             return {
                 stdout: "",
                 stderr: `rm: ${target} is a directory please use rmdir`,
                 exitCode: 1
             };                  
         }
-
         if (recursive) {
             function removeChildren(dir) {
                 if (!dir.children) {
@@ -90,7 +88,7 @@ registerCommand("rm", {
             }
             removeChildren(node);
         }
-        else if (Object.keys(node.children).length > 0) {
+        else if (terminal.fs.isDirectory(node) && Object.keys(node.children).length > 0) {         
             return {
                 stdout: "",
                 stderr: `rm: cannot remove '${target}': Directory not empty`,
