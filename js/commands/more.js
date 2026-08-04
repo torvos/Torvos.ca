@@ -1,6 +1,6 @@
 registerCommand("more", {
     name: "View a file one page at a time.",
-    synopsis : "mode FILE...",
+    synopsis : "more FILE...",
     description: "is a terminal utility used to view the contents of a text file one screen or page at a time. It prevents long files or heavy command outputs from flooding your terminal window.",
     options: [],
     examples: [

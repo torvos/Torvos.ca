@@ -15,9 +15,9 @@ registerCommand("free", {
             };                
         }
         return {
-            stdout: "guest users are not permitted view memory information.",
-            stderr: "",
-            exitCode: 0
+            stdout: "",
+            stderr: "guest users are not permitted to view memory information.",
+            exitCode: 1
         };
     }
 });

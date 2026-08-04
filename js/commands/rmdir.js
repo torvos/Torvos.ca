@@ -67,5 +67,12 @@ registerCommand("rmdir", {
             };           
 
         }
+        else {
+            return {
+                stdout: "",
+                stderr: `rmdir: failed to remove '${target}': Not a directory`,
+                exitCode: 1
+            };
+        }
     }
 });

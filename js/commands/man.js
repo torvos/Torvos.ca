@@ -46,10 +46,9 @@ registerCommand("man", {
         if (command.options?.length) {
             lines.push("OPTIONS");
             for (const option of command.options) {
-                lines.push(`    ${option.flag}`);
-                lines.push(`        ${option.description}`);
-                lines.push("");
+                lines.push(`    ${option}`);
             }
+            lines.push("");
         }
         if (command.examples?.length) {
             lines.push("EXAMPLES");

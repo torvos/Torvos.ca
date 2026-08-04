@@ -17,15 +17,21 @@ registerCommand("cd", {
                 exitCode: 0
             };                
         }
-        const target = args[0];
-        if (!target) {
-            return {
-                stdout: "",
-                stderr: "cd: missing operand",
-                exitCode: 1
-            }; 
+        let target = args[0];
 
+        if (!target) {
+            target = terminal.env.HOME || HOME;
+        } else if (target === "-") {
+            if (!terminal.env.OLDPWD) {
+                return {
+                    stdout: "",
+                    stderr: "cd: OLDPWD not set",
+                    exitCode: 1
+                };
+            }
+            target = terminal.env.OLDPWD;
         }
+
         let node = terminal.fs.get(target, terminal.cwd);
         if (!node) {
             return {

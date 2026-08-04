@@ -42,6 +42,13 @@ registerCommand("rm", {
         const result = terminal.fs.getParent(target, terminal.cwd);
         
         if (!result || !result.parent.children[result.name]) {
+            if (force) {
+                return {
+                    stdout: "",
+                    stderr: "",
+                    exitCode: 0
+                };
+            }
             return {
                 stdout: "",
                 stderr: `rm: cannot remove '${target}': No such file or directory`,
@@ -51,7 +58,8 @@ registerCommand("rm", {
         
         const node = result.parent.children[result.name];
 
-        if (terminal.fs.isDirectory(node) || terminal.fs.isSymlink(node)) {
+        if (terminal.fs.isSymlink(node)) {
+            result.parent.modified = Date.now();
             delete result.parent.children[result.name];
             return {
                 stdout: "",
@@ -59,21 +67,19 @@ registerCommand("rm", {
                 exitCode: 0
             };   
         }
-        if (!force && terminal.fs.isDirectory(node)) {
-            return {
-                stdout: "",
-                stderr: `rm: ${target} is a directory please use rmdir`,
-                exitCode: 1
-            };                  
-        }
-        if (recursive) {
+
+        if (terminal.fs.isDirectory(node)) {
+            if (!recursive) {
+                return {
+                    stdout: "",
+                    stderr: `rm: cannot remove '${target}': Is a directory`,
+                    exitCode: 1
+                };
+            }
+
             function removeChildren(dir) {
                 if (!dir.children) {
-                    return {
-                        stdout: "",
-                        stderr: "",
-                        exitCode: 0
-                    };
+                    return;
                 }
 
                 for (const key of Object.keys(dir.children)) {
@@ -87,13 +93,15 @@ registerCommand("rm", {
                 }
             }
             removeChildren(node);
-        }
-        else if (terminal.fs.isDirectory(node) && Object.keys(node.children).length > 0) {         
+
+            result.parent.modified = Date.now();
+            delete result.parent.children[result.name];
+
             return {
                 stdout: "",
-                stderr: `rm: cannot remove '${target}': Directory not empty`,
-                exitCode: 1
-            };          
+                stderr: "",
+                exitCode: 0
+            };
         }
 
         result.parent.modified = Date.now();

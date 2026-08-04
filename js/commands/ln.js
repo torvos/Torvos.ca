@@ -30,7 +30,7 @@ registerCommand("ln", {
             };         
         }
         else{
-            if(target !== null && target !== undefined || link !== null && link !== undefined){
+            if(target && link){
                 
                 const targetPath = terminal.fs.getFullPath(target, terminal.cwd);        
                 const targetNode = terminal.fs.get(target, terminal.cwd);

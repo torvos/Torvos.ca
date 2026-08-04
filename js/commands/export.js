@@ -15,31 +15,35 @@ registerCommand("export", {
                 exitCode: 0
             };                
         }
-        const target = args[0];
-        const value = args[1];
-        if(target in terminal.env){
+        const assignment = args[0];
+
+        if (!assignment) {
             return {
                 stdout: "",
-                stderr: "export: variable already set",
+                stderr: "export: missing operand",
                 exitCode: 1
             };
         }
-        else{
-            if (value !== null && value !== undefined) {
-                terminal.env[target] = value;
-                return {
-                    stdout: "",
-                    stderr: "",
-                    exitCode: 0
-                };               
-            }
-            else{
-                return {
-                    stdout: "",
-                    stderr: "export: missing operand",
-                    exitCode: 1
-                };            
-            }
+
+        const eq = assignment.indexOf("=");
+
+        if (eq === -1 || eq === 0) {
+            return {
+                stdout: "",
+                stderr: "export: usage: export NAME=VALUE",
+                exitCode: 1
+            };
         }
+
+        const name = assignment.slice(0, eq);
+        const value = assignment.slice(eq + 1);
+
+        terminal.env[name] = value;
+
+        return {
+            stdout: "",
+            stderr: "",
+            exitCode: 0
+        };
     }
 });

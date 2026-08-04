@@ -33,10 +33,12 @@ registerCommand("touch", {
 
         const node = terminal.fs.get(target, terminal.cwd);
         if (node){
+            node.modified = Date.now();
+            node.accessed = Date.now();
             return {
                 stdout: "",
-                stderr: `touch: file ${target} already exists`,
-                exitCode: 1
+                stderr: "",
+                exitCode: 0
             };           
         }
 

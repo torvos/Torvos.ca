@@ -8,9 +8,9 @@ registerCommand("uniq", {
         "-u    only show/count unique lines"
     ],
     examples: [
-        "",
-        "",
-        ""
+        "uniq access.log",
+        "uniq -c access.log",
+        "uniq -d access.log"
     ],
     async execute(terminal, args, stdin) {
         if (args.includes("--help")) {

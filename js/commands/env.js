@@ -15,9 +15,21 @@ registerCommand("env", {
             };                
         }
         const target = args[0];
+
+        if (!target) {
+            const listing = Object.entries(terminal.env)
+                .map(([key, value]) => `${key}=${value}`)
+                .join("\n");
+            return {
+                stdout: listing,
+                stderr: "",
+                exitCode: 0
+            };
+        }
+
         if(target in terminal.env){
             return {
-                stdout: terminal.env[args[0]],
+                stdout: terminal.env[target],
                 stderr: "",
                 exitCode: 0
             };
