@@ -31,10 +31,17 @@ registerCommand("sh", {
             };
         }
 
+        return this.runScript(terminal, target, parsed.args.slice(1), { trace, label: "sh" });
+    },
+
+    async runScript(terminal, target, scriptArgs, options = {}) {
+        const trace = options.trace ?? false;
+        const label = options.label ?? target;
+
         if (terminal.fs.isInBin(target, terminal.cwd)) {
             return {
                 stdout: "",
-                stderr: "sh: cannot execute files in /bin",
+                stderr: `${label}: cannot execute files in /bin`,
                 exitCode: 1
             };
         }
@@ -44,7 +51,7 @@ registerCommand("sh", {
         if (!node) {
             return {
                 stdout: "",
-                stderr: `sh: ${target}: No such file or directory`,
+                stderr: `${label}: ${target}: No such file or directory`,
                 exitCode: 127
             };
         }
@@ -52,7 +59,7 @@ registerCommand("sh", {
         if (terminal.fs.isDirectory(node)) {
             return {
                 stdout: "",
-                stderr: `sh: ${target}: Is a directory`,
+                stderr: `${label}: ${target}: Is a directory`,
                 exitCode: 126
             };
         }
@@ -60,7 +67,7 @@ registerCommand("sh", {
         if (!terminal.fs.isFile(node)) {
             return {
                 stdout: "",
-                stderr: `sh: ${target}: not executable`,
+                stderr: `${label}: ${target}: not executable`,
                 exitCode: 126
             };
         }
@@ -70,7 +77,7 @@ registerCommand("sh", {
         if (!ownerExecutable) {
             return {
                 stdout: "",
-                stderr: `sh: ${target}: Permission denied`,
+                stderr: `${label}: ${target}: Permission denied`,
                 exitCode: 126
             };
         }
@@ -83,19 +90,17 @@ registerCommand("sh", {
         if (terminal._scriptStack.length >= MAX_SCRIPT_DEPTH) {
             return {
                 stdout: "",
-                stderr: `sh: ${target}: script recursion limit exceeded`,
+                stderr: `${label}: ${target}: script recursion limit exceeded`,
                 exitCode: 1
             };
         }
         if (terminal._scriptStack.includes(fullPath)) {
             return {
                 stdout: "",
-                stderr: `sh: ${target}: recursive script invocation blocked`,
+                stderr: `${label}: ${target}: recursive script invocation blocked`,
                 exitCode: 1
             };
         }
-
-        const scriptArgs = parsed.args.slice(1);
 
         function applyPositionalParams(line) {
             return line
@@ -120,7 +125,7 @@ registerCommand("sh", {
 
                 const command = applyPositionalParams(line);
 
-                if (trace) {
+                if (trace=="true") {
                     terminal.write(`+ ${command}`, { color: "#888888" });
                 }
 

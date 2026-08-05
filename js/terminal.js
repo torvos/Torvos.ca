@@ -43,7 +43,8 @@ class TerminalEngine {
             OLDPWD: "/home/guest",
             SHELL: "/bin/bash",
             PATH: "/bin:/usr/bin",
-            EDITOR: "edit"
+            EDITOR: "edit",
+            SCRIPTDEBUG: "false"
         };
 
         this.aliases = {
@@ -675,6 +676,22 @@ class TerminalEngine {
                                 this,
                                 args,
                                 stdin
+                            );
+                        } catch (err) {
+                            result = {
+                                stdout: "",
+                                stderr: `${cmd}: ${err.message}`,
+                                exitCode: 1
+                            };
+                        }
+                    }
+                    else if (cmd.includes("/")) {
+                        try {
+                            result = await window.Commands.sh.runScript(
+                                this,
+                                cmd,
+                                args,
+                                { trace: this.env.SCRIPTDEBUG, label: cmd }
                             );
                         } catch (err) {
                             result = {
