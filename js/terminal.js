@@ -468,6 +468,10 @@ class TerminalEngine {
                     return;
                 } 
                 this.history.push(input);
+                const MAX_HISTORY = 1000;
+                if (this.history.length > MAX_HISTORY) {
+                    this.history.shift();
+                }
                 this.historyIndex = this.history.length;
                 this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$${input}`);
     
