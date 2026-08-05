@@ -57,6 +57,7 @@ class TerminalEngine {
 
     async init() {
         this.inputMode = INPUT_NORMAL;
+
         const savedSettings = localStorage.getItem("terminalSettings");
         if (savedSettings) {        
             const settings = JSON.parse(savedSettings);
@@ -71,11 +72,22 @@ class TerminalEngine {
             this.cursorPos = settings.cursorPos ?? "0";
             this.hasbooted = settings.hasbooted ?? "0";
             this.cwd = settings.cwd ?? HOME;
+
+            this.env = {
+                ...this.env,
+                ...(settings.env ?? {})
+            };
+
+            this.aliases = {
+                ...this.aliases,
+                ...(settings.aliases ?? {})
+            };            
         }
         const savedFileSystem = localStorage.getItem("FileSystem");
         if (savedFileSystem) {
             window.FileSystem = JSON.parse(savedFileSystem);
         }
+
         const params = new URLSearchParams(window.location.search);
         await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
         if (params.has("quickboot")){
@@ -124,20 +136,15 @@ class TerminalEngine {
     }
 
     saveSettings(){
-        const history = this.history;
-        const historyIndex = this.historyIndex;
-        const cursorPos = this.cursorPos;
-        const hasbooted = this.hasbooted;
-        const version = this.version;
-        const cwd = this.cwd;
-
         const terminalSettings = {
-            history,
-            historyIndex,
-            cursorPos,
-            hasbooted,
-            version,
-            cwd
+            history: this.history,
+            historyIndex: this.historyIndex,
+            cursorPos: this.cursorPos,
+            hasbooted: this.hasbooted,
+            version: this.version,
+            cwd: this.cwd,
+            env: this.env,
+            aliases: this.aliases
         };
 
         localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
@@ -405,7 +412,7 @@ class TerminalEngine {
 
     renderPrompt() {
         this.promptEl.textContent =
-            `${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$`;
+            `${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$ `;
     }
 
     renderInput() {
