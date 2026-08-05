@@ -78,9 +78,12 @@ class TerminalEngine {
         }
         const params = new URLSearchParams(window.location.search);
         await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
+        if (params.has("quickboot")){
+            this.hasbooted = 1;
+        }
         if (this.hasbooted === 1){
             await this.write(`[INFO] Resuming previous session.................[ OK ]`, {color: "#ffffff"});
-        } else if (this.hasbooted === 0 || params.has("quickboot")) {
+        } else if (this.hasbooted === 0) {
             await this.typeItOut(`Initializing kernel................ [ OK ]`);
             await this.typeItOut(`Mounting virtual filesystem........ [ OK ]`);
             await this.typeItOut(`Starting network stack............. [ OK ]`);
