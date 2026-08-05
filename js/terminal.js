@@ -68,9 +68,9 @@ class TerminalEngine {
                 location.reload();
             }            
             this.history = settings.history ?? [];
-            this.historyIndex = settings.historyIndex ?? "-1";
-            this.cursorPos = settings.cursorPos ?? "0";
-            this.hasbooted = settings.hasbooted ?? "0";
+            this.historyIndex = settings.historyIndex ?? -1;
+            this.cursorPos = settings.cursorPos ?? 0;
+            this.hasbooted = settings.hasbooted ?? 0;
             this.cwd = settings.cwd ?? HOME;
 
             this.env = {
@@ -473,7 +473,7 @@ class TerminalEngine {
                     this.history.shift();
                 }
                 this.historyIndex = this.history.length;
-                this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$${input}`);
+                this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$ ${input}`);
     
                 document.getElementById("input-line").classList.add("hidden");
                 try {
@@ -1034,10 +1034,7 @@ class TerminalEngine {
         }
         this.editor.node.content = this.editorEl.value;
         this.editor.node.modified = Date.now();
-        localStorage.setItem(
-            "FileSystem",
-            JSON.stringify(window.FileSystem)
-        );
+        this.saveSettings();
         this.editor.modified = false;
     }
 
