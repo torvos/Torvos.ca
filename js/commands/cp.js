@@ -38,6 +38,14 @@ registerCommand("cp", {
             };    
         }
 
+        if (!src.parent.children[src.name]) {
+            return {
+                stdout: "",
+                stderr: `cp: cannot stat '${source}': No such file or directory`,
+                exitCode: 1
+            };
+        }
+
         if (dest.parent.children[dest.name]) {
             return {
                 stdout: "",
