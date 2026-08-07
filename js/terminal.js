@@ -16,6 +16,7 @@ class TerminalEngine {
         this.hasbooted = 0;
         this.cwd = HOME;
         this.lastExpansionEmpty = false;
+        this.lastExitCode = 0;
         this.bindEvents();
         this.version = TERMINAL_VERSION;
 
@@ -66,6 +67,7 @@ class TerminalEngine {
                 localStorage.removeItem("FileSystem");
                 this.cwd = HOME;
                 location.reload();
+                return;
             }            
             this.history = settings.history ?? [];
             this.historyIndex = settings.historyIndex ?? -1;
@@ -611,10 +613,44 @@ class TerminalEngine {
     }
 
     expandVariables(input) {
-        return input.replace(
-            /\$([A-Za-z_][A-Za-z0-9_]*)/g,
-            (_, name) => this.env[name] ?? ""
+        return input
+            .replace(/\$\?/g, () => String(this.lastExitCode ?? 0))
+            .replace(
+                /\$([A-Za-z_][A-Za-z0-9_]*)/g,
+                (_, name) => this.env[name] ?? ""
+            );
+    }
+
+    expandArithmetic(input) {
+        return input.replace(/\$\(\((.*?)\)\)/g, (_, expr) => {
+            try {
+                return String(this.evaluateArithmetic(expr));
+            } catch {
+                return "0";
+            }
+        });
+    }
+
+    evaluateArithmetic(expr) {
+        const substituted = expr.replace(
+            /\$?([A-Za-z_][A-Za-z0-9_]*)/g,
+            (_, name) => {
+                const value = this.env[name];
+                return value !== undefined && value !== "" ? value : "0";
+            }
         );
+
+        if (!/^[\d\s+\-*/%().]*$/.test(substituted)) {
+            throw new Error("invalid arithmetic expression");
+        }
+
+        const result = Function(`"use strict"; return (${substituted || "0"});`)();
+
+        if (typeof result !== "number" || !Number.isFinite(result)) {
+            throw new Error("invalid arithmetic result");
+        }
+
+        return Math.trunc(result);
     }
 
     expandAlias(input) {
@@ -631,7 +667,6 @@ class TerminalEngine {
     async execute(input) {
         this.lastExpansionEmpty = false;
         input = this.expandAlias(input);
-        input = this.expandVariables(input);
         const expandedCommands = this.expandBraces(input);
         for (const expandedInput of expandedCommands) {
             const commandGroups = expandedInput
@@ -639,11 +674,29 @@ class TerminalEngine {
                 .map(cmd => cmd.trim())
                 .filter(Boolean);
 
-            for (const group of commandGroups) {
+            for (const rawGroup of commandGroups) {
+                const group = this.expandArithmetic(this.expandVariables(rawGroup));
                 const pipeline = group
                     .split("|")
                     .map(cmd => cmd.trim())
                     .filter(Boolean);
+
+                const assignMatch = pipeline.length === 1 &&
+                    pipeline[0].match(/^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/);
+
+                if (assignMatch) {
+                    const varName = assignMatch[1];
+                    let varValue = assignMatch[2];
+                    const isQuoted =
+                        (varValue.startsWith('"') && varValue.endsWith('"') && varValue.length >= 2) ||
+                        (varValue.startsWith("'") && varValue.endsWith("'") && varValue.length >= 2);
+                    if (isQuoted) {
+                        varValue = varValue.slice(1, -1);
+                    }
+                    this.env[varName] = varValue;
+                    this.lastExitCode = 0;
+                    continue;
+                }
 
                 let stdin = "";
 
@@ -734,6 +787,7 @@ class TerminalEngine {
                     result.stdout ??= "";
                     result.stderr ??= "";
                     result.exitCode ??= 0;
+                    this.lastExitCode = result.exitCode;
                     let redirectreturn = "";
 
                     switch (redirects.operator) {
@@ -782,6 +836,8 @@ class TerminalEngine {
                             }
                             break;
                     }
+
+                    this.lastExitCode = result.exitCode;
 
                     if (result.exitCode !== 0) {
                         if (result.stderr) {

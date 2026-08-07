@@ -1,11 +1,12 @@
 registerCommand("export", {
     name: "Set or update environment variables.",
     synopsis : "export NAME=VALUE",
-    description: "Create or modify an environment variable that will be available to subsequently executed commands.",
+    description: "Create or modify an environment variable that will be available to subsequently executed commands. A bare NAME=VALUE (without 'export') works the same way.",
     options: [],
     examples: [
         "export EDITOR=vim",
         "export PATH=/bin",
+        "NAME=world",
     ],
     async execute(terminal, args, stdin) {    
         if (args.includes("--help")) {
