@@ -86,12 +86,20 @@ class TerminalEngine {
             };            
         }
         const savedFileSystem = localStorage.getItem("FileSystem");
+        let filesystemWasCorrupted = false;
         if (savedFileSystem) {
-            window.FileSystem = JSON.parse(savedFileSystem);
+            const restored = FileSystemAPI.restore(savedFileSystem);
+            if (!restored) {
+                localStorage.removeItem("FileSystem");
+                filesystemWasCorrupted = true;
+            }
         }
 
         const params = new URLSearchParams(window.location.search);
         await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
+        if (filesystemWasCorrupted) {
+            await this.write(`[WARN] Saved filesystem was corrupted, restored defaults..[FAIL]`, {color: "#ff5555"});
+        }
         if (params.has("quickboot")){
             this.hasbooted = 1;
         }
@@ -150,7 +158,7 @@ class TerminalEngine {
         };
 
         localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
-        localStorage.setItem("FileSystem", JSON.stringify(window.FileSystem));
+        localStorage.setItem("FileSystem", FileSystemAPI.serialize());
     }
 
     parseFlags(args, flagSpec = {}) {
@@ -1138,7 +1146,7 @@ window.createVirtualBin = function() {
             content: ""
         };
     }
-    window.FileSystem[ROOT].children["bin"] = bin;
+    FileSystemAPI.mount("bin", bin);
 };
 
 window.createVirtualDev = function() {
@@ -1193,5 +1201,5 @@ window.createVirtualDev = function() {
         content: ""
     };    
 
-    window.FileSystem[ROOT].children["dev"] = dev;
+    FileSystemAPI.mount("dev", dev);
 };

@@ -1,4 +1,5 @@
-window.FileSystem = {
+(function() {
+    let FileSystem = {
 
     "/": {
         type: "dir",
@@ -131,13 +132,14 @@ Developer - Application Development
             }
         }
     }
-};
+    };
 
-(function() {
+    const DEFAULT_FILESYSTEM_JSON = JSON.stringify(FileSystem);
+
     function resolvePath(path, depth = 0) {
         if (depth > 20) {return null;}
         const parts = path.replace("~", "").split(ROOT).filter(Boolean);
-        let node = window.FileSystem[ROOT];
+        let node = FileSystem[ROOT];
         let currentPath = ROOT;
         for (const part of parts) {
             if (!node.children || !node.children[part]) {return null;}
@@ -192,7 +194,7 @@ Developer - Application Development
         const parts = path.split(ROOT).filter(Boolean);
         if (parts.length === 0) {return null;}
         const name = parts.pop();
-        let parent = window.FileSystem[ROOT];
+        let parent = FileSystem[ROOT];
         for (const part of parts) {
             if (!parent.children || !parent.children[part]) {return null;}
             parent = parent.children[part];
@@ -444,7 +446,7 @@ Developer - Application Development
                 }
             }
         }
-        let startNode = window.FileSystem["/"];
+        let startNode = FileSystem[ROOT];
         walk(
             startNode,
             0,
@@ -565,7 +567,7 @@ Developer - Application Development
             if (!path.startsWith(ROOT))
                 path = resolveRelativePath(ROOT, path);
 
-            let node = window.FileSystem[ROOT];
+            let node = FileSystem[ROOT];
             const parts = path.split(ROOT).filter(Boolean);
 
             for (const part of parts) {
@@ -575,7 +577,29 @@ Developer - Application Development
                 node = node.children[part];
             }
             return node;
-        }        
+        },
+
+        mount(name, node) {
+            FileSystem[ROOT].children[name] = node;
+        },
+
+        serialize() {
+            return JSON.stringify(FileSystem);
+        },
+
+        restore(json) {
+            try {
+                FileSystem = JSON.parse(json);
+                return true;
+            } catch (e) {
+                FileSystem = JSON.parse(DEFAULT_FILESYSTEM_JSON);
+                return false;
+            }
+        },
+
+        resetToDefault() {
+            FileSystem = JSON.parse(DEFAULT_FILESYSTEM_JSON);
+        }
 
     };
 
