@@ -928,6 +928,18 @@ class TerminalEngine {
         if (parts.length === 1) {
             const partial = parts[0];
 
+            if (partial.includes(ROOT)) {
+                const matches = this.findPathMatches(partial);
+
+                if (matches.length === 1) {
+                    this.currentInput = matches[0];
+                    this.cursorPos = this.currentInput.length;
+                    this.renderInput();
+                }
+
+                return;
+            }
+
             const commands = Object.keys(window.Commands);
             const match = commands.find(c => c.startsWith(partial));
 
