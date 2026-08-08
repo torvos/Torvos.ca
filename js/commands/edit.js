@@ -39,7 +39,7 @@ registerCommand("edit", {
             result.parent.children[result.name] = terminal.fs.createFile(result.name.startsWith("."));
             node = result.parent.children[result.name];        
         } else {
-            if(!pathresult.path.includes("/bin/")){
+            if(!terminal.fs.isInBin(target, terminal.cwd)){
                 node = pathresult.node;
             }
             else{

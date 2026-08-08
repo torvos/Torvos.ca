@@ -478,7 +478,7 @@ Developer - Application Development
 
         isInBin(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
-            return fullPath.includes("/bin/");
+            return fullPath.startsWith("/bin/");
         },
 
         isDirectory(pathOrNode, cwd = "/") {
