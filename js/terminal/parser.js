@@ -19,10 +19,6 @@ Object.assign(TerminalEngine.prototype, {
         return results;
     },
 
-    // Splits `str` on single-character `delimiter`, but only where the
-    // delimiter appears outside of a quoted region. Quote characters are
-    // kept in the output segments so downstream parsing (tokenize, regexes)
-    // still sees them.
     splitTopLevel(str, delimiter) {
         const parts = [];
         let current = "";
@@ -62,12 +58,6 @@ Object.assign(TerminalEngine.prototype, {
         return parts;
     },
 
-    // Returns a same-length copy of `str` where every character inside a
-    // quoted region (including the quote marks themselves) is replaced with
-    // a neutral placeholder. Used so structural regexes (like redirect
-    // detection) can be run against it without being confused by operator
-    // characters or whitespace that happen to appear inside quoted text -
-    // while match indices still line up with the original string.
     maskQuotes(str) {
         let masked = "";
         let inSingle = false;
@@ -204,6 +194,33 @@ Object.assign(TerminalEngine.prototype, {
         });
     },
 
+    tokenizeArithmetic(str) {
+        const tokens = [];
+        let i = 0;
+        while (i < str.length) {
+            const ch = str[i];
+            if (/\s/.test(ch)) {
+                i++;
+                continue;
+            }
+            if (/\d/.test(ch)) {
+                let num = "";
+                while (i < str.length && /\d/.test(str[i])) {
+                    num += str[i++];
+                }
+                tokens.push(num);
+                continue;
+            }
+            if ("+-*/%()".includes(ch)) {
+                tokens.push(ch);
+                i++;
+                continue;
+            }
+            throw new Error("invalid arithmetic expression");
+        }
+        return tokens;
+    },
+
     evaluateArithmetic(expr) {
         const substituted = expr.replace(
             /\$?([A-Za-z_][A-Za-z0-9_]*)/g,
@@ -213,12 +230,66 @@ Object.assign(TerminalEngine.prototype, {
             }
         );
 
-        if (!/^[\d\s+\-*/%().]*$/.test(substituted)) {
+        const tokens = this.tokenizeArithmetic(substituted);
+        let pos = 0;
+
+        const peek = () => tokens[pos];
+        const advance = () => tokens[pos++];
+
+        const parseFactor = () => {
+            if (peek() === "+") {
+                advance();
+                return parseFactor();
+            }
+            if (peek() === "-") {
+                advance();
+                return -parseFactor();
+            }
+            if (peek() === "(") {
+                advance();
+                const value = parseExpr();
+                if (advance() !== ")") {
+                    throw new Error("missing closing parenthesis");
+                }
+                return value;
+            }
+            const token = advance();
+            if (token === undefined || !/^\d+$/.test(token)) {
+                throw new Error("invalid arithmetic expression");
+            }
+            return parseInt(token, 10);
+        };
+
+        const parseTerm = () => {
+            let value = parseFactor();
+            while (peek() === "*" || peek() === "/" || peek() === "%") {
+                const op = advance();
+                const rhs = parseFactor();
+                if ((op === "/" || op === "%") && rhs === 0) {
+                    throw new Error("division by 0");
+                }
+                if (op === "*") value *= rhs;
+                else if (op === "/") value = Math.trunc(value / rhs);
+                else value = value % rhs;
+            }
+            return value;
+        };
+
+        const parseExpr = () => {
+            let value = parseTerm();
+            while (peek() === "+" || peek() === "-") {
+                const op = advance();
+                const rhs = parseTerm();
+                value = op === "+" ? value + rhs : value - rhs;
+            }
+            return value;
+        };
+
+        const result = tokens.length === 0 ? 0 : parseExpr();
+
+        if (pos !== tokens.length) {
             throw new Error("invalid arithmetic expression");
         }
-
-        const result = Function(`"use strict"; return (${substituted || "0"});`)();
-
         if (typeof result !== "number" || !Number.isFinite(result)) {
             throw new Error("invalid arithmetic result");
         }
