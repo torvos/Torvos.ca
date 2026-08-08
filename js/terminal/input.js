@@ -97,18 +97,66 @@ Object.assign(TerminalEngine.prototype, {
                 return;
             }
 
-            if (e.ctrlKey && e.key === "c") {
-                e.preventDefault();
-                this.cancelCommand();
-                this.renderInput();
-                return;
-            }
+            if (e.ctrlKey && !e.metaKey && !e.altKey) {
+                switch (e.key.toLowerCase()) {
+                    case "c":
+                        e.preventDefault();
+                        this.cancelCommand();
+                        this.renderInput();
+                        return;
 
-            if (e.ctrlKey && e.key === "l") {
-                e.preventDefault();
-                this.clearScreen();
-                this.renderInput();
-                return;
+                    case "l":
+                        e.preventDefault();
+                        this.clearScreen();
+                        this.renderInput();
+                        return;
+
+                    case "v":
+                        return;
+
+                    case "a":
+                        e.preventDefault();
+                        this.cursorPos = 0;
+                        this.renderInput();
+                        return;
+
+                    case "e":
+                        e.preventDefault();
+                        this.cursorPos = this.currentInput.length;
+                        this.renderInput();
+                        return;
+
+                    case "u":
+                        e.preventDefault();
+                        this.currentInput = this.currentInput.slice(this.cursorPos);
+                        this.cursorPos = 0;
+                        this.hiddenInput.value = this.currentInput;
+                        this.renderInput();
+                        return;
+
+                    case "k":
+                        e.preventDefault();
+                        this.currentInput = this.currentInput.slice(0, this.cursorPos);
+                        this.hiddenInput.value = this.currentInput;
+                        this.renderInput();
+                        return;
+
+                    case "w": {
+                        e.preventDefault();
+                        const before = this.currentInput.slice(0, this.cursorPos);
+                        const after = this.currentInput.slice(this.cursorPos);
+                        const trimmedBefore = before.replace(/\s+$/, "").replace(/\S+$/, "");
+                        this.currentInput = trimmedBefore + after;
+                        this.cursorPos = trimmedBefore.length;
+                        this.hiddenInput.value = this.currentInput;
+                        this.renderInput();
+                        return;
+                    }
+
+                    default:
+                        e.preventDefault();
+                        return;
+                }
             }
 
             switch (e.key) {
@@ -151,7 +199,8 @@ Object.assign(TerminalEngine.prototype, {
                     if (this.inputMode === INPUT_WAIT_FOR_PASSWORD){break;}
                     if (e.key.length === 1 &&
                         !e.metaKey &&
-                        !e.altKey) {
+                        !e.altKey &&
+                        !e.ctrlKey) {
                             this.currentInput =
                                 this.currentInput.slice(0, this.cursorPos) +
                                 e.key +
@@ -160,6 +209,25 @@ Object.assign(TerminalEngine.prototype, {
                         }
                     break;
             }
+            this.renderInput();
+        });
+
+        this.hiddenInput.addEventListener("paste", (e) => {
+            if (this.inputMode !== INPUT_NORMAL || this.pager.active) {
+                return;
+            }
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData("text");
+            if (!text) {
+                return;
+            }
+            const clean = text.replace(/\r\n?/g, "\n").replace(/\n/g, " ");
+            this.currentInput =
+                this.currentInput.slice(0, this.cursorPos) +
+                clean +
+                this.currentInput.slice(this.cursorPos);
+            this.cursorPos += clean.length;
+            this.hiddenInput.value = this.currentInput;
             this.renderInput();
         });
     },
