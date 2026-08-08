@@ -1,6 +1,3 @@
-// TerminalEngine is defined here and extended by the other files in
-// js/terminal/*.js, each of which adds a related group of methods via
-// Object.assign(TerminalEngine.prototype, {...}). Load this file first.
 class TerminalEngine {
 
     constructor() {
@@ -198,6 +195,11 @@ class TerminalEngine {
                 continue;
             }
 
+            if (arg === "-" || !arg.startsWith("-")) {
+                remaining.push(arg);
+                continue;
+            }
+
             const wholeFlag = arg.substring(1);
 
             if (flagSpec.hasOwnProperty(wholeFlag)) {
@@ -212,27 +214,23 @@ class TerminalEngine {
                 continue;
             }
 
-            if (arg.startsWith("-") && arg.length > 1) {
-                const cluster = arg.substring(1);
-                for (let j = 0; j < cluster.length; j++) {
-                    const flag = cluster[j];
-                    if (flagSpec[flag] === true) {
-                        if (j < cluster.length - 1) {
-                            options[flag] = cluster.substring(j + 1);
-                            break;
-                        }
-                        if (i + 1 >= args.length) {
-                            throw new Error(`Missing value for -${flag}`);
-                        }
-                        options[flag] = args[++i];
+            const cluster = wholeFlag;
+            for (let j = 0; j < cluster.length; j++) {
+                const flag = cluster[j];
+                if (flagSpec[flag] === true) {
+                    if (j < cluster.length - 1) {
+                        options[flag] = cluster.substring(j + 1);
                         break;
-                    } else {
-                        flags.add(flag);
                     }
+                    if (i + 1 >= args.length) {
+                        throw new Error(`Missing value for -${flag}`);
+                    }
+                    options[flag] = args[++i];
+                    break;
+                } else {
+                    flags.add(flag);
                 }
-                continue;
             }
-            remaining.push(arg);
         }
 
         return {
@@ -240,8 +238,7 @@ class TerminalEngine {
             options,
             args: remaining
         };
-
-    };
+    }
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
