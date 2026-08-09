@@ -297,6 +297,43 @@ Object.assign(TerminalEngine.prototype, {
         return Math.trunc(result);
     },
 
+    findCommandSubstitution(str, from = 0) {
+        const idx = str.indexOf("$(", from);
+        if (idx === -1) return null;
+        if (str[idx + 2] === "(") {
+            // "$((" - arithmetic expansion, not command substitution. Skip past
+            // it and keep looking (expandArithmetic should normally have already
+            // removed these by the time this runs, but this guards stray cases).
+            return this.findCommandSubstitution(str, idx + 1);
+        }
+        let depth = 1;
+        let i = idx + 2;
+        for (; i < str.length && depth > 0; i++) {
+            if (str[i] === "(") depth++;
+            else if (str[i] === ")") depth--;
+        }
+        if (depth !== 0) return null; // unbalanced - leave as-is
+        return { start: idx, end: i, inner: str.slice(idx + 2, i - 1) };
+    },
+
+    async expandCommandSubstitution(str) {
+        let result = str;
+        let guard = 0;
+        while (true) {
+            const found = this.findCommandSubstitution(result);
+            if (!found) break;
+            if (++guard > 50) {
+                throw new Error("too many nested command substitutions");
+            }
+            const captured = await this.runCaptured(found.inner);
+            // bash strips trailing newlines from $(...) output, but keeps
+            // internal newlines intact
+            const text = (captured.stdout ?? "").replace(/\r?\n+$/, "");
+            result = result.slice(0, found.start) + text + result.slice(found.end);
+        }
+        return result;
+    },
+
     expandAlias(input) {
         const parts = input.trim().split(/\s+/);
         if (!parts.length)

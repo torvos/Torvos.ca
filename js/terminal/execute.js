@@ -10,7 +10,8 @@ Object.assign(TerminalEngine.prototype, {
                 .filter(Boolean);
 
             for (const rawGroup of commandGroups) {
-                const group = this.expandArithmetic(this.expandVariables(rawGroup));
+                let group = this.expandArithmetic(this.expandVariables(rawGroup));
+                group = await this.expandCommandSubstitution(group);
                 const pipeline = this.splitTopLevel(group, "|")
                     .map(cmd => cmd.trim())
                     .filter(Boolean);
@@ -209,6 +210,61 @@ Object.assign(TerminalEngine.prototype, {
                 }
             }
         }
+    },
+
+    // Runs a command (or pipeline) and returns its {stdout, stderr, exitCode}
+    // WITHOUT writing anything to the terminal. Used by $(...) command
+    // substitution. Supports variables/arithmetic/nested substitution and
+    // pipes, but not ; sequencing or redirects (same as real shells' $(...)).
+    async runCaptured(input) {
+        let expanded = this.expandArithmetic(this.expandVariables(input));
+        expanded = await this.expandCommandSubstitution(expanded);
+
+        const pipeline = this.splitTopLevel(expanded, "|")
+            .map(cmd => cmd.trim())
+            .filter(Boolean);
+
+        let stdin = "";
+        let result = { stdout: "", stderr: "", exitCode: 0 };
+
+        for (const stage of pipeline) {
+            const parsed = this.parseCommand(stage);
+            const cmd = parsed.cmd;
+            let args = [];
+            for (const arg of parsed.args) {
+                const expandedArg = this.fs.expandWildcards(arg, this.cwd);
+                args.push(...(expandedArg.length > 0 ? expandedArg : [arg]));
+            }
+
+            const command = window.Commands?.[cmd];
+            if (command?.execute) {
+                try {
+                    result = await command.execute(this, args, stdin);
+                } catch (err) {
+                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: 1 };
+                }
+            } else if (cmd && cmd.includes("/")) {
+                try {
+                    result = await window.Commands.sh.runScript(this, cmd, args, { label: cmd });
+                } catch (err) {
+                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: 1 };
+                }
+            } else {
+                result = { stdout: "", stderr: `command not found: ${cmd}`, exitCode: 127 };
+            }
+
+            if (typeof result === "string") {
+                result = { stdout: result, stderr: "", exitCode: 0 };
+            }
+            result.stdout ??= "";
+            result.stderr ??= "";
+            result.exitCode ??= 0;
+
+            stdin = result.stdout;
+        }
+
+        this.lastExitCode = result.exitCode;
+        return result;
     },
 
     writeRedirect(path, text, append = false) {
