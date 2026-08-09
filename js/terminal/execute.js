@@ -22,10 +22,14 @@ Object.assign(TerminalEngine.prototype, {
                 if (assignMatch) {
                     const varName = assignMatch[1];
                     let varValue = assignMatch[2];
+                    const isAnsiC =
+                        varValue.startsWith("$'") && varValue.endsWith("'") && varValue.length >= 3;
                     const isQuoted =
                         (varValue.startsWith('"') && varValue.endsWith('"') && varValue.length >= 2) ||
                         (varValue.startsWith("'") && varValue.endsWith("'") && varValue.length >= 2);
-                    if (isQuoted) {
+                    if (isAnsiC) {
+                        varValue = this.expandAnsiCEscapes(varValue.slice(2, -1));
+                    } else if (isQuoted) {
                         varValue = varValue.slice(1, -1);
                     }
                     this.env[varName] = varValue;

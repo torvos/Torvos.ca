@@ -122,6 +122,26 @@ Object.assign(TerminalEngine.prototype, {
         };
     },
 
+    // Expands backslash escapes the way bash's $'...' (ANSI-C quoting) does:
+    // \n -> newline, \t -> tab, etc. Unrecognized escapes are left as-is.
+    expandAnsiCEscapes(str) {
+        const map = {
+            n: "\n", t: "\t", r: "\r", "\\": "\\",
+            "'": "'", '"': '"', "0": "\0",
+            a: "\x07", b: "\b", f: "\f", v: "\v"
+        };
+        let result = "";
+        for (let i = 0; i < str.length; i++) {
+            if (str[i] === "\\" && i + 1 < str.length && map[str[i + 1]] !== undefined) {
+                result += map[str[i + 1]];
+                i++;
+            } else {
+                result += str[i];
+            }
+        }
+        return result;
+    },
+
     tokenize(command) {
         const parts = [];
         let current = "";
@@ -145,6 +165,25 @@ Object.assign(TerminalEngine.prototype, {
                 } else {
                     current += ch;
                 }
+                continue;
+            }
+            // $'...' ANSI-C quoting: backslash escapes (\n, \t, ...) become
+            // real characters, e.g. echo $'line1\nline2'
+            if (ch === "$" && command[i + 1] === "'") {
+                hasToken = true;
+                let j = i + 2;
+                let raw = "";
+                while (j < command.length && command[j] !== "'") {
+                    if (command[j] === "\\" && j + 1 < command.length) {
+                        raw += command[j] + command[j + 1];
+                        j += 2;
+                    } else {
+                        raw += command[j];
+                        j++;
+                    }
+                }
+                current += this.expandAnsiCEscapes(raw);
+                i = j;
                 continue;
             }
             if (ch === "'") {
