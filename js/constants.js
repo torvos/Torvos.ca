@@ -1,4 +1,4 @@
-const TERMINAL_VERSION = "2.7.6";
+const TERMINAL_VERSION = "2.8.0";
 const ROOT = "/";
 const HOME = "/home/guest";
 const DEFAULT_USER = "guest";
