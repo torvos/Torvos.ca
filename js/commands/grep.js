@@ -16,6 +16,9 @@ registerCommand("grep", {
             };                
         }
         const pattern = args[0];
+
+        let content = "";
+
         if (!pattern) {
             return {
                 stdout: "",
@@ -23,8 +26,14 @@ registerCommand("grep", {
                 exitCode: 1
             };
         }
-        let content = stdin;
-        if (!content) {
+
+        if (stdin.length != 0) {
+            content = stdin;
+        }
+        else if (args.length === 2) {
+            content = terminal.fs.get(args[1], terminal.cwd).content;
+        }
+        if (content.length === 0){
             return {
                 stdout: "",
                 stderr: "grep: no input",
