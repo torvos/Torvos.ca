@@ -1,3 +1,10 @@
+/**
+ * `find` command.
+ * Recursively walks a starting directory, printing the path of every
+ * descendant that matches the given filters: -name (glob pattern
+ * converted to regex), -type (f for file, d for directory), and
+ * -maxdepth (recursion limit).
+ */
 registerCommand("find", {
     name: "Search for files and directories.",
     synopsis : "find [PATH] [OPTIONS]",
@@ -13,6 +20,7 @@ registerCommand("find", {
         "find . -maxdepth 2"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -24,6 +32,7 @@ registerCommand("find", {
         const namePattern = parsed.options?.name ?? null;
         const typeFilter = parsed.options?.type ?? null;
         const maxDepth = parsed.options?.maxdepth !== undefined ? parseInt(parsed.options.maxdepth, 10) : Infinity;
+        // Convert a simple glob pattern (* and ?) into an anchored regex
         const regex = namePattern ? new RegExp("^" + namePattern.replace(/\./g, "\\.").replace(/\*/g, ".*").replace(/\?/g, ".") + "$"): null;
 
         const target = parsed.args[0] || terminal.cwd;
@@ -38,6 +47,9 @@ registerCommand("find", {
             };
         }
 
+        // Recursively walks `node`, appending a line for every child that
+        // passes the type/name filters, then descending into subdirectories
+        // (as long as maxDepth allows).
         function walk(node, path = terminal.cwd, depth = 1) {
             if(path === "/"){
                 path = "";
@@ -74,6 +86,7 @@ registerCommand("find", {
                     }
                 }
                 else{
+                    // No type filter - match on name pattern alone (or list everything)
                     if(namePattern){
                         if(regex.test(key)){
                             output += `${path}/${key}\n`;

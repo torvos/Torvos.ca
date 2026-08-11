@@ -1,3 +1,8 @@
+/**
+ * `tail` command.
+ * Prints just the last N lines (default 10, or set via -n) of a file
+ * or piped stdin.
+ */
 registerCommand("tail", {
     name: "Display the last lines of a file.",
     synopsis : "tail [OPTIONS] FILE...",
@@ -10,6 +15,7 @@ registerCommand("tail", {
         "tail -n 20 file.txt"
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -26,7 +32,7 @@ registerCommand("tail", {
         let content = "";
 
         if (!target) {
-
+            // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
                     stdout: "",
@@ -64,7 +70,7 @@ registerCommand("tail", {
         return {
             stdout: content
                 .split(/\r?\n/)
-                .slice(-maxDepth)
+                .slice(-maxDepth) // negative slice = last N lines
                 .join("\n"),
 
             stderr: "",

@@ -1,3 +1,13 @@
+/**
+ * `sed` command.
+ * A minimal stream-editor implementation supporting two script forms:
+ *   - "s/pattern/replacement/[g]" - substitute (optionally with a leading
+ *     line-number address, e.g. "4s/apple/orange/", and an optional
+ *     alternate delimiter character in place of "/")
+ *   - "p" - print matching lines (optionally address-restricted)
+ * With -i, writes the result back into the source file instead of
+ * printing it; with -n, suppresses the normal auto-print of the result.
+ */
 registerCommand("sed", {
     name: "Perform stream editing on text.",
     synopsis : "sed [OPTIONS] 'command' file_name",
@@ -12,6 +22,7 @@ registerCommand("sed", {
         "sed '4s/apple/orange/' fruits.txt"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -68,6 +79,7 @@ registerCommand("sed", {
             content = node.content;
 
         } else {
+            // No file given - operate on piped stdin instead
             if (stdin == null) {
                 return {
                     stdout: "",
@@ -83,6 +95,7 @@ registerCommand("sed", {
         let address = null;
         let command = script;
 
+        // Optional leading line-number address, e.g. "4s/.../.../ " -> address 4
         const addressMatch = command.match(/^(\d+)(.*)$/);
 
         if (addressMatch) {
@@ -90,6 +103,9 @@ registerCommand("sed", {
             command = addressMatch[2];
         }
 
+        // Parses "s<delim>pattern<delim>replacement<delim>flags" using
+        // whatever character immediately follows "s" as the delimiter
+        // (so both "s/a/b/" and "s#a#b#" work)
         const substitute = command.match(/^s(.)(.*?)\1(.*?)(?:\1([g]*))?$/);
                                         
         if (substitute) {
@@ -111,6 +127,8 @@ registerCommand("sed", {
                 };
             }
 
+            // Apply the substitution to every line, unless a line-number
+            // address restricts it to just one specific line
             lines = lines.map((line, index) => {
                 if (address !== null && address !== index + 1) {
                     return line;
@@ -121,6 +139,7 @@ registerCommand("sed", {
         }
 
         else if (command === "p") {
+            // "p" command: just print the matching line(s), ignoring -i/-n
             const output = [];
             lines.forEach((line, index) => {
                 if (address === null || address === index + 1) {
@@ -134,6 +153,7 @@ registerCommand("sed", {
             };
         }
         else {
+            // Anything else is a script form this minimal sed doesn't support
             return {
                 stdout: "",
                 stderr: `sed: unsupported script '${script}'`,
@@ -144,6 +164,7 @@ registerCommand("sed", {
         const output = lines.join("\n");
 
         if (inPlace && node) {
+            // -i: write the transformed content back into the file instead of printing it
             node.content = output;
             node.modified = Date.now();
             return {

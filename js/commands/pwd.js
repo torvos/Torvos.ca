@@ -1,3 +1,7 @@
+/**
+ * `pwd` command.
+ * Prints the current working directory.
+ */
 registerCommand("pwd", {
     name: "Print the current working directory.",
     synopsis : "pwd",
@@ -7,6 +11,7 @@ registerCommand("pwd", {
         "pwd"
     ],
     async execute(terminal, args, stdin) { 
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

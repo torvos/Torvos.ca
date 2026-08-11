@@ -1,3 +1,7 @@
+/**
+ * `whoami` command.
+ * Prints the current username.
+ */
 registerCommand("whoami", {
     name: "Display the current username.",
     synopsis : "whoami",
@@ -7,6 +11,7 @@ registerCommand("whoami", {
         "whoami"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

@@ -1,3 +1,10 @@
+/**
+ * `uniq` command.
+ * Collapses runs of consecutive identical lines (like real `uniq`, it
+ * only catches ADJACENT duplicates, not all duplicates in the file).
+ * Supports -c (prefix with occurrence count), -d (only show duplicated
+ * lines), -u (only show lines that appear exactly once).
+ */
 registerCommand("uniq", {
     name: "Filter adjacent duplicate lines.",
     synopsis : "uniq [OPTIONS] [INPUT_FILE]",
@@ -13,6 +20,7 @@ registerCommand("uniq", {
         "uniq -d access.log"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -67,6 +75,8 @@ registerCommand("uniq", {
             lines.pop();
         }
         const output = [];
+        // Scan through lines, grouping each run of identical consecutive
+        // lines together and jumping the index past the whole run
         for (let i = 0; i < lines.length; ) {
             const line = lines[i];
             let occurrences = 1;

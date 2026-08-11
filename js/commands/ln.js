@@ -1,3 +1,8 @@
+/**
+ * `ln` command.
+ * Creates a symbolic link (only -s is supported; plain hard links are
+ * rejected) pointing from `link` to `target`'s resolved absolute path.
+ */
 registerCommand("ln", {
     name: "Create hard or symbolic links.",
     synopsis : "ln [OPTIONS] TARGET LINK_NAME",
@@ -10,6 +15,7 @@ registerCommand("ln", {
         "ln -s /home/guest/resume.md /home/guest/bio.md"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -23,6 +29,7 @@ registerCommand("ln", {
         const link = parsed.args[1];
 
         if(!SymbolicLink){
+            // This simulated filesystem only supports symbolic links
             return {
                 stdout: "",
                 stderr: "ln: Hard links are not supported use -s",
@@ -72,6 +79,7 @@ registerCommand("ln", {
                 }
 
                 result.parent.modified = Date.now();
+                // Store the link pointing at the target's resolved absolute path
                 result.parent.children[result.name] = terminal.fs.createLink(targetPath);
             }
             else{

@@ -1,3 +1,19 @@
+/**
+ * Virtual filesystem module for the terminal.
+ *
+ * Wrapped in an IIFE so `FileSystem` (the actual tree of files/directories)
+ * stays private; only the public API (window.FileSystemAPI) and the
+ * window.FileDevices helpers for /dev/* files are exposed globally.
+ *
+ * Each node in the tree is a plain object with a `type` of "dir", "file",
+ * "symlink", or "device", plus standard Unix-like metadata (mode, owner,
+ * group, created/modified/accessed timestamps) and either `children`
+ * (for dirs), `content` (for files), or `target` (for symlinks).
+ *
+ * `FileSystem` below is the *default* seed tree the terminal starts with
+ * (or resets to) — it includes a starter /home/guest with a resume,
+ * contact info, a readme, and a hidden self-test shell script.
+ */
 (function() {
     let FileSystem = {
 
@@ -145,10 +161,21 @@ Developer - Application Development
     }
     };
 
+    // Snapshot of the default tree (as JSON) kept around so the filesystem
+    // can be restored to factory defaults (via `reset` or a corrupted save).
     const DEFAULT_FILESYSTEM_JSON = JSON.stringify(FileSystem);
 
+    /**
+     * Walks an absolute path (already normalized, no "." or "..") down from
+     * root, resolving through any symlinks encountered along the way.
+     * @param {string} path - Absolute path to resolve.
+     * @param {number} [depth=0] - Symlink-following recursion depth guard.
+     * @returns {{node: Object, path: string}|null} The resolved node and its
+     *   final (post-symlink) path, or null if any segment doesn't exist or
+     *   symlinks recurse too deep (possible loop).
+     */
     function resolvePath(path, depth = 0) {
-        if (depth > 20) {return null;}
+        if (depth > 20) {return null;} // guards against symlink loops
         const parts = path.replace("~", "").split(ROOT).filter(Boolean);
         let node = FileSystem[ROOT];
         let currentPath = ROOT;
@@ -179,7 +206,16 @@ Developer - Application Development
         };
     }
 
+    /**
+     * Resolves a possibly-relative, possibly "~"-prefixed path into a
+     * normalized absolute path (no "." or ".." segments), relative to `cwd`.
+     * @param {string} cwd - Current working directory (absolute path).
+     * @param {string} path - Path to resolve; may be relative, absolute,
+     *   ".", "~", or "~/...".
+     * @returns {string} Normalized absolute path.
+     */
     function resolveRelativePath(cwd, path) {
+        // Collapses "." and ".." segments and re-joins into an absolute path
         function normalizePath(path) {
             const parts = [];
             for (const part of path.split(ROOT)) {
@@ -201,6 +237,14 @@ Developer - Application Development
         return normalizePath(`${cwd}/${path}`);
     }
 
+    /**
+     * Finds the parent directory node of an absolute path, without
+     * resolving symlinks along the way for the final segment.
+     * @param {string} path - Absolute path.
+     * @returns {{parent: Object, name: string}|null} The parent directory
+     *   node and the final path segment's name, or null if any ancestor
+     *   directory doesn't exist.
+     */
     function getParentDirectory(path) {
         const parts = path.split(ROOT).filter(Boolean);
         if (parts.length === 0) {return null;}
@@ -214,8 +258,14 @@ Developer - Application Development
         return {parent,name};
     }
 
+    /**
+     * Converts a numeric permission string (e.g. "755") into the symbolic
+     * "rwxr-xr-x" form used for display/storage.
+     * @param {string} value - Numeric mode, e.g. "0755" or "755".
+     * @returns {string} 9-character symbolic permission string.
+     */
     function numericToMode(value) {
-        value = value.slice(-3);
+        value = value.slice(-3); // only the last 3 digits (owner/group/other) matter
         const map = {
             0: "---",
             1: "--x",
@@ -233,6 +283,15 @@ Developer - Application Development
         );
     }
 
+    /**
+     * Applies a chmod-style symbolic permission change (e.g. "u+x", "go-w",
+     * "a=rw") to an existing 9-character mode string, as used by the
+     * `chmod` command.
+     * @param {string} current - Existing 9-char symbolic mode string.
+     * @param {string} operation - Symbolic operation, matching /^([ugoa]+)([+-=])([rwx]+)$/.
+     * @returns {string} The updated 9-character mode string (unchanged if
+     *   `operation` doesn't match the expected pattern).
+     */
     function symbolicToMode(current, operation) {
         let chars = current.split("");
         const groups = {
@@ -290,6 +349,10 @@ Developer - Application Development
         return chars.join("");
     }
 
+    /**
+     * Formats a byte count into a human-readable size string with a
+     * K/M/G/T/P unit suffix (e.g. `ls -h`, `df`, `du`-style output).
+     */
     function formatSize(bytes) {
         if (bytes < 1024) {
             return `${bytes}B`;
@@ -305,6 +368,11 @@ Developer - Application Development
         return `${size.toFixed(1)}P`;
     }
 
+    /**
+     * Recursively computes the total size in bytes of a node: for a file,
+     * its UTF-8 encoded content length; for a directory, the sum of all
+     * descendant files.
+     */
     function getDirectorySize(node) {
         if (!node) {
             return 0;
@@ -319,6 +387,11 @@ Developer - Application Development
         return total;
     }
 
+    /**
+     * Returns a node's "size" for `ls -l`-style display purposes: byte
+     * length for files, or immediate child count for directories (not
+     * recursive, unlike getDirectorySize).
+     */
     function getSize(node) {
         if (node.type === "file") {
             return new TextEncoder().encode(node.content || "").length;
@@ -329,6 +402,7 @@ Developer - Application Development
         return 0;
     }
 
+    // Formats a timestamp for `ls -l`-style display (e.g. "Jul 01, 10:00").
     function formatDate(timestamp) {
         return new Date(timestamp).toLocaleString("en-CA", {
             month: "short",
@@ -339,6 +413,12 @@ Developer - Application Development
         });
     }
 
+    /**
+     * Computes the "link count" column shown by `ls -l`. Files always
+     * report 1; directories mimic Unix's convention of 2 (for "." and its
+     * own entry in the parent) plus one for each immediate subdirectory
+     * (each of which has a ".." pointing back).
+     */
     function getLinkCount(node) {
         if (node.type === "file") {
             return 1;
@@ -349,6 +429,11 @@ Developer - Application Development
         return 2 + subdirs;
     }
 
+    /**
+     * Formats a single filesystem entry as an `ls -l` long-format line:
+     * type+permissions, link count, owner, group, size, modified date, name
+     * (with a trailing "/" for dirs, or "-> target" for symlinks).
+     */
     function formatLongEntry(name, node) {
         const typeChar = node.type === "dir" ? "d" : node.type === "symlink" ? "l" : node.type === "device" ? "c" : "-";
         const mode = node.mode;
@@ -359,6 +444,7 @@ Developer - Application Development
         return `${typeChar}${mode} ${String(links).padStart(2)} ${owner.padEnd(8)} ${group.padEnd(8)} ${String(size).padStart(6)} ${modified} ${name}${node.type === "dir" ? "/" : ""}${node.type === "symlink" ? ` -> ${node.target}` : ""}`;
     }
 
+    // Creates a new symlink node pointing at `target` (used by `ln -s`).
     function createLink(target) {
         const now = Date.now();
         return {
@@ -372,6 +458,8 @@ Developer - Application Development
         };
     }
 
+    // Creates a new empty file node with default owner/permissions
+    // (used by `touch`, redirection, etc).
     function createFile(hidden = false) {
         const now = Date.now();
         return {
@@ -387,6 +475,8 @@ Developer - Application Development
         };
     }
 
+    // Creates a new empty directory node with default owner/permissions
+    // (used by `mkdir`).
     function createDirectory(hidden = false) {
         const now = Date.now();
         return {
@@ -402,6 +492,17 @@ Developer - Application Development
         };
     }
 
+    /**
+     * Expands a glob-style argument containing "*" and/or "?" wildcards
+     * into all matching absolute paths in the filesystem, walking segment
+     * by segment (so wildcards can appear in any path component, not just
+     * the final one, e.g. "/home/*\/*.txt").
+     * @param {string} arg - The raw argument, possibly containing wildcards.
+     * @param {string} [cwd="/"] - Current working directory for relative resolution.
+     * @returns {string[]} All matching paths (empty array if arg has no
+     *   wildcards -- callers should treat that case as "not a glob" rather
+     *   than "no matches").
+     */
     function expandWildcards(arg, cwd = "/") {
         if (!arg.includes("*") && !arg.includes("?")) {
             return [arg];
@@ -412,6 +513,8 @@ Developer - Application Development
             : resolveRelativePath(cwd, arg);
         const parts = pattern.split("/");
 
+        // Recursively walks the tree one path segment at a time, matching
+        // literal segments exactly and wildcard segments via regex.
         function walk(node, index, currentPath) {
             if (index >= parts.length) {
                 results.push(currentPath || "/");
@@ -466,8 +569,15 @@ Developer - Application Development
         return results;
     }
 
+    /**
+     * Public filesystem API exposed globally. All path-taking methods
+     * accept relative or absolute paths (resolved against `cwd`) unless
+     * noted otherwise. Commands (js/commands/*.js) interact with the
+     * virtual filesystem exclusively through this object.
+     */
     window.FileSystemAPI = {
 
+        // Returns the resolved node at `path` (following symlinks), or null if not found.
         get(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
             const result = resolvePath(fullPath);
@@ -479,6 +589,7 @@ Developer - Application Development
             return result.node;
         },    
 
+        // Normalizes `path` (relative or absolute) into an absolute path string.
         getFullPath(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
             if (!fullPath) {
@@ -487,11 +598,13 @@ Developer - Application Development
             return fullPath;
         },
 
+        // True if `path` resolves to somewhere under the read-only /bin directory.
         isInBin(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
             return fullPath.startsWith("/bin/");
         },
 
+        // Accepts either a path string or an already-resolved node.
         isDirectory(pathOrNode, cwd = "/") {
             const node = typeof pathOrNode === "string"
                 ? this.get(pathOrNode, cwd)
@@ -500,6 +613,7 @@ Developer - Application Development
             return node?.type === "dir";
         },
 
+        // Accepts either a path string or an already-resolved node.
         isFile(pathOrNode, cwd = "/") {
             const node = typeof pathOrNode === "string"
                 ? this.get(pathOrNode, cwd)
@@ -508,6 +622,9 @@ Developer - Application Development
             return node?.type === "file";
         },
 
+        // Accepts either a path string or an already-resolved node. Note:
+        // since get() already follows symlinks, this is mainly useful when
+        // passed an already-fetched raw node (e.g. from getNode()).
         isSymlink(pathOrNode, cwd = "/") {
             const node = typeof pathOrNode === "string"
                 ? this.get(pathOrNode, cwd)
@@ -516,11 +633,13 @@ Developer - Application Development
             return node?.type === "symlink";
         },
 
+        // Resolves `path` and returns the full {node, path} result (symlinks followed).
         resolve(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
             return resolvePath(fullPath);
         },
         
+        // Returns {parent, name} for the parent directory node/basename of `path`.
         getParent(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
             return getParentDirectory(fullPath);
@@ -574,6 +693,8 @@ Developer - Application Development
             return expandWildcards(arg, cwd);
         },
         
+        // Looks up a node by absolute (or cwd-relative-to-root) path WITHOUT
+        // following symlinks - returns the raw node as stored in the tree.
         getNode(path) {
             if (!path.startsWith(ROOT))
                 path = resolveRelativePath(ROOT, path);
@@ -590,14 +711,24 @@ Developer - Application Development
             return node;
         },
 
+        // Attaches `node` as a new top-level child of root under `name`
+        // (used by bootstrap.js to mount /bin and /dev).
         mount(name, node) {
             FileSystem[ROOT].children[name] = node;
         },
 
+        // Serializes the entire filesystem tree to a JSON string (for localStorage).
         serialize() {
             return JSON.stringify(FileSystem);
         },
 
+        /**
+         * Replaces the in-memory filesystem with the parsed contents of
+         * `json` (a previously-serialized tree). Falls back to the default
+         * filesystem if parsing fails.
+         * @returns {boolean} true if restore succeeded, false if the JSON
+         *   was invalid and defaults were used instead.
+         */
         restore(json) {
             try {
                 FileSystem = JSON.parse(json);
@@ -608,12 +739,19 @@ Developer - Application Development
             }
         },
 
+        // Discards all changes and restores the original seed filesystem (used by `reset`).
         resetToDefault() {
             FileSystem = JSON.parse(DEFAULT_FILESYSTEM_JSON);
         }
 
     };
 
+    /**
+     * Read/write handlers for the virtual device files under /dev,
+     * mirroring standard Unix device semantics: /dev/null discards writes
+     * and reads as empty, /dev/zero reads as null bytes, /dev/random reads
+     * as random alphanumeric characters. All writes succeed silently.
+     */
     window.FileDevices = {
         null: {
             read() {

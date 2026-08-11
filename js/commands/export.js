@@ -1,3 +1,10 @@
+/**
+ * `export` command.
+ * Sets or updates an environment variable given a "NAME=VALUE" argument.
+ * Note: bare "NAME=VALUE" (without the export keyword) is actually handled
+ * separately as a direct assignment in execute.js - this command exists for
+ * explicit `export NAME=VALUE` invocations.
+ */
 registerCommand("export", {
     name: "Set or update environment variables.",
     synopsis : "export NAME=VALUE",
@@ -9,6 +16,7 @@ registerCommand("export", {
         "NAME=world",
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -29,6 +37,7 @@ registerCommand("export", {
         const eq = assignment.indexOf("=");
 
         if (eq === -1 || eq === 0) {
+            // No "=" found, or it's the very first character (empty variable name)
             return {
                 stdout: "",
                 stderr: "export: usage: export NAME=VALUE",

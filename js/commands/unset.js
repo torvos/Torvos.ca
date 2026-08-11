@@ -1,3 +1,7 @@
+/**
+ * `unset` command.
+ * Removes a variable from the shell's environment (terminal.env) by name.
+ */
 registerCommand("unset", {
     name: "Remove shell variables.",
     synopsis : "unset VARIABLE",
@@ -8,6 +12,7 @@ registerCommand("unset", {
         "unset HOST"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -25,6 +30,7 @@ registerCommand("unset", {
             };
         }
         else{
+            // No such environment variable currently set
             return {
                 stdout: "",
                 stderr: "env: variable not set",

@@ -1,3 +1,7 @@
+/**
+ * `ps` command.
+ * Simulated process listing, disabled for the guest account.
+ */
 registerCommand("ps", {
     name: "Display running processes.",
     synopsis : "ps",
@@ -7,6 +11,7 @@ registerCommand("ps", {
         "ps"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

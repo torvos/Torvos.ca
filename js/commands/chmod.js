@@ -1,3 +1,10 @@
+/**
+ * `chmod` command.
+ * Changes a file/directory's permission mode, accepting either a numeric
+ * mode (e.g. "755") or a symbolic mode (e.g. "u+x"). With -R, recurses
+ * into subdirectories. Only files owned by the guest user are actually
+ * modifiable (mirrors real Unix permission ownership rules).
+ */
 registerCommand("chmod", {
     name: "Change file or directory permissions.",
     synopsis : "chmod [OPTIONS] MODE FILE...",
@@ -11,6 +18,7 @@ registerCommand("chmod", {
         "chmod -R 755 /home/guest"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -35,6 +43,8 @@ registerCommand("chmod", {
         let funcStderr = "";
         let funcExitCode = 0;
 
+        // Applies `mode` to a single node, detecting numeric ("755") vs
+        // symbolic ("u+x") syntax and delegating to the matching fs helper.
         function applyMode(node) {
             if (!node.mode) {
                 node.mode = "---------";
@@ -48,6 +58,8 @@ registerCommand("chmod", {
             node.modified = Date.now();
         }
 
+        // Applies the mode change to a node (if the guest user owns it),
+        // then recurses into children when -R was passed.
         function chmodNode(wrapper) {
             const node = wrapper.node;
             const fileOwner = node.owner;
@@ -63,6 +75,8 @@ registerCommand("chmod", {
             }
         }
 
+        // Process each target path, collecting per-path errors rather than
+        // bailing out entirely on the first failure
         for (const path of paths) {
             const node = terminal.fs.get(path, terminal.cwd);
             if (!node) {

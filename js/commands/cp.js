@@ -1,3 +1,10 @@
+/**
+ * `cp` command.
+ * Deep-clones the source file/directory node (via structuredClone, which
+ * naturally handles directories recursively since children is a nested
+ * plain object) and attaches the clone at the destination, refreshing its
+ * timestamps. Refuses to overwrite an existing destination.
+ */
 registerCommand("cp", {
     name: "Copy files and directories.",
     synopsis : "cp SOURCE... DESTINATION",
@@ -9,6 +16,7 @@ registerCommand("cp", {
         "cp -R Documents Archive"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -47,6 +55,7 @@ registerCommand("cp", {
         }
 
         if (dest.parent.children[dest.name]) {
+            // Destination already exists - refuse rather than silently overwrite
             return {
                 stdout: "",
                 stderr: `cp: ${destination}: already exists`,
@@ -57,6 +66,8 @@ registerCommand("cp", {
         src.parent.modified = Date.now();
         dest.parent.modified = Date.now();
 
+        // Deep clone so the copy is fully independent of the original
+        // (structuredClone recurses through `children` for directories)
         const copy = structuredClone(src.parent.children[src.name]);
         const now = Date.now();
         copy.created = now;

@@ -1,3 +1,8 @@
+/**
+ * `rmdir` command.
+ * Removes a directory, but only if it's completely empty - refuses (with
+ * an error) if it still has children, is a file, or doesn't exist.
+ */
 registerCommand("rmdir", {
     name: "Remove empty directories.",
     synopsis : "rmdir DIRECTORY_NAME ",
@@ -8,6 +13,7 @@ registerCommand("rmdir", {
         "rmdir Documents"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -33,6 +39,7 @@ registerCommand("rmdir", {
         }
         if (node && terminal.fs.isDirectory(node)){
             if (Object.keys(node.children).length > 0) {
+                // Not empty - refuse to remove (rmdir's core safety behavior)
                 return {
                     stdout: "",
                     stderr: `rmdir: failed to remove ${target}: Directory not empty`,
@@ -60,6 +67,7 @@ registerCommand("rmdir", {
             }
         }
         else if (terminal.fs.isFile(node)){
+            // Point the user toward `rm` for files
             return {
                 stdout: "",
                 stderr: `rmdir: ${target} is a file please use rm`,

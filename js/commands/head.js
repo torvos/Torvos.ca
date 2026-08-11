@@ -1,3 +1,8 @@
+/**
+ * `head` command.
+ * Prints just the first N lines (default 10, or set via -n) of a file
+ * or piped stdin.
+ */
 registerCommand("head", {
     name: "Display the first lines of a file.",
     synopsis : "head [OPTIONS] FILE...",
@@ -10,6 +15,7 @@ registerCommand("head", {
         "head -n 20 file.txt"
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -25,6 +31,7 @@ registerCommand("head", {
         let content = "";
         
         if (!target) {
+            // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
                     stdout: "",

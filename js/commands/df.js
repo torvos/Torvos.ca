@@ -1,3 +1,7 @@
+/**
+ * `df` command.
+ * Simulated disk-usage report, disabled for the guest account.
+ */
 registerCommand("df", {
     name: "Report filesystem disk usage.",
     synopsis : "df",
@@ -7,6 +11,7 @@ registerCommand("df", {
         "df"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

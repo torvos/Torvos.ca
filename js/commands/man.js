@@ -1,3 +1,9 @@
+/**
+ * `man` command.
+ * Looks up another command's registered metadata object (name, synopsis,
+ * description, options, examples) and formats it into a traditional
+ * man-page-style layout.
+ */
 registerCommand("man", {
     name: "Display the manual page for a command.",
     synopsis: "man COMMAND",
@@ -10,6 +16,7 @@ registerCommand("man", {
     ],
 
     async execute(terminal, args) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -33,6 +40,7 @@ registerCommand("man", {
                 exitCode: 1
             };
         }
+        // Build the man-page sections from the command's metadata fields
         const lines = [];
         lines.push("SUMMARY");
         lines.push(`    ${command.name}`);

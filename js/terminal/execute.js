@@ -1,21 +1,47 @@
+/**
+ * Command execution pipeline for TerminalEngine. This is where a fully
+ * parsed/expanded command line actually gets run: alias/brace expansion,
+ * `;`-separated command sequencing, variable assignment (`X=value`),
+ * `|` piping between commands, wildcard expansion, I/O redirection
+ * (`>`, `>>`, `<`, `2>`, `2>>`), and finally dispatching to the matching
+ * entry in window.Commands (or a script file via `sh`, or a
+ * "command not found" error).
+ */
 Object.assign(TerminalEngine.prototype, {
 
+    /**
+     * Top-level entry point: takes a raw line of shell input the user
+     * pressed Enter on, expands it, and executes each resulting command
+     * (writing output/errors directly to the terminal as it goes).
+     * @param {string} input - Raw command line text.
+     */
     async execute(input) {
         this.lastExpansionEmpty = false;
+
+        // Expand aliases (e.g. "ll" -> "ls -la") and brace patterns
+        // (e.g. "echo {a,b}" -> two commands to run: "echo a", "echo b")
         input = this.expandAlias(input);
         const expandedCommands = this.expandBraces(input);
+
         for (const expandedInput of expandedCommands) {
+            // Split on unquoted ";" to get each sequential command/group
             const commandGroups = this.splitTopLevel(expandedInput, ";")
                 .map(cmd => cmd.trim())
                 .filter(Boolean);
 
             for (const rawGroup of commandGroups) {
+                // Expand $VAR, $?, and $((arithmetic)) references, then resolve
+                // any $(command substitution) by actually running the inner command
                 let group = this.expandArithmetic(this.expandVariables(rawGroup));
                 group = await this.expandCommandSubstitution(group);
+
+                // Split on unquoted "|" to build the pipeline stages
                 const pipeline = this.splitTopLevel(group, "|")
                     .map(cmd => cmd.trim())
                     .filter(Boolean);
 
+                // A lone "NAME=value" (no pipe) is treated as an environment
+                // variable assignment rather than a command to run.
                 const assignMatch = pipeline.length === 1 &&
                     pipeline[0].match(/^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/);
 
@@ -34,14 +60,18 @@ Object.assign(TerminalEngine.prototype, {
                     }
                     this.env[varName] = varValue;
                     this.lastExitCode = 0;
-                    continue;
+                    continue; // nothing further to execute for this group
                 }
 
-                let stdin = "";
+                let stdin = ""; // piped input carried between pipeline stages
 
                 for (let index = 0; index < pipeline.length; index++) {
                     const parsed = this.parseCommand(pipeline[index]);
                     const cmd = parsed.cmd;
+
+                    // Expand any wildcard args (*, ?) against the filesystem;
+                    // args with no matches are passed through literally, but
+                    // flagged via lastExpansionEmpty if they looked like a glob.
                     let args = [];
                     for (const arg of parsed.args) {
                         const expanded = this.fs.expandWildcards(arg, this.cwd);
@@ -55,6 +85,8 @@ Object.assign(TerminalEngine.prototype, {
                         }
                     }                    
                     const redirects = parsed.redirects;
+
+                    // Input redirection (`< file`) - read the file's content as stdin
                     if (redirects.operator === "<") {
                         const node = this.fs.get(redirects.target, this.cwd);
                         if (!node || !this.fs.isFile(node)) {
@@ -77,6 +109,7 @@ Object.assign(TerminalEngine.prototype, {
                     const command = window.Commands?.[cmd];
 
                     if (command?.execute) {
+                        // Registered built-in command - run its execute() handler
                         try {
                             result = await command.execute(
                                 this,
@@ -92,6 +125,8 @@ Object.assign(TerminalEngine.prototype, {
                         }
                     }
                     else if (cmd.includes("/")) {
+                        // Not a built-in, but looks like a path (e.g. "./script.sh")
+                        // - try to run it as a shell script via the `sh` command
                         try {
                             result = await window.Commands.sh.runScript(
                                 this,
@@ -108,6 +143,7 @@ Object.assign(TerminalEngine.prototype, {
                         }
                     }
                     else {
+                        // Not a known command and not a path -> classic shell error
                         result = {
                             stdout:"",
                             stderr:`command not found: ${cmd}`,
@@ -115,6 +151,8 @@ Object.assign(TerminalEngine.prototype, {
                         };
                     }
 
+                    // Normalize a plain string return value into the standard
+                    // {stdout, stderr, exitCode} result shape
                     if (typeof result === "string") {
                         result = {
                             stdout: result,
@@ -129,6 +167,7 @@ Object.assign(TerminalEngine.prototype, {
                     this.lastExitCode = result.exitCode;
                     let redirectreturn = "";
 
+                    // Apply output redirection, if any, writing stdout/stderr to a file instead
                     switch (redirects.operator) {
                         case ">":
                             redirectreturn = this.writeRedirect(
@@ -179,6 +218,8 @@ Object.assign(TerminalEngine.prototype, {
                     this.lastExitCode = result.exitCode;
 
                     if (result.exitCode !== 0) {
+                        // Non-zero exit: print stderr (line by line, with a small
+                        // delay for effect) and stop the rest of the pipeline.
                         if (result.stderr) {
                             const lines = result.stderr.split(/\r?\n/);
                             for (const line of lines) {
@@ -194,8 +235,11 @@ Object.assign(TerminalEngine.prototype, {
                         break;
                     }
 
+                    // Successful stage - its stdout becomes stdin for the next pipeline stage
                     stdin = result.stdout;
 
+                    // Only the LAST stage's stdout is actually printed to the terminal
+                    // (earlier stages' output is consumed by the next stage in the pipe)
                     if (index === pipeline.length - 1) {
                         if (result.stdout) {
                             const lines =
@@ -271,12 +315,22 @@ Object.assign(TerminalEngine.prototype, {
         return result;
     },
 
+    /**
+     * Writes (or appends) text to a file for output redirection (>, >>, 2>, 2>>).
+     * Creates the target file if it doesn't exist yet (as long as its parent
+     * directory exists). Refuses to write into /bin.
+     * @param {string} path - Target file path (relative or absolute).
+     * @param {string} text - Content to write/append.
+     * @param {boolean} [append=false] - Append instead of overwrite.
+     * @returns {true|string} true on success, or an error message string on failure.
+     */
     writeRedirect(path, text, append = false) {
         if(this.fs.isInBin(path, this.cwd)){
             return `Cannot create files in /bin`;
         }             
         let node = this.fs.get(path, this.cwd);
         if (!node) {
+            // Target doesn't exist yet - try to create it in its parent directory
             const parent = this.fs.getParent(path, this.cwd);
             if (!parent || !this.fs.isDirectory(parent.parent)) {
                 return `Invalid parent directory`;
@@ -303,6 +357,13 @@ Object.assign(TerminalEngine.prototype, {
         return true;
     },
 
+    /**
+     * Changes the current working directory, validating that the resolved
+     * path exists and is a directory before committing the change.
+     * @param {string} path - Target path (relative or absolute).
+     * @returns {string|undefined} An error message string on failure, or
+     *   undefined on success (and updates this.cwd + re-renders the prompt).
+     */
     changeDirectory(path) {
         const resolved = this.fs.getFullPath(path, this.cwd);
         const node = this.fs.getNode(resolved);

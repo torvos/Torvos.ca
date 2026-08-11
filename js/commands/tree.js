@@ -1,3 +1,9 @@
+/**
+ * `tree` command.
+ * Recursively renders a directory's contents as an ASCII-art tree
+ * (├──/└── connectors), with optional filtering to directories-only (-d),
+ * inclusion of hidden entries (-a), and a max recursion depth (-L).
+ */
 registerCommand("tree", {
     name: "Display the directory hierarchy.",
     synopsis : "tree [OPTIONS] [DIRECTORY]",
@@ -13,6 +19,7 @@ registerCommand("tree", {
         "tree -a ~"
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -30,6 +37,8 @@ registerCommand("tree", {
         const target = parsed.args[0] || terminal.cwd;
         const root = terminal.fs.get(target, terminal.cwd);
 
+        // Recursively builds the tree text for `node`, using `prefix` to
+        // draw the connecting lines/indentation for nested levels.
         function walk(node, prefix = "", depth = 1) {
             let output = "";
             if (!node.children) return output;
@@ -46,10 +55,13 @@ registerCommand("tree", {
             keys.forEach((key, index) => {
                 const child = node.children[key];
                 const isLast = index === keys.length - 1;
+                // Last entry in a directory uses "└──", others use "├──"
                 const connector = isLast ? "└── " : "├── ";
                 output += `${prefix}${connector}${key}${terminal.fs.isDirectory(child) ? ROOT : ""}\n`;
 
                 if (terminal.fs.isDirectory(child) && depth < maxDepth) {
+                    // Continuation prefix: blank space under the last entry,
+                    // a vertical bar under any earlier entry
                     const nextPrefix = prefix + (isLast ? "    " : "│   ");
                     output += walk(child, nextPrefix, depth + 1);
                 }

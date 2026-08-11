@@ -1,3 +1,9 @@
+/**
+ * `env` command.
+ * With no arguments, lists all environment variables as KEY=value pairs.
+ * With one argument, prints just that variable's value (also used by
+ * the test suite in filesystem.js's default .script.sh to inspect state).
+ */
 registerCommand("env", {
     name: "Display environment variables.",
     synopsis : "env",
@@ -7,6 +13,7 @@ registerCommand("env", {
         "env"
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -17,6 +24,7 @@ registerCommand("env", {
         const target = args[0];
 
         if (!target) {
+            // No specific variable requested - dump everything as KEY=value lines
             const listing = Object.entries(terminal.env)
                 .map(([key, value]) => `${key}=${value}`)
                 .join("\n");

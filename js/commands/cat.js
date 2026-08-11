@@ -1,3 +1,8 @@
+/**
+ * `cat` command.
+ * Prints a file's full contents (or piped stdin, if no file given) to
+ * stdout, optionally prefixing each line with a line number (-n).
+ */
 registerCommand("cat", {
     name: "Display the contents of one or more files.",
     synopsis : "cat [OPTIONS] FILE...",
@@ -11,6 +16,7 @@ registerCommand("cat", {
         "cat part1.txt part2.txt"
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -24,6 +30,7 @@ registerCommand("cat", {
         let content = "";
 
         if (!target) {
+            // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
                     stdout: "",
@@ -63,6 +70,7 @@ registerCommand("cat", {
         }
 
         if (numberLines){        
+            // Prefix each line with its (1-based) line number
             let lineNumber = 1;
             let returnContent = "";
             let contents = content.split(/\r?\n/);

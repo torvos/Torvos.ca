@@ -1,3 +1,7 @@
+/**
+ * `sudo` command.
+ * Simulated privilege escalation; always denied for the guest account.
+ */
 registerCommand("sudo", {
     name: "Execute a command with elevated privileges.",
     synopsis : "sudo COMMAND",
@@ -7,6 +11,7 @@ registerCommand("sudo", {
         "sudo"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

@@ -1,3 +1,7 @@
+/**
+ * `ping` command.
+ * Simulated network ping, disabled for the guest account.
+ */
 registerCommand("ping", {
     name: "Test network connectivity.",
     synopsis : "ping \"IP ADDRESS\"",
@@ -8,6 +12,7 @@ registerCommand("ping", {
         "ping 1.2.3.4"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

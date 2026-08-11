@@ -1,3 +1,7 @@
+/**
+ * `unalias` command.
+ * Removes a previously defined alias from terminal.aliases by name.
+ */
 registerCommand("unalias", {
     name: "Remove command aliases.",
     synopsis : "alias NAME",
@@ -8,6 +12,7 @@ registerCommand("unalias", {
         "unalias cd.."
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -25,6 +30,7 @@ registerCommand("unalias", {
             };
         }
         else{
+            // No alias registered under that name
             return {
                 stdout: "",
                 stderr: "unalias: alias doesn't exsist",

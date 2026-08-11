@@ -1,3 +1,7 @@
+/**
+ * `true` command.
+ * Always exits with a zero (success) status (standard Unix `true`), useful in scripts/tests.
+ */
 registerCommand("true", {
     name: "Do nothing, successfully.",
     synopsis : "true",
@@ -8,6 +12,7 @@ registerCommand("true", {
         "while true; do echo tick; break; done"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

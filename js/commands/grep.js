@@ -1,3 +1,9 @@
+/**
+ * `grep` command.
+ * Filters lines from stdin (piped input) or a named file, keeping only
+ * lines that contain the given literal pattern (substring match, not a
+ * full regex). Exits non-zero if no lines matched, like real grep.
+ */
 registerCommand("grep", {
     name: "Search files for matching text.",
     synopsis : "grep [options] 'pattern' filename",
@@ -8,6 +14,7 @@ registerCommand("grep", {
         "cat text.txt | grep \"error\""
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -27,6 +34,7 @@ registerCommand("grep", {
             };
         }
 
+        // Prefer piped stdin; otherwise read the named file argument
         if (stdin.length != 0) {
             content = stdin;
         }

@@ -1,3 +1,7 @@
+/**
+ * `clear` command.
+ * Clears the terminal screen (actual clearing happens where this result is consumed; here it just signals success).
+ */
 registerCommand("clear", {
     name: "Clear the terminal screen.",
     synopsis : "clear",
@@ -7,6 +11,7 @@ registerCommand("clear", {
         "clear"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

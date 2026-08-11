@@ -1,3 +1,8 @@
+/**
+ * `help` command.
+ * Prints a static, formatted ASCII-art cheat sheet of common commands
+ * (unlike `man`, this isn't per-command help - it's a fixed getting-started blurb).
+ */
 registerCommand("help", {
     name: "Display basic commands summary.",
     synopsis : "help",
@@ -7,6 +12,7 @@ registerCommand("help", {
         "help"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

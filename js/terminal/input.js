@@ -1,7 +1,22 @@
+/**
+ * Keyboard/pointer input handling for TerminalEngine: binds all DOM event
+ * listeners (focus management, key handling for normal input/pager/editor
+ * shortcuts, paste handling), plus the Enter-key command dispatch, command
+ * history navigation, and Tab autocompletion.
+ */
 Object.assign(TerminalEngine.prototype, {
 
+    /**
+     * Sets up all event listeners used by the terminal: viewport resize
+     * handling (for mobile keyboards), click-to-focus behavior, the main
+     * keydown handler for the hidden input field (which drives typing,
+     * history, pager, and readline-style shortcuts), and paste handling.
+     * Called once from the constructor.
+     */
     bindEvents() {
 
+        // Keeps a CSS variable in sync with the visual viewport height so
+        // layout can react correctly when mobile on-screen keyboards appear.
         function updateVisualViewportHeight() {
             if (window.visualViewport) {
                 const layoutHeight = window.visualViewport.height;
@@ -16,10 +31,14 @@ Object.assign(TerminalEngine.prototype, {
 
         window.addEventListener('DOMContentLoaded', updateVisualViewportHeight);
 
+        // Recompute how many lines fit on screen (for the pager) on window resize
         window.addEventListener("resize", () => {
             this.pager.pageSize = this.getPageSize();
         });
 
+        // Clicking anywhere in the output/document/page should refocus whichever
+        // input surface is currently active (the hidden text input for normal
+        // shell use, or the editor textarea when the full-screen editor is open).
         output.addEventListener("click", () => {
             if (this.inputMode === INPUT_NORMAL) {            
                 this.hiddenInput.focus();
@@ -47,42 +66,53 @@ Object.assign(TerminalEngine.prototype, {
             }
         });
         
+        // On mobile, when the on-screen keyboard opens/closes the visual
+        // viewport resizes; keep the page scrolled to the bottom so input stays visible.
         if (window.visualViewport) {
             visualViewport.addEventListener("resize", () => {
                 window.scrollTo(0, document.body.scrollHeight);
             });
         }
 
+        // Keydown handler used while the full-screen editor is active
+        // (wired up separately in editor.js when the editor opens).
         this.editorKeyHandler = (event) => {
 
+            // Ctrl+S: save the file being edited
             if (event.ctrlKey && event.key.toLowerCase() === "s") {
                 event.preventDefault();
                 this.saveEditor();
                 return;
             }
 
+            // Ctrl+X: save and exit the editor
             if (event.ctrlKey && event.key.toLowerCase() === "x") {
                 event.preventDefault();
                 this.closeEditor(true);
                 return;
             }
 
+            // Escape: exit the editor without saving
             if (event.key === "Escape") {
                 event.preventDefault();
                 this.closeEditor(false);
                 return;
             }
 
+            // Any other keystroke is considered a content modification
             this.editor.modified = true;
         };
 
+        // Main keydown handler for normal shell input (also handles pager keys)
         this.hiddenInput.addEventListener("keydown", (e) => {
 
+            // While the pager ("--More--") is showing, only space/enter (advance)
+            // and 'q' (quit paging) are meaningful; swallow everything else.
             if (this.pager.active) {
                 e.preventDefault();
 
                 if (e.key === " " || e.key === "Enter") {
-                    this.output.lastChild.remove();
+                    this.output.lastChild.remove(); // remove the "--More--" line
                     this.pager.active = false;
                     this.pager.linesPrinted = 0;
                     this.pager.resolver();
@@ -92,41 +122,42 @@ Object.assign(TerminalEngine.prototype, {
                     this.output.lastChild.remove();
                     this.pager.active = false;
                     this.pager.linesPrinted = 0;
-                    this.pager.resolver(false);
+                    this.pager.resolver(false); // signal "quit early" to the pager consumer
                 }
                 return;
             }
 
+            // Readline-style Ctrl+<key> shortcuts (Ctrl+C, Ctrl+L, Ctrl+A, etc.)
             if (e.ctrlKey && !e.metaKey && !e.altKey) {
                 switch (e.key.toLowerCase()) {
-                    case "c":
+                    case "c": // Ctrl+C: cancel the current input line
                         e.preventDefault();
                         this.cancelCommand();
                         this.renderInput();
                         return;
 
-                    case "l":
+                    case "l": // Ctrl+L: clear the screen
                         e.preventDefault();
                         this.clearScreen();
                         this.renderInput();
                         return;
 
-                    case "v":
+                    case "v": // Ctrl+V: let the browser's native paste event handle it
                         return;
 
-                    case "a":
+                    case "a": // Ctrl+A: move cursor to start of line
                         e.preventDefault();
                         this.cursorPos = 0;
                         this.renderInput();
                         return;
 
-                    case "e":
+                    case "e": // Ctrl+E: move cursor to end of line
                         e.preventDefault();
                         this.cursorPos = this.currentInput.length;
                         this.renderInput();
                         return;
 
-                    case "u":
+                    case "u": // Ctrl+U: delete from cursor to start of line
                         e.preventDefault();
                         this.currentInput = this.currentInput.slice(this.cursorPos);
                         this.cursorPos = 0;
@@ -134,17 +165,18 @@ Object.assign(TerminalEngine.prototype, {
                         this.renderInput();
                         return;
 
-                    case "k":
+                    case "k": // Ctrl+K: delete from cursor to end of line
                         e.preventDefault();
                         this.currentInput = this.currentInput.slice(0, this.cursorPos);
                         this.hiddenInput.value = this.currentInput;
                         this.renderInput();
                         return;
 
-                    case "w": {
+                    case "w": { // Ctrl+W: delete the word immediately before the cursor
                         e.preventDefault();
                         const before = this.currentInput.slice(0, this.cursorPos);
                         const after = this.currentInput.slice(this.cursorPos);
+                        // Strip trailing whitespace, then strip the trailing "word"
                         const trimmedBefore = before.replace(/\s+$/, "").replace(/\S+$/, "");
                         this.currentInput = trimmedBefore + after;
                         this.cursorPos = trimmedBefore.length;
@@ -154,6 +186,7 @@ Object.assign(TerminalEngine.prototype, {
                     }
 
                     default:
+                        // Swallow any other Ctrl-combo so it doesn't get typed literally
                         e.preventDefault();
                         return;
                 }
@@ -196,7 +229,12 @@ Object.assign(TerminalEngine.prototype, {
                     break;
 
                 default:
+                    // While waiting for a password, ignore printable keys entirely
+                    // (password input isn't echoed/stored by this handler).
                     if (this.inputMode === INPUT_WAIT_FOR_PASSWORD){break;}
+
+                    // Any single printable character (no modifier keys) gets
+                    // inserted into currentInput at the cursor position.
                     if (e.key.length === 1 &&
                         !e.metaKey &&
                         !e.altKey &&
@@ -212,6 +250,9 @@ Object.assign(TerminalEngine.prototype, {
             this.renderInput();
         });
 
+        // Handles pasting text into the shell: strips newlines (collapsing
+        // multi-line paste into a single line, like a real terminal would
+        // otherwise try to "run" each line) and inserts it at the cursor.
         this.hiddenInput.addEventListener("paste", (e) => {
             if (this.inputMode !== INPUT_NORMAL || this.pager.active) {
                 return;
@@ -232,22 +273,30 @@ Object.assign(TerminalEngine.prototype, {
         });
     },
 
+    /**
+     * Handles the Enter key across all input modes: executing a shell
+     * command in normal mode, or advancing the username/password login
+     * prompt flow. Also persists settings and re-focuses input afterward.
+     */
     async handleEnter() {
         const input = this.currentInput.trim();
 
         switch (this.inputMode) {
             case INPUT_NORMAL:
                 if (!input){
+                    // Empty line: just print a fresh prompt, nothing to run
                     this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$`);
                     document.getElementById("scroll-anchor").scrollIntoView({block: "end"});
                     return;
                 }
                 if (input === "reset"){
+                    // Special-cased hard reset: wipe saved state and reload the page
                     localStorage.removeItem("terminalSettings");
                     localStorage.removeItem("FileSystem");
                     location.reload();
                     return;
                 } 
+                // Record the command in history (capped to MAX_HISTORY entries)
                 this.history.push(input);
                 const MAX_HISTORY = 1000;
                 if (this.history.length > MAX_HISTORY) {
@@ -256,6 +305,7 @@ Object.assign(TerminalEngine.prototype, {
                 this.historyIndex = this.history.length;
                 this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$ ${input}`);
     
+                // Hide the live input line while the command runs, then restore it
                 document.getElementById("input-line").classList.add("hidden");
                 try {
                     await this.execute(input);
@@ -267,12 +317,14 @@ Object.assign(TerminalEngine.prototype, {
                 this.renderInput();
                 break;
             case INPUT_WAIT_FOR_USERNAME:
+                // Username entered (value itself isn't checked); move on to password prompt
                 this.currentInput = "";
                 this.renderInput();
                 this.inputMode = INPUT_WAIT_FOR_PASSWORD;
                 this.promptEl.textContent = "password:";
                 break;
             case INPUT_WAIT_FOR_PASSWORD:
+                // This demo login flow always fails after a password attempt
                 this.write("Login incorrect")
                 this.currentInput = "";
                 this.renderInput();
@@ -286,12 +338,14 @@ Object.assign(TerminalEngine.prototype, {
         this.scrollToBottom();
     },
 
+    // Handles Ctrl+C: prints "^C" and discards the current input line.
     cancelCommand() {
         this.write("^C");
         this.currentInput = "";
         this.renderInput();
     },
 
+    // Moves backward (older) through command history, like pressing Up in a real shell.
     historyUp() {
         if (this.history.length === 0) return;
         if (this.historyIndex > 0) {
@@ -303,6 +357,7 @@ Object.assign(TerminalEngine.prototype, {
         this.renderInput();
     },
 
+    // Moves forward (newer) through command history; past the newest entry clears the line.
     historyDown() {
         if (this.history.length === 0) return;
         if (this.historyIndex < this.history.length - 1) {
@@ -317,15 +372,24 @@ Object.assign(TerminalEngine.prototype, {
         this.renderInput();
     },
 
+    /**
+     * Handles Tab-key autocompletion. If the current word being typed looks
+     * like a path (contains "/"), completes it against matching filesystem
+     * entries; if it's the first word, completes against known command
+     * names; otherwise completes the last word as a path relative to cwd.
+     * Only autocompletes when there is exactly one unambiguous match.
+     */
     autocomplete() {
         if (!this.currentInput.trim()) return;
 
         const isAtEndOfWord = !this.currentInput.endsWith(" ");
         const parts = this.currentInput.trimStart().split(/\s+/);
         if (parts.length === 1) {
+            // Only one word typed so far - could be a command name or a path
             const partial = parts[0];
 
             if (partial.includes(ROOT)) {
+                // Looks like a path (contains "/") - complete against filesystem entries
                 const matches = this.findPathMatches(partial);
 
                 if (matches.length === 1) {
@@ -337,6 +401,7 @@ Object.assign(TerminalEngine.prototype, {
                 return;
             }
 
+            // Otherwise complete against registered command names
             const commands = Object.keys(window.Commands);
             const match = commands.find(c => c.startsWith(partial));
 
@@ -349,6 +414,7 @@ Object.assign(TerminalEngine.prototype, {
             return;
         }
 
+        // Multiple words typed: complete the final (in-progress) word as a path argument
         const partial = parts.pop();
         const matches = this.findPathMatches(partial);
 
@@ -360,13 +426,23 @@ Object.assign(TerminalEngine.prototype, {
         this.cursorPos = this.currentInput.length;
     },
 
+    /**
+     * Finds filesystem entries under the appropriate directory whose name
+     * starts with the given partial path's final segment, used for path
+     * autocompletion. Handles both absolute-ish partials containing "/"
+     * and bare names relative to the current working directory.
+     * @param {string} partial - The partial path typed by the user so far.
+     * @returns {string[]} Matching completions, each with a trailing "/"
+     *   if the match is itself a directory.
+     */
     findPathMatches(partial) {
 
         let directory;
         let prefix;
 
         if (partial.includes(ROOT)) {
-
+            // Split off everything after the last "/" as the prefix to match,
+            // and resolve the directory portion before it.
             const split = partial.split(ROOT);
             prefix = split.pop();
 
@@ -379,6 +455,7 @@ Object.assign(TerminalEngine.prototype, {
             }
 
         } else {
+            // No "/" in the partial - match against entries in the current directory
             directory = this.cwd;
             prefix = partial;
         }
@@ -394,6 +471,8 @@ Object.assign(TerminalEngine.prototype, {
             .map(name => {
                 const child = node.children[name];
 
+                // Preserve the directory portion of the original partial as a prefix
+                // on each completion result.
                 const base = partial.includes(ROOT)
                     ? partial.substring(0, partial.lastIndexOf(ROOT) + 1)
                     : "";

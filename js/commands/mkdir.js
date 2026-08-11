@@ -1,3 +1,9 @@
+/**
+ * `mkdir` command.
+ * Creates a new directory. Without -p, requires the immediate parent to
+ * already exist and fails if the target already exists. With -p, creates
+ * every missing directory along the path (like `mkdir -p a/b/c`).
+ */
 registerCommand("mkdir", {
     name: "Create directories.",
     synopsis : "mkdir [OPTIONS] DIRECTORY",
@@ -10,6 +16,7 @@ registerCommand("mkdir", {
         "mkdir -p /test1/test2/test3"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -32,6 +39,8 @@ registerCommand("mkdir", {
 
         const path = terminal.fs.getFullPath(target, terminal.cwd);
 
+        // Walks the path segment by segment, creating any directory that
+        // doesn't already exist yet (used for `mkdir -p`).
         function mkdirRecursive(path) {
             const parts = path.split(ROOT).filter(Boolean);
             let currentPath = "";
@@ -43,6 +52,7 @@ registerCommand("mkdir", {
 
                 if (node) {
                     if (!terminal.fs.isDirectory(node)) {
+                        // A path segment already exists but isn't a directory - can't proceed
                         return {
                             stdout: "",
                             stderr: `mkdir: ${part}: Not a directory`,
@@ -50,7 +60,7 @@ registerCommand("mkdir", {
                         };        
 
                     }
-                    continue;
+                    continue; // already a directory - move on to the next segment
                 }
 
                 const result = terminal.fs.getParent(currentPath, terminal.cwd);
@@ -80,6 +90,7 @@ registerCommand("mkdir", {
         const node = terminal.fs.get(path, terminal.cwd);
 
         if (node) {
+            // Without -p, an existing target is an error
             return {
                 stdout: "",
                 stderr: `mkdir: directory ${target} already exists`,
@@ -90,6 +101,7 @@ registerCommand("mkdir", {
         const result = terminal.fs.getParent(path, terminal.cwd);
 
         if (!result) {
+            // Immediate parent directory doesn't exist and -p wasn't given
             return {
                 stdout: "",
                 stderr: `mkdir: cannot create directory '${target}': No such file or directory`,

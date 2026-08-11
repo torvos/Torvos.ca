@@ -1,7 +1,27 @@
+/**
+ * `sh` command.
+ * A small shell-script interpreter: reads a file, tokenizes/parses it into
+ * a tiny AST (commands, if/elif/else/fi, while/do/done, for/in/do/done,
+ * break/continue), then walks that AST executing each statement through
+ * the terminal's normal terminal.execute() pipeline. Supports positional
+ * parameters ($0, $1.., $@, $#), POSIX-style [ ] test expressions, and a
+ * script recursion depth/loop-iteration guard to prevent runaway scripts.
+ *
+ * Wrapped in an IIFE so all the parsing/execution helper functions stay
+ * private to this file; only the `sh` command itself is registered globally.
+ */
 (function () {
 
+    // Shell keywords that can never appear as the start of a bare command line
+    // (parseStatement uses this to reject dangling/misplaced keywords).
     const KEYWORDS = ["then", "do", "fi", "done", "else", "elif"];
 
+    /**
+     * Splits a single logical script line into whitespace-separated tokens,
+     * honoring single/double quotes (contents kept literal, quote chars
+     * preserved in the token) and treating ";" as its own token so
+     * splitStatements can later split compound lines like "if x; then".
+     */
     function tokenizeLine(line) {
         const tokens = [];
         let current = "";
@@ -36,8 +56,17 @@
         return tokens;
     }
 
+    // Keywords that must start their own statement/clause even when they
+    // appear on the same physical line as other tokens (e.g. "for x in y do").
     const STANDALONE_KEYWORDS = new Set(["do", "then", "else", "fi", "done"]);
 
+    /**
+     * Breaks a single raw script line into one or more logical "clauses" -
+     * separate statements split on ";" and on standalone control-flow
+     * keywords, so e.g. "if [ -f x ]; then" becomes two clauses:
+     * "if [ -f x ]" and "then". This lets the parser treat each keyword as
+     * its own line regardless of how the script author formatted it.
+     */
     function splitStatements(line) {
         const tokens = tokenizeLine(line);
         const clauses = [];
@@ -66,6 +95,14 @@
         return clauses;
     }
 
+    /**
+     * Parses an array of pre-split logical script lines into a tree of
+     * statement objects (the "program"). Uses a simple recursive-descent
+     * approach with a shared `pos` cursor over `lines`.
+     * @param {string[]} lines - Logical lines (already split by splitStatements).
+     * @returns {Object[]} Top-level list of statement nodes.
+     * @throws {Error} On any structural syntax error (missing fi/done, etc).
+     */
     function parseScript(lines) {
         let pos = 0;
 
@@ -77,6 +114,8 @@
             return line.split(/\s+/, 1)[0];
         }
 
+        // Parses statements until the next line's first word is one of stopWords
+        // (used to know when an if/while/for body ends).
         function parseStatements(stopWords) {
             const stmts = [];
             while (pos < lines.length && !stopWords.includes(firstWord(peek()))) {
@@ -85,6 +124,10 @@
             return stmts;
         }
 
+        // Consumes the block-opening keyword (e.g. "then"/"do") that should
+        // follow a header clause, whether it's inline ("...; then") or on
+        // its own following line. Returns the header text with the keyword
+        // stripped off.
         function consumeHeaderKeyword(headerRemainder, keyword) {
             const inlineMatch = headerRemainder.match(new RegExp(`;\\s*${keyword}\\s*$`));
             if (inlineMatch) {
@@ -97,6 +140,7 @@
             throw new Error(`syntax error: expected '${keyword}' after '${headerRemainder.trim()}'`);
         }
 
+        // Parses an `if <cond> then <body> [elif <cond> then <body>]* [else <body>] fi` block.
         function parseIf(headerRemainder) {
             const condition = consumeHeaderKeyword(headerRemainder, "then");
             const branches = [{ condition, body: parseStatements(["elif", "else", "fi"]) }];
@@ -120,6 +164,7 @@
             return { type: "if", branches, elseBody };
         }
 
+        // Parses a `while <cond> do <body> done` block.
         function parseWhile(headerRemainder) {
             const condition = consumeHeaderKeyword(headerRemainder, "do");
             const body = parseStatements(["done"]);
@@ -129,6 +174,7 @@
             return { type: "while", condition, body };
         }
 
+        // Parses a `for VAR in ITEMS do <body> done` block.
         function parseFor(varName, headerRemainder) {
             const itemsText = consumeHeaderKeyword(headerRemainder, "do");
             const body = parseStatements(["done"]);
@@ -138,6 +184,9 @@
             return { type: "for", varName, itemsText, body };
         }
 
+        // Parses a single statement starting at the current position,
+        // dispatching to the matching control-flow parser or treating it
+        // as a plain shell command otherwise.
         function parseStatement() {
             const line = lines[pos++];
 
@@ -154,6 +203,8 @@
             if (line === "continue") return { type: "continue" };
 
             if (KEYWORDS.includes(firstWord(line))) {
+                // A block keyword showed up where a plain command was expected
+                // (e.g. a stray "fi" with no matching "if")
                 throw new Error(`syntax error near unexpected token '${line}'`);
             }
 
@@ -162,11 +213,24 @@
 
         const program = parseStatements([]);
         if (pos < lines.length) {
+            // Statements ran out before consuming all lines - something like
+            // an unmatched "done"/"fi" was left dangling
             throw new Error(`syntax error near unexpected token '${lines[pos]}'`);
         }
         return program;
     }
 
+    /**
+     * Evaluates a tokenized POSIX-style `[ ... ]` test expression:
+     *   - `!` EXPR              - negation
+     *   - TOKEN                  - true if non-empty
+     *   - -f/-d/-e/-z/-n OPERAND - file/string tests
+     *   - LEFT op RIGHT          - string (=, ==, !=) or numeric
+     *     (-eq, -ne, -lt, -le, -gt, -ge) comparison
+     * @param {TerminalEngine} terminal
+     * @param {string[]} tokens - Tokens between the [ and ] brackets.
+     * @returns {boolean}
+     */
     function evaluateTestTokens(terminal, tokens) {
         if (tokens.length === 0) return false;
 
@@ -209,10 +273,19 @@
         return false;
     }
 
+    // Tokenizes and evaluates the text found between [ and ] in a test expression.
     function evaluateTest(terminal, exprText) {
         return evaluateTestTokens(terminal, terminal.tokenize(exprText));
     }
 
+    /**
+     * Evaluates an if/while condition. Expands variables first, then:
+     *   - a leading "!" negates the result
+     *   - "[ expr ]" is evaluated as a POSIX test expression
+     *   - anything else is run as an actual shell command, and the
+     *     condition is true iff that command exited with code 0
+     *     (mirroring real shell `if some_command; then` behavior)
+     */
     async function evaluateCondition(terminal, conditionRaw) {
         const condition = terminal.expandVariables(conditionRaw).trim();
         if (!condition) return false;
@@ -235,6 +308,9 @@
         return negate ? !result : result;
     }
 
+    // Expands the "in ITEMS" clause of a for-loop: variable-expands the
+    // text, tokenizes it, then resolves any wildcard tokens against the
+    // filesystem (falling back to the literal token if nothing matches).
     function expandForItems(terminal, itemsText) {
         const expanded = terminal.expandVariables(itemsText);
         const tokens = terminal.tokenize(expanded);
@@ -246,14 +322,22 @@
         return items;
     }
 
+    // Safety cap on while/for loop iterations, guarding against scripts
+    // that would otherwise loop forever (e.g. `while true; do ...; done`).
     const MAX_LOOP_ITERATIONS = 100000;
 
+    // Periodically yields to the event loop during long-running loops so
+    // the browser tab doesn't lock up / become unresponsive mid-script.
     async function maybeYield(iteration) {
         if (iteration % 200 === 0) {
             await new Promise(resolve => setTimeout(resolve, 0));
         }
     }
 
+    // Runs a list of statements in sequence, stopping early and propagating
+    // a "break"/"continue" signal upward if one of them produces one
+    // (used so break/continue inside nested blocks can escape enclosing
+    // if-statements to reach the nearest loop).
     async function runStatements(terminal, stmts) {
         for (const stmt of stmts) {
             const signal = await runStatement(terminal, stmt);
@@ -262,10 +346,18 @@
         return null;
     }
 
+    /**
+     * Executes a single parsed statement node.
+     * @returns {"break"|"continue"|null} A control-flow signal to propagate
+     *   up to the nearest enclosing loop, or null if execution should
+     *   simply continue with the next statement.
+     */
     async function runStatement(terminal, stmt) {
         switch (stmt.type) {
 
             case "command": {
+                // When SCRIPTDEBUG (set via `sh -x`) is on, echo the command
+                // before running it, like bash's `set -x` trace mode
                 if (terminal.env.SCRIPTDEBUG === "true") {
                     terminal.write(`+ ${stmt.text}`, { color: "#888888" });
                 }
@@ -274,6 +366,8 @@
             }
 
             case "if": {
+                // Try each branch's condition in order (if, then each elif);
+                // run the first one that's true, or the else body if none matched
                 for (const branch of stmt.branches) {
                     if (await evaluateCondition(terminal, branch.condition)) {
                         return runStatements(terminal, branch.body);
@@ -292,6 +386,8 @@
                     await maybeYield(iterations);
                     const signal = await runStatements(terminal, stmt.body);
                     if (signal === "break") break;
+                    // Note: "continue" signals simply fall through here since
+                    // the while's own condition check re-runs on the next iteration
                 }
                 return null;
             }
@@ -311,6 +407,8 @@
                 return null;
             }
 
+            // break/continue: bubble the signal up to runStatements, which
+            // propagates it until it reaches the enclosing while/for handler above
             case "break":
                 return "break";
 
@@ -333,6 +431,7 @@
             "sh -x setup.sh",
         ],
         async execute(terminal, args, stdin) {
+            // Print usage info and exit early when --help is passed
             if (args.includes("--help")) {
                 return {
                     stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -356,6 +455,20 @@
             return this.runScript(terminal, target, parsed.args.slice(1), { trace, label: "sh" });
         },
 
+        /**
+         * Loads, parses, and runs a script file. Also invoked directly by
+         * execute.js when a bare path like "./script.sh" is typed at the
+         * prompt (not just via the explicit `sh` command), which is why
+         * this is exposed as a method here rather than kept private.
+         * @param {TerminalEngine} terminal
+         * @param {string} target - Path to the script file.
+         * @param {string[]} scriptArgs - Positional args ($1, $2, ... within the script).
+         * @param {Object} [options]
+         * @param {boolean} [options.trace] - Enable `-x`-style command echoing.
+         * @param {string} [options.label] - Name to use in error messages
+         *   (defaults to the target path; overridden to "sh" for explicit invocations).
+         * @returns {Promise<{stdout:string, stderr:string, exitCode:number}>}
+         */
         async runScript(terminal, target, scriptArgs, options = {}) {
             const trace = options.trace === true || options.trace === "true";
             const label = options.label ?? target;
@@ -394,6 +507,7 @@
                 };
             }
 
+            // Check the owner-execute bit (3rd char of the 9-char mode string)
             const mode = node.mode || "";
             const ownerExecutable = mode[2] === "x";
             if (!ownerExecutable) {
@@ -406,6 +520,9 @@
 
             const fullPath = terminal.fs.getFullPath(target, terminal.cwd);
 
+            // Track a stack of currently-running script paths on the terminal
+            // instance itself, so nested `sh` calls (a script running another
+            // script) can detect runaway recursion or depth limits.
             terminal._scriptStack ??= [];
             const MAX_SCRIPT_DEPTH = 10;
 
@@ -417,6 +534,8 @@
                 };
             }
             if (terminal._scriptStack.includes(fullPath)) {
+                // Same script is already somewhere up the call stack - direct or
+                // indirect self-invocation, block it rather than looping forever
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: recursive script invocation blocked`,
@@ -424,6 +543,8 @@
                 };
             }
 
+            // Substitutes $0/$1../$@/$# positional-parameter references in a
+            // line with the script's invocation path/arguments.
             function applyPositionalParams(line) {
                 return line
                     .replace(/\$@/g, scriptArgs.join(" "))
@@ -432,6 +553,9 @@
                     .replace(/\$([1-9])\b/g, (_, n) => scriptArgs[Number(n) - 1] ?? "");
             }
 
+            // Preprocess the raw file content into parser-ready logical lines:
+            // strip comments/blank lines, substitute positional params, and
+            // split each physical line into its constituent statement clauses.
             const rawLines = (node.content ?? "").split(/\r?\n/);
             const lines = [];
             for (const rawLine of rawLines) {
@@ -457,6 +581,8 @@
             node.accessed = Date.now();
             terminal._scriptStack.push(fullPath);
 
+            // Temporarily force SCRIPTDEBUG on for the duration of this script
+            // when -x was passed, then restore whatever it was before
             const previousDebug = terminal.env.SCRIPTDEBUG;
             if (trace) {
                 terminal.env.SCRIPTDEBUG = "true";

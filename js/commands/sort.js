@@ -1,3 +1,9 @@
+/**
+ * `sort` command.
+ * Sorts lines from stdin or one or more files, alphabetically by default.
+ * Supports -n (numeric compare), -f (case-insensitive), -r (descending),
+ * and -u (drop adjacent duplicates after sorting).
+ */
 registerCommand("sort", {
     name: "Sort lines of text",
     synopsis : "sort [OPTIONS] [FILE...]",
@@ -14,6 +20,7 @@ registerCommand("sort", {
         "sort -u raw_logs.txt"
     ],
    async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -38,6 +45,7 @@ registerCommand("sort", {
                     exitCode: 1                
                 };
             }
+            // Concatenate the content of every file argument before sorting
             const contents = [];
 
             for (const file of parsed.args) {
@@ -83,6 +91,8 @@ registerCommand("sort", {
             if (numeric) {
                 const na = Number(left);
                 const nb = Number(right);
+                // Only compare numerically if both sides actually parse as numbers;
+                // otherwise fall through to the string comparison below
                 if (!Number.isNaN(na) && !Number.isNaN(nb)) {
                     return na - nb;
                 }
@@ -91,6 +101,8 @@ registerCommand("sort", {
         });
 
         if (unique) {
+            // Drop lines equal to the one immediately before them (post-sort,
+            // so this effectively removes ALL duplicates, not just adjacent ones)
             lines = lines.filter((line, index) => {
                 if (index === 0) {
                     return true;

@@ -1,3 +1,7 @@
+/**
+ * `free` command.
+ * Simulated memory-usage report, disabled for the guest account.
+ */
 registerCommand("free", {
     name: "Display memory usage statistics.",
     synopsis : "free",
@@ -7,6 +11,7 @@ registerCommand("free", {
         "free"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

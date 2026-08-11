@@ -1,3 +1,9 @@
+/**
+ * `more` command.
+ * Prints a file's content line-by-line directly to the terminal (instead
+ * of returning it via stdout), pausing with the "--More--" pager
+ * (terminal.pageBreak) whenever a full screen's worth of lines has been shown.
+ */
 registerCommand("more", {
     name: "View a file one page at a time.",
     synopsis : "more FILE...",
@@ -7,6 +13,7 @@ registerCommand("more", {
         "more resume.md"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -51,6 +58,8 @@ registerCommand("more", {
         node.accessed = Date.now();
         const lines = node.content.split(/\r?\n/);
         terminal.pager.linesPrinted = 0;
+        // Write lines directly, pausing at each page boundary until the
+        // user presses a key (space/enter to continue, q to quit early)
         for (const line of lines) {
             terminal.write(line,{color:"#ffffff"});
             terminal.pager.linesPrinted++;

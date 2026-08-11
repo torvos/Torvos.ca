@@ -1,3 +1,9 @@
+/**
+ * `cd` command.
+ * Changes the terminal's current working directory. With no argument,
+ * goes to $HOME; with "-", goes to the previous directory ($OLDPWD).
+ * Updates $PWD/$OLDPWD and re-renders the prompt on success.
+ */
 registerCommand("cd", {
     name: "Change the current working directory.",
     synopsis : "cd [DIRECTORY]",
@@ -10,6 +16,7 @@ registerCommand("cd", {
         "cd /"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -20,8 +27,10 @@ registerCommand("cd", {
         let target = args[0];
 
         if (!target) {
+            // No argument - go home
             target = terminal.env.HOME || HOME;
         } else if (target === "-") {
+            // "cd -" - go to the previous working directory
             if (!terminal.env.OLDPWD) {
                 return {
                     stdout: "",
@@ -50,6 +59,7 @@ registerCommand("cd", {
         node.accessed = Date.now();
         terminal.cwd = terminal.fs.getFullPath(target, terminal.cwd);
         terminal.renderPrompt();
+        // Track OLDPWD/PWD like a real shell, so "cd -" keeps working
         terminal.env.OLDPWD = terminal.env.PWD;
         terminal.env.PWD = terminal.cwd;
 

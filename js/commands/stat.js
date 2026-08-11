@@ -1,3 +1,9 @@
+/**
+ * `stat` command.
+ * Prints detailed metadata (type, size, mode, owner/group, timestamps)
+ * for one or more files/directories. With -R, recurses into subdirectories
+ * and prints an entry for every descendant too.
+ */
 registerCommand("stat", {
     name: "Display detailed file metadata.",
     synopsis : "stat [OPTIONS] [FILE_OR_DIRECTORY]",
@@ -10,6 +16,7 @@ registerCommand("stat", {
         "stat -R ~"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -49,6 +56,7 @@ registerCommand("stat", {
                     };
                 }             
 
+                // Appends a formatted metadata block for a single item to funcStdout
                 function printStat(name, item) {
 
                     funcStdout += `    File: ${name}\n`;
@@ -63,6 +71,8 @@ registerCommand("stat", {
                 }
 
 
+                // Prints stat info for `item`, and (when recursive) walks
+                // into every descendant, building up its full path as it goes.
                 function walkStat(item, path) {
 
                     printStat(path, item);

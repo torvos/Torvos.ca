@@ -1,3 +1,9 @@
+/**
+ * `edit` command.
+ * Opens the target file in the full-screen editor (see js/terminal/editor.js).
+ * If the file doesn't exist yet, creates a new empty one first (as long as
+ * its parent directory exists) so `edit` doubles as "create and edit".
+ */
 registerCommand("edit", {
     name: "Open a file in the built-in editor.",
     synopsis : "edit FILE",
@@ -7,6 +13,7 @@ registerCommand("edit", {
         "edit notes.txt"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -28,6 +35,7 @@ registerCommand("edit", {
         let node;
 
         if (!pathresult) {
+            // File doesn't exist - create it (in its parent directory) first
             const result = terminal.fs.getParent(target, terminal.cwd);
             if (!result) {
                 return {
@@ -43,6 +51,7 @@ registerCommand("edit", {
                 node = pathresult.node;
             }
             else{
+                // /bin is read-only "installed commands" - can't edit those
                 return {
                     stdout: "",
                     stderr: `edit: cannot open file in /bin`,

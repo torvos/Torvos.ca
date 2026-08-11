@@ -1,3 +1,7 @@
+/**
+ * `false` command.
+ * Always exits with a non-zero status (standard Unix `false`), useful in scripts/tests.
+ */
 registerCommand("false", {
     name: "Do nothing, unsuccessfully.",
     synopsis : "false",
@@ -8,6 +12,7 @@ registerCommand("false", {
         "if false; then echo yes; else echo no; fi"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

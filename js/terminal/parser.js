@@ -1,5 +1,19 @@
+/**
+ * Shell-parsing utilities for TerminalEngine: brace expansion, quote-aware
+ * tokenizing/splitting, I/O redirection parsing, variable and arithmetic
+ * expansion, command substitution ($(...)), and alias expansion. These are
+ * used by execute.js to turn a raw typed command line into something that
+ * can actually be run.
+ */
 Object.assign(TerminalEngine.prototype, {
 
+    /**
+     * Expands brace patterns like "file{1,2,3}.txt" into
+     * ["file1.txt", "file2.txt", "file3.txt"]. Recurses to support multiple
+     * brace groups in one string (e.g. "a{1,2}{x,y}").
+     * @param {string} input - Input string possibly containing a {a,b,c} group.
+     * @returns {string[]} All expanded variants (or [input] if no braces found).
+     */
     expandBraces(input) {
         const match = input.match(/\{([^{}]+)\}/);
         if (!match) {
@@ -12,6 +26,7 @@ Object.assign(TerminalEngine.prototype, {
                 match[0],
                 value.trim()
             );
+            // Recurse in case there are additional brace groups left to expand
             results.push(
                 ...this.expandBraces(expanded)
             );
@@ -19,6 +34,13 @@ Object.assign(TerminalEngine.prototype, {
         return results;
     },
 
+    /**
+     * Splits `str` on `delimiter`, but ignores delimiters that appear inside
+     * single or double quotes (so quoted content is never split apart).
+     * @param {string} str - String to split.
+     * @param {string} delimiter - Single character to split on.
+     * @returns {string[]} The split parts, quotes left intact.
+     */
     splitTopLevel(str, delimiter) {
         const parts = [];
         let current = "";
@@ -58,6 +80,14 @@ Object.assign(TerminalEngine.prototype, {
         return parts;
     },
 
+    /**
+     * Replaces every character inside single/double quotes with "x", while
+     * leaving quote characters and unquoted text untouched. Used so regexes
+     * like the redirect-operator matcher can safely scan for unquoted
+     * special characters without accidentally matching inside a quoted string.
+     * @param {string} str - Input string.
+     * @returns {string} Same length string with quoted contents masked.
+     */
     maskQuotes(str) {
         let masked = "";
         let inSingle = false;
@@ -89,6 +119,11 @@ Object.assign(TerminalEngine.prototype, {
         return masked;
     },
 
+    /**
+     * Removes a single pair of surrounding matching quotes (either both
+     * single or both double), if present. Leaves the string unchanged if
+     * it isn't fully wrapped in matching quotes.
+     */
     stripMatchingQuotes(str) {
         if (
             str.length >= 2 &&
@@ -100,6 +135,14 @@ Object.assign(TerminalEngine.prototype, {
         return str;
     },
 
+    /**
+     * Parses a single command string into its command name, arguments, and
+     * any trailing I/O redirection (>, >>, 2>, 2>>, <). Redirection is
+     * detected via maskQuotes so operators inside quotes aren't mistaken
+     * for real redirects.
+     * @param {string} command - Raw command text (aliases/vars already expanded).
+     * @returns {{cmd: string, args: string[], redirects: Object}}
+     */
     parseCommand(command) {
         const redirectRegex = /\s*(2>>|2>|>>|>|<)\s*([^\s]+)\s*$/;
         const match = this.maskQuotes(command).match(redirectRegex);
@@ -111,6 +154,7 @@ Object.assign(TerminalEngine.prototype, {
                     command.slice(match.index + match[0].indexOf(match[1]) + match[1].length, match.index + match[0].length).trim()
                 )
             };
+            // Strip the redirect portion off before tokenizing the rest as args
             command = command.slice(0, match.index).trim();
         }
         const parts = this.tokenize(command);
@@ -142,12 +186,21 @@ Object.assign(TerminalEngine.prototype, {
         return result;
     },
 
+    /**
+     * Splits a command line into individual argument tokens, honoring
+     * single quotes (literal, no escapes), double quotes (literal, quotes
+     * just group whitespace), and bash-style $'...' ANSI-C quoting (which
+     * expands backslash escapes like \n). Whitespace outside quotes
+     * separates tokens.
+     * @param {string} command - Raw command text.
+     * @returns {string[]} Array of parsed tokens (command name + args combined).
+     */
     tokenize(command) {
         const parts = [];
         let current = "";
         let inSingle = false;
         let inDouble = false;
-        let hasToken = false;
+        let hasToken = false; // tracks whether `current` holds a token-in-progress (handles "")
 
         for (let i = 0; i < command.length; i++) {
             const ch = command[i];
@@ -214,6 +267,10 @@ Object.assign(TerminalEngine.prototype, {
         return parts;
     },
 
+    /**
+     * Expands `$?` (last exit code) and `$VARNAME` references against the
+     * shell's environment variables. Unknown variables expand to "".
+     */
     expandVariables(input) {
         return input
             .replace(/\$\?/g, () => String(this.lastExitCode ?? 0))
@@ -223,6 +280,11 @@ Object.assign(TerminalEngine.prototype, {
             );
     },
 
+    /**
+     * Expands bash-style arithmetic expressions `$((expr))` by evaluating
+     * them with evaluateArithmetic. On evaluation error, silently expands
+     * to "0" (mirroring the tolerant behavior expected in a toy shell).
+     */
     expandArithmetic(input) {
         return input.replace(/\$\(\((.*?)\)\)/g, (_, expr) => {
             try {
@@ -233,6 +295,11 @@ Object.assign(TerminalEngine.prototype, {
         });
     },
 
+    /**
+     * Tokenizes an arithmetic expression string into numbers and operator/
+     * paren characters, for use by evaluateArithmetic's recursive-descent parser.
+     * @throws {Error} If an unexpected character is encountered.
+     */
     tokenizeArithmetic(str) {
         const tokens = [];
         let i = 0;
@@ -260,6 +327,16 @@ Object.assign(TerminalEngine.prototype, {
         return tokens;
     },
 
+    /**
+     * Evaluates a simple arithmetic expression (integers, + - * / %,
+     * parentheses, unary +/-) using a small recursive-descent parser.
+     * Variable names inside the expression are substituted from this.env
+     * first (undefined/empty vars become 0), mimicking bash's `$((x + 1))`
+     * behavior where bare variable names are allowed inside arithmetic contexts.
+     * @param {string} expr - The raw expression inside $(( ... )).
+     * @returns {number} Integer result (truncated toward zero, like bash).
+     * @throws {Error} On malformed expressions or division/modulo by zero.
+     */
     evaluateArithmetic(expr) {
         const substituted = expr.replace(
             /\$?([A-Za-z_][A-Za-z0-9_]*)/g,
@@ -275,6 +352,7 @@ Object.assign(TerminalEngine.prototype, {
         const peek = () => tokens[pos];
         const advance = () => tokens[pos++];
 
+        // factor := ('+' | '-')? factor | '(' expr ')' | NUMBER
         const parseFactor = () => {
             if (peek() === "+") {
                 advance();
@@ -299,6 +377,7 @@ Object.assign(TerminalEngine.prototype, {
             return parseInt(token, 10);
         };
 
+        // term := factor (('*' | '/' | '%') factor)*
         const parseTerm = () => {
             let value = parseFactor();
             while (peek() === "*" || peek() === "/" || peek() === "%") {
@@ -314,6 +393,7 @@ Object.assign(TerminalEngine.prototype, {
             return value;
         };
 
+        // expr := term (('+' | '-') term)*
         const parseExpr = () => {
             let value = parseTerm();
             while (peek() === "+" || peek() === "-") {
@@ -327,6 +407,7 @@ Object.assign(TerminalEngine.prototype, {
         const result = tokens.length === 0 ? 0 : parseExpr();
 
         if (pos !== tokens.length) {
+            // Not all tokens were consumed -> trailing garbage in the expression
             throw new Error("invalid arithmetic expression");
         }
         if (typeof result !== "number" || !Number.isFinite(result)) {
@@ -336,6 +417,14 @@ Object.assign(TerminalEngine.prototype, {
         return Math.trunc(result);
     },
 
+    /**
+     * Finds the first `$(...)` command-substitution pattern in `str`
+     * starting at index `from`, correctly matching nested parentheses.
+     * Distinguishes `$((...))` arithmetic expansion (skipped, not a command
+     * substitution) from a genuine `$(...)` command substitution.
+     * @returns {{start:number, end:number, inner:string}|null} Position info
+     *   and the inner command text, or null if none/unbalanced.
+     */
     findCommandSubstitution(str, from = 0) {
         const idx = str.indexOf("$(", from);
         if (idx === -1) return null;
@@ -355,6 +444,16 @@ Object.assign(TerminalEngine.prototype, {
         return { start: idx, end: i, inner: str.slice(idx + 2, i - 1) };
     },
 
+    /**
+     * Repeatedly finds and replaces `$(...)` command substitutions in `str`
+     * with the captured stdout of actually running the inner command
+     * (via runCaptured, defined in execute.js). Trailing newlines are
+     * stripped from the captured output to match bash's behavior.
+     * @param {string} str - Input string possibly containing $(...) patterns.
+     * @returns {Promise<string>} The string with all substitutions resolved.
+     * @throws {Error} If substitutions appear to nest more than 50 deep
+     *   (guards against pathological/infinite input).
+     */
     async expandCommandSubstitution(str) {
         let result = str;
         let guard = 0;
@@ -373,6 +472,11 @@ Object.assign(TerminalEngine.prototype, {
         return result;
     },
 
+    /**
+     * If the first word of `input` matches a defined alias, substitutes it
+     * with the alias's expansion (e.g. "ll" -> "ls -la"). Only the first
+     * word is checked/replaced, matching simple shell alias semantics.
+     */
     expandAlias(input) {
         const parts = input.trim().split(/\s+/);
         if (!parts.length)

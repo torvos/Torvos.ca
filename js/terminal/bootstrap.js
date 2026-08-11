@@ -1,3 +1,9 @@
+/**
+ * Builds the virtual /bin directory, populating it with one file entry
+ * per registered command (from window.Commands) so that commands like
+ * `ls /bin` or `which` can "see" them as real files, then mounts it
+ * into the virtual filesystem.
+ */
 window.createVirtualBin = function() {
     const bin = {
         type: "dir",
@@ -10,6 +16,8 @@ window.createVirtualBin = function() {
         accessed: Date.parse("2026-07-01T10:00:00Z"),
         children: {}
     };
+
+    // Create a (contentless) executable file entry for every registered command
     for (const command of Object.keys(Commands).sort()) {
         bin.children[command] = {
             type: "file",
@@ -26,6 +34,11 @@ window.createVirtualBin = function() {
     FileSystemAPI.mount("bin", bin);
 };
 
+/**
+ * Builds the virtual /dev directory with a handful of standard Unix
+ * device files (null, zero, random) and mounts it into the virtual
+ * filesystem so commands can reference paths like /dev/null.
+ */
 window.createVirtualDev = function() {
     const dev = {
         type: "dir",
@@ -39,6 +52,7 @@ window.createVirtualDev = function() {
         children: {}
     };
 
+    // /dev/null - discards anything written to it (standard "bit bucket")
     dev.children["null"] = {
         type: "device",
         device: "null",
@@ -52,6 +66,7 @@ window.createVirtualDev = function() {
         content: ""
     };
 
+    // /dev/zero - conceptually yields endless zero bytes when read
     dev.children["zero"] = {
         type: "device",
         device: "zero",
@@ -65,6 +80,7 @@ window.createVirtualDev = function() {
         content: ""
     };    
 
+    // /dev/random - conceptually yields random bytes when read
     dev.children["random"] = {
         type: "device",
         device: "random",

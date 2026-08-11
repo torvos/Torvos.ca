@@ -1,3 +1,9 @@
+/**
+ * `which` command.
+ * Reports the /bin path a given command name resolves to, if it's a
+ * registered command (every command is virtually "installed" in /bin
+ * by bootstrap.js's createVirtualBin).
+ */
 registerCommand("which", {
     name: "Locate a command.",
     synopsis : "which [OPTIONS] COMMAND",
@@ -10,6 +16,7 @@ registerCommand("which", {
         "which -a cd"
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -21,6 +28,7 @@ registerCommand("which", {
         const displayall = parsed.flags.has("a") || parsed.flags.has("all");
         let command = parsed.args[0];
     
+        // Allow the command name to come from piped stdin if no arg was given
         if (stdin !== undefined && stdin !== null && stdin !== "") {
             command = stdin;
         } else {

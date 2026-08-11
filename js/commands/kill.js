@@ -1,3 +1,7 @@
+/**
+ * `kill` command.
+ * Simulated process termination, disabled for the guest account.
+ */
 registerCommand("kill", {
     name: "Terminate a running process.",
     synopsis : "kill",
@@ -7,6 +11,7 @@ registerCommand("kill", {
         "kill"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

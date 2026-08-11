@@ -1,3 +1,7 @@
+/**
+ * `history` command.
+ * Prints the shell's recorded command history, one entry per line.
+ */
 registerCommand("history", {
     name: "Display command history",
     synopsis : "history",
@@ -7,6 +11,7 @@ registerCommand("history", {
         "history"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,

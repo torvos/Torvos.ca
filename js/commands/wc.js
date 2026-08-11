@@ -1,3 +1,9 @@
+/**
+ * `wc` command.
+ * Counts lines, words, and bytes in a file (or piped stdin). With no
+ * flags, prints all three labeled; with -l/-w/-c, prints only the
+ * requested counts (space-separated).
+ */
 registerCommand("wc", {
     name: "Count lines, words, and characters.",
     synopsis : "wc [OPTIONS] FILE...",
@@ -12,6 +18,7 @@ registerCommand("wc", {
         "wc -w file1.txt file2.txt"
     ],
     async execute(terminal, args, stdin) {
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -27,6 +34,7 @@ registerCommand("wc", {
         let content = "";
 
         if (!target) {
+            // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
                     stdout: "",
@@ -82,6 +90,8 @@ registerCommand("wc", {
         let output;
 
         if (countLines || countWords || countBytes) {
+            // At least one specific count was requested - print only those,
+            // in l/w/c order, space-separated (no labels)
             const values = [];
             if (countLines) {
                 values.push(lines);
@@ -94,6 +104,7 @@ registerCommand("wc", {
             }
             output = values.join(" ");
         } else {
+            // No flags - print all three counts with labels
             output =
                 `Lines: ${String(lines)}  ` +
                 `Words: ${String(words)}  ` +

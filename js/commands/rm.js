@@ -1,3 +1,10 @@
+/**
+ * `rm` command.
+ * Removes a file, symlink, or (with -r) a directory and everything under
+ * it. Refuses to remove directories without -r, and refuses to remove
+ * "/" entirely regardless of flags. With -f, a missing target is treated
+ * as success rather than an error (matches real `rm -f` semantics).
+ */
 registerCommand("rm", {
     name: "Remove files/directories.",
     synopsis : "rm [OPTIONS] FILE_OR_DIRECTORY",
@@ -11,6 +18,7 @@ registerCommand("rm", {
         "rm resume.md"
     ],
     async execute(terminal, args, stdin) {    
+        // Print usage info and exit early when --help is passed
         if (args.includes("--help")) {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
@@ -32,6 +40,7 @@ registerCommand("rm", {
         }
         
         if(target === ROOT){
+                // Hard-coded guard: never allow deleting the filesystem root
                 return {
                     stdout: "",
                     stderr: "rm: prohibited to use on '/'",
@@ -43,6 +52,7 @@ registerCommand("rm", {
         
         if (!result || !result.parent.children[result.name]) {
             if (force) {
+                // -f: missing target is silently treated as success
                 return {
                     stdout: "",
                     stderr: "",
@@ -59,6 +69,7 @@ registerCommand("rm", {
         const node = result.parent.children[result.name];
 
         if (terminal.fs.isSymlink(node)) {
+            // Symlinks themselves are removed directly (their target is untouched)
             result.parent.modified = Date.now();
             delete result.parent.children[result.name];
             return {
@@ -77,6 +88,8 @@ registerCommand("rm", {
                 };
             }
 
+            // Recursively deletes every descendant entry of `dir` before
+            // the directory itself gets removed below
             function removeChildren(dir) {
                 if (!dir.children) {
                     return;
@@ -104,6 +117,7 @@ registerCommand("rm", {
             };
         }
 
+        // Plain file
         result.parent.modified = Date.now();
         delete result.parent.children[result.name];    
 
