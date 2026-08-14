@@ -99,6 +99,10 @@ body {
     position:absolute;
     left:-9999px;
     opacity:0;
+    /* iOS Safari auto-zooms the page when a focused input's computed
+       font-size is under 16px. This input is invisible, so forcing the
+       size here has no visual effect but stops the zoom-on-focus jump. */
+    font-size:16px;
 }
 
 ::-webkit-scrollbar{
@@ -115,4 +119,52 @@ body {
 
 ::-webkit-scrollbar-thumb:hover{
     background:#666;
+}
+
+/* On-screen Tab/Esc affordances: most touch/virtual keyboards don't expose
+   these keys at all, so give touch users a way to reach them. Hidden on
+   devices whose primary input is a mouse/trackpad (a real keyboard already
+   has these keys); shown for coarse-pointer (touch) devices. */
+#mobile-toolbar{
+    display:none;
+}
+
+@media (pointer: coarse) {
+    #mobile-toolbar{
+        display:flex;
+        gap:8px;
+        position:fixed;
+        right:10px;
+        bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+        z-index:10;
+    }
+
+    #mobile-toolbar button{
+        font-family:inherit;
+        font-size:14px;
+        line-height:1;
+        padding:8px 12px;
+        background:rgba(255,255,255,0.08);
+        color:var(--foreground);
+        border:1px solid var(--foreground);
+        border-radius:4px;
+        touch-action:manipulation;
+        -webkit-tap-highlight-color:transparent;
+        user-select:none;
+    }
+
+    #mobile-toolbar button:active{
+        background:rgba(255,255,255,0.2);
+    }
+
+    /* Esc only matters while the full-screen editor is open; Tab-completion
+       only makes sense for normal shell input. body.editor-mode is toggled
+       from js/terminal/editor.js. */
+    body:not(.editor-mode) #mobile-esc-btn{
+        display:none;
+    }
+
+    body.editor-mode #mobile-tab-btn{
+        display:none;
+    }
 }

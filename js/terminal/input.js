@@ -127,12 +127,23 @@ Object.assign(TerminalEngine.prototype, {
                 return;
             }
 
+            // While an IME/predictive-text composition is in progress (common
+            // on Android keyboards, and required for CJK input methods), let
+            // it finish uninterrupted. The composed result will show up via
+            // the "input" listener below rather than being built here from
+            // individual keydown events, which mobile keyboards often don't
+            // fire in a usable form (e.key === "Unidentified", etc.).
+            if (e.isComposing || e.keyCode === 229) {
+                return;
+            }
+
             // Readline-style Ctrl+<key> shortcuts (Ctrl+C, Ctrl+L, Ctrl+A, etc.)
             if (e.ctrlKey && !e.metaKey && !e.altKey) {
                 switch (e.key.toLowerCase()) {
                     case "c": // Ctrl+C: cancel the current input line
                         e.preventDefault();
                         this.cancelCommand();
+                        this.syncHiddenInput();
                         this.renderInput();
                         return;
 
@@ -148,12 +159,14 @@ Object.assign(TerminalEngine.prototype, {
                     case "a": // Ctrl+A: move cursor to start of line
                         e.preventDefault();
                         this.cursorPos = 0;
+                        this.syncHiddenInput();
                         this.renderInput();
                         return;
 
                     case "e": // Ctrl+E: move cursor to end of line
                         e.preventDefault();
                         this.cursorPos = this.currentInput.length;
+                        this.syncHiddenInput();
                         this.renderInput();
                         return;
 
@@ -161,14 +174,14 @@ Object.assign(TerminalEngine.prototype, {
                         e.preventDefault();
                         this.currentInput = this.currentInput.slice(this.cursorPos);
                         this.cursorPos = 0;
-                        this.hiddenInput.value = this.currentInput;
+                        this.syncHiddenInput();
                         this.renderInput();
                         return;
 
                     case "k": // Ctrl+K: delete from cursor to end of line
                         e.preventDefault();
                         this.currentInput = this.currentInput.slice(0, this.cursorPos);
-                        this.hiddenInput.value = this.currentInput;
+                        this.syncHiddenInput();
                         this.renderInput();
                         return;
 
@@ -180,7 +193,7 @@ Object.assign(TerminalEngine.prototype, {
                         const trimmedBefore = before.replace(/\s+$/, "").replace(/\S+$/, "");
                         this.currentInput = trimmedBefore + after;
                         this.cursorPos = trimmedBefore.length;
-                        this.hiddenInput.value = this.currentInput;
+                        this.syncHiddenInput();
                         this.renderInput();
                         return;
                     }
@@ -199,12 +212,12 @@ Object.assign(TerminalEngine.prototype, {
                     break;
 
                 case "Backspace":
+                    e.preventDefault();
                     if (this.cursorPos === 0) break;
                     this.currentInput =
                         this.currentInput.slice(0, this.cursorPos - 1) +
                         this.currentInput.slice(this.cursorPos);
                     this.cursorPos--;
-                    document.getElementById("hidden-input").value = this.currentInput;
                     break;                    
 
                 case "ArrowUp":
@@ -235,10 +248,18 @@ Object.assign(TerminalEngine.prototype, {
 
                     // Any single printable character (no modifier keys) gets
                     // inserted into currentInput at the cursor position.
+                    // Recognized here means a normal physical-keyboard keydown
+                    // reported a real, single-character e.key; anything else
+                    // (predictive text, swipe-typing, autocorrect, IME
+                    // composition - common on mobile keyboards, where e.key is
+                    // often "Unidentified" or the event doesn't fire per
+                    // character) is left for the "input" listener below to
+                    // pick up from the native input value instead.
                     if (e.key.length === 1 &&
                         !e.metaKey &&
                         !e.altKey &&
                         !e.ctrlKey) {
+                            e.preventDefault();
                             this.currentInput =
                                 this.currentInput.slice(0, this.cursorPos) +
                                 e.key +
@@ -247,6 +268,11 @@ Object.assign(TerminalEngine.prototype, {
                         }
                     break;
             }
+            // Keep the native hidden input's value/caret aligned with
+            // whatever we just did above (including Arrow-key cursor moves,
+            // which the browser also moves natively but we treat our own
+            // tracking as the source of truth for consistency).
+            this.syncHiddenInput();
             this.renderInput();
         });
 
@@ -268,9 +294,62 @@ Object.assign(TerminalEngine.prototype, {
                 clean +
                 this.currentInput.slice(this.cursorPos);
             this.cursorPos += clean.length;
-            this.hiddenInput.value = this.currentInput;
+            this.syncHiddenInput();
             this.renderInput();
         });
+
+        // Fallback for content a mobile keyboard commits without a usable
+        // keydown (autocorrect replacements, swipe-typing whole words, IME
+        // composition results). The native input's value/caret is the
+        // source of truth here since keydown's e.key can't be trusted for
+        // these cases - by the time this fires, our preventDefault() calls
+        // above mean it only runs for edits WE didn't already apply.
+        this.hiddenInput.addEventListener("input", () => {
+            if (this.inputMode === INPUT_WAIT_FOR_PASSWORD ||
+                this.inputMode === INPUT_EDITOR ||
+                this.pager.active) {
+                return;
+            }
+            this.currentInput = this.hiddenInput.value;
+            this.cursorPos = this.hiddenInput.selectionStart ?? this.currentInput.length;
+            this.renderInput();
+        });
+
+        // On-screen Tab/Esc buttons (touch devices only - see terminal.css).
+        // mousedown is prevented so tapping the button doesn't blur/steal
+        // focus away from whichever input surface is currently active.
+        const mobileTabBtn = document.getElementById("mobile-tab-btn");
+        if (mobileTabBtn) {
+            mobileTabBtn.addEventListener("mousedown", (e) => e.preventDefault());
+            mobileTabBtn.addEventListener("click", () => {
+                if (this.inputMode !== INPUT_NORMAL) return;
+                this.autocomplete();
+                this.syncHiddenInput();
+                this.renderInput();
+                this.hiddenInput.focus();
+            });
+        }
+
+        const mobileEscBtn = document.getElementById("mobile-esc-btn");
+        if (mobileEscBtn) {
+            mobileEscBtn.addEventListener("mousedown", (e) => e.preventDefault());
+            mobileEscBtn.addEventListener("click", () => {
+                this.closeEditor(false);
+            });
+        }
+    },
+
+    // Keeps the (invisible) native #hidden-input element's value and caret
+    // position in sync with our own currentInput/cursorPos tracking.
+    // Needed whenever we edit currentInput ourselves rather than letting the
+    // browser apply its own native edit: setting .value alone resets the
+    // native caret to the end of the string, so without this, the next
+    // native edit a mobile keyboard makes (autocorrect, swipe-typing, IME)
+    // would start from the wrong position - and the "input" event fallback
+    // listener needs an accurate baseline to read from.
+    syncHiddenInput() {
+        this.hiddenInput.value = this.currentInput;
+        this.hiddenInput.setSelectionRange(this.cursorPos, this.cursorPos);
     },
 
     /**
@@ -352,8 +431,8 @@ Object.assign(TerminalEngine.prototype, {
             this.historyIndex--;
         }
         this.currentInput = this.history[this.historyIndex] || "";
-        document.getElementById("hidden-input").value = this.currentInput;
         this.cursorPos = this.currentInput.length;
+        this.syncHiddenInput();
         this.renderInput();
     },
 
@@ -365,10 +444,9 @@ Object.assign(TerminalEngine.prototype, {
             this.currentInput = this.history[this.historyIndex];
         } else {
             this.currentInput = "";
-            this.cursorPos = 0;
-            this.renderInput();
         }
-        document.getElementById("hidden-input").value = this.currentInput;
+        this.cursorPos = this.currentInput.length;
+        this.syncHiddenInput();
         this.renderInput();
     },
 

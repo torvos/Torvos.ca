@@ -20,6 +20,7 @@ Object.assign(TerminalEngine.prototype, {
         this.inputMode = INPUT_EDITOR;
         document.getElementById("input-line").style.display = "none";
         document.getElementById("output").style.display = "none";
+        document.body.classList.add("editor-mode");
         this.editorEl.addEventListener("keydown", this.editorKeyHandler);
         this.editorContainer.style.display = "flex";
         this.editorEl.value = node.content ?? "";
@@ -65,6 +66,7 @@ Object.assign(TerminalEngine.prototype, {
         this.editor.node = null;
         this.editorContainer.style.display = "none";
         this.editorEl.removeEventListener("keydown",this.editorKeyHandler);
+        document.body.classList.remove("editor-mode");
         document.getElementById("input-line").style.display = "";
         document.getElementById("output").style.display = "";
         this.inputMode = INPUT_NORMAL;
