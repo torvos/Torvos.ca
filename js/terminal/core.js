@@ -90,34 +90,48 @@ class TerminalEngine {
 
         // Attempt to restore previous session settings (history, cwd, env, aliases)
         const savedSettings = localStorage.getItem("terminalSettings");
-        if (savedSettings) {        
-            const settings = JSON.parse(savedSettings);
-            // If the saved session was created by a different terminal version,
-            // wipe it out and reload fresh rather than risk incompatible state.
-            if(settings.version != TERMINAL_VERSION){
+        let settingsWereCorrupted = false;
+        if (savedSettings) {
+            let settings = null;
+            try {
+                settings = JSON.parse(savedSettings);
+            } catch (err) {
+                // Corrupted/invalid JSON (e.g. manual edit, partial write) —
+                // wipe it out and fall back to defaults rather than throwing
+                // and leaving the terminal unable to boot at all.
                 localStorage.removeItem("terminalSettings");
                 localStorage.removeItem("FileSystem");
-                this.cwd = HOME;
-                location.reload();
-                return;
-            }            
-            this.history = settings.history ?? [];
-            this.historyIndex = settings.historyIndex ?? -1;
-            this.cursorPos = settings.cursorPos ?? 0;
-            this.hasbooted = settings.hasbooted ?? 0;
-            this.cwd = settings.cwd ?? HOME;
+                settingsWereCorrupted = true;
+            }
 
-            // Merge saved env/aliases on top of the defaults so new default
-            // keys introduced in later versions still show up.
-            this.env = {
-                ...this.env,
-                ...(settings.env ?? {})
-            };
+            if (settings) {
+                // If the saved session was created by a different terminal version,
+                // wipe it out and reload fresh rather than risk incompatible state.
+                if(settings.version != TERMINAL_VERSION){
+                    localStorage.removeItem("terminalSettings");
+                    localStorage.removeItem("FileSystem");
+                    this.cwd = HOME;
+                    location.reload();
+                    return;
+                }
+                this.history = settings.history ?? [];
+                this.historyIndex = settings.historyIndex ?? -1;
+                this.cursorPos = settings.cursorPos ?? 0;
+                this.hasbooted = settings.hasbooted ?? 0;
+                this.cwd = settings.cwd ?? HOME;
 
-            this.aliases = {
-                ...this.aliases,
-                ...(settings.aliases ?? {})
-            };            
+                // Merge saved env/aliases on top of the defaults so new default
+                // keys introduced in later versions still show up.
+                this.env = {
+                    ...this.env,
+                    ...(settings.env ?? {})
+                };
+
+                this.aliases = {
+                    ...this.aliases,
+                    ...(settings.aliases ?? {})
+                };
+            }
         }
 
         // Attempt to restore the saved virtual filesystem
@@ -134,6 +148,9 @@ class TerminalEngine {
 
         const params = new URLSearchParams(window.location.search);
         await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
+        if (settingsWereCorrupted) {
+            await this.write(`[WARN] Saved session settings were corrupted, restored defaults..[FAIL]`, {color: "#ff5555"});
+        }
         if (filesystemWasCorrupted) {
             await this.write(`[WARN] Saved filesystem was corrupted, restored defaults..[FAIL]`, {color: "#ff5555"});
         }
@@ -209,8 +226,22 @@ class TerminalEngine {
             aliases: this.aliases
         };
 
-        localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
-        localStorage.setItem("FileSystem", FileSystemAPI.serialize());
+        // localStorage.setItem can throw (quota exceeded, private-browsing
+        // mode, storage disabled, etc.) — catch it so a save failure just
+        // means "this session isn't persisted", not "the terminal breaks".
+        try {
+            localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
+            localStorage.setItem("FileSystem", FileSystemAPI.serialize());
+        } catch (err) {
+            console.error("Torvos: failed to save session to localStorage", err);
+            if (!this._storageWriteWarned) {
+                this._storageWriteWarned = true;
+                this.write(
+                    `[WARN] Unable to save session (storage full or unavailable) - your changes won't persist across reloads.`,
+                    {color: "#ff5555"}
+                );
+            }
+        }
     }
 
     /**
