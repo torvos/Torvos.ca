@@ -58,7 +58,7 @@ registerCommand("head", {
                 };
             }
             node.accessed = Date.now();
-            content = node.content;
+            content = terminal.fs.readContent(node);
         }
 
         return {

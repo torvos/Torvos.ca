@@ -556,7 +556,7 @@
             // Preprocess the raw file content into parser-ready logical lines:
             // strip comments/blank lines, substitute positional params, and
             // split each physical line into its constituent statement clauses.
-            const rawLines = (node.content ?? "").split(/\r?\n/);
+            const rawLines = terminal.fs.readContent(node).split(/\r?\n/);
             const lines = [];
             for (const rawLine of rawLines) {
                 const trimmed = rawLine.trim();

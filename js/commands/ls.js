@@ -63,11 +63,12 @@ registerCommand("ls", {
         let errors = [];
 
         // Returns the color a single entry's name should render in - blue
-        // for directories, cyan for symlinks, default for regular files -
-        // mirroring a real `ls --color` listing.
+        // for directories, cyan for symlinks, yellow for device files,
+        // default for regular files - mirroring a real `ls --color` listing.
         function colorFor(child) {
             if (terminal.fs.isDirectory(child)) return COLOR_DIRECTORY;
             if (terminal.fs.isSymlink(child)) return COLOR_SYMLINK;
+            if (terminal.fs.isDevice(child)) return COLOR_DEVICE;
             return undefined;
         }
 
@@ -174,8 +175,8 @@ registerCommand("ls", {
                 continue;
             }
 
-            if (terminal.fs.isFile(node) || terminal.fs.isSymlink(node)) {
-                // Listing a file/symlink directly just prints that one entry
+            if (terminal.fs.isFile(node) || terminal.fs.isSymlink(node) || terminal.fs.isDevice(node)) {
+                // Listing a file/symlink/device directly just prints that one entry
                 const label = target.split(ROOT).pop();
                 if (longFormat) {
                     const line = terminal.fs.formatLongEntry(label, node);

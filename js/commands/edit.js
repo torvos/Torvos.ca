@@ -65,6 +65,15 @@ registerCommand("edit", {
                     exitCode: 1
                 };
             }
+            if (terminal.fs.isDevice(node)) {
+                // Editing a device (e.g. /dev/random) interactively doesn't
+                // make sense - its content is generated on read, not stored.
+                return {
+                    stdout: "",
+                    stderr: `edit: ${target}: cannot edit a device file`,
+                    exitCode: 1
+                };
+            }
         }
 
         terminal.openEditor(node, path);

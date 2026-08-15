@@ -94,5 +94,34 @@ window.createVirtualDev = function() {
         content: ""
     };    
 
+    // /dev/urandom - same idea as /dev/random (yields random bytes on read)
+    dev.children["urandom"] = {
+        type: "device",
+        device: "urandom",
+        hidden: false,
+        mode: "rw-rw-rw-",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        content: ""
+    };
+
+    // /dev/full - reads as null bytes like /dev/zero, but every write fails
+    // as if the disk were out of space (useful for testing write-error handling)
+    dev.children["full"] = {
+        type: "device",
+        device: "full",
+        hidden: false,
+        mode: "rw-rw-rw-",
+        owner: "root",
+        group: "root",
+        created: Date.parse("2020-01-01T08:00:00Z"),
+        modified: Date.parse("2026-07-01T10:00:00Z"),
+        accessed: Date.parse("2026-07-01T10:00:00Z"),
+        content: ""
+    };
+
     FileSystemAPI.mount("dev", dev);
 };

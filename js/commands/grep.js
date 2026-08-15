@@ -39,7 +39,15 @@ registerCommand("grep", {
             content = stdin;
         }
         else if (args.length === 2) {
-            content = terminal.fs.get(args[1], terminal.cwd).content;
+            const node = terminal.fs.get(args[1], terminal.cwd);
+            if (!node) {
+                return {
+                    stdout: "",
+                    stderr: `grep: ${args[1]}: No such file or directory`,
+                    exitCode: 1
+                };
+            }
+            content = terminal.fs.readContent(node);
         }
         if (content.length === 0){
             return {

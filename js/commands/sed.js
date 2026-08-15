@@ -76,7 +76,7 @@ registerCommand("sed", {
             }
 
             node.accessed = Date.now();
-            content = node.content;
+            content = terminal.fs.readContent(node);
 
         } else {
             // No file given - operate on piped stdin instead
@@ -165,8 +165,14 @@ registerCommand("sed", {
 
         if (inPlace && node) {
             // -i: write the transformed content back into the file instead of printing it
-            node.content = output;
-            node.modified = Date.now();
+            const wrote = terminal.fs.writeContent(node, output);
+            if (!wrote) {
+                return {
+                    stdout: "",
+                    stderr: `sed: ${target}: No space left on device`,
+                    exitCode: 1
+                };
+            }
             return {
                 stdout: "",
                 stderr: "",

@@ -56,7 +56,7 @@ registerCommand("more", {
         }
 
         node.accessed = Date.now();
-        const lines = node.content.split(/\r?\n/);
+        const lines = terminal.fs.readContent(node).split(/\r?\n/);
         terminal.pager.linesPrinted = 0;
         // Write lines directly, pausing at each page boundary until the
         // user presses a key (space/enter to continue, q to quit early)

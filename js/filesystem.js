@@ -633,6 +633,80 @@ Developer - Application Development
             return node?.type === "symlink";
         },
 
+        // Accepts either a path string or an already-resolved node. True for
+        // the virtual device files under /dev (null, zero, random, etc).
+        isDevice(pathOrNode, cwd = "/") {
+            const node = typeof pathOrNode === "string"
+                ? this.get(pathOrNode, cwd)
+                : pathOrNode;
+
+            return node?.type === "device";
+        },
+
+        /**
+         * Returns the readable content of a file OR device node. Regular
+         * files return their stored `content` as usual; device nodes (e.g.
+         * /dev/random) delegate to that device's read() handler in
+         * window.FileDevices, generating their content on the fly instead
+         * of reading a static string. This is the one method every command
+         * should use to read a file's bytes, so device files "just work"
+         * anywhere a regular file would.
+         * @param {string|Object} pathOrNode - Path string or resolved node.
+         * @param {string} [cwd] - Working directory to resolve a path against.
+         * @returns {string} The content, or "" if the node/device is missing.
+         */
+        readContent(pathOrNode, cwd = "/") {
+            const node = typeof pathOrNode === "string"
+                ? this.get(pathOrNode, cwd)
+                : pathOrNode;
+
+            if (!node) return "";
+
+            if (node.type === "device") {
+                const device = window.FileDevices?.[node.device];
+                return device ? device.read() : "";
+            }
+
+            return node.content ?? "";
+        },
+
+        /**
+         * Writes (or appends) content to a file OR device node. Regular
+         * files store the text in `content` as usual; device nodes delegate
+         * to that device's write() handler in window.FileDevices (which may
+         * discard the data, as /dev/null does, or refuse it, as /dev/full
+         * does) rather than actually storing it.
+         * @param {string|Object} pathOrNode - Path string or resolved node.
+         * @param {string} data - Text to write.
+         * @param {Object} [options]
+         * @param {boolean} [options.append=false] - Append instead of overwrite (files only).
+         * @param {string} [options.cwd="/"] - Working directory, when pathOrNode is a path string.
+         * @returns {boolean} true on success, false if the node is missing
+         *   or the device refused the write (e.g. /dev/full).
+         */
+        writeContent(pathOrNode, data, options = {}) {
+            const node = typeof pathOrNode === "string"
+                ? this.get(pathOrNode, options.cwd ?? "/")
+                : pathOrNode;
+
+            if (!node) return false;
+
+            if (node.type === "device") {
+                const device = window.FileDevices?.[node.device];
+                const ok = device ? device.write(data ?? "") : false;
+                if (ok) node.modified = Date.now();
+                return ok;
+            }
+
+            node.content = options.append
+                ? ((node.content ?? "")
+                    ? node.content + "\n" + (data ?? "")
+                    : (data ?? ""))
+                : (data ?? "");
+            node.modified = Date.now();
+            return true;
+        },
+
         // Resolves `path` and returns the full {node, path} result (symlinks followed).
         resolve(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
@@ -749,9 +823,24 @@ Developer - Application Development
     /**
      * Read/write handlers for the virtual device files under /dev,
      * mirroring standard Unix device semantics: /dev/null discards writes
-     * and reads as empty, /dev/zero reads as null bytes, /dev/random reads
-     * as random alphanumeric characters. All writes succeed silently.
+     * and reads as empty, /dev/zero reads as null bytes, /dev/random and
+     * /dev/urandom read as random bytes, /dev/full reads as null bytes but
+     * always refuses writes (simulating a full disk). All other writes
+     * succeed silently, same as their real counterparts.
      */
+    function generateRandomBytes(count) {
+        const chars =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        let output = "";
+
+        for (let i = 0; i < count; i++) {
+            output += chars[Math.floor(Math.random() * chars.length)];
+        }
+
+        return output;
+    }
+
     window.FileDevices = {
         null: {
             read() {
@@ -773,20 +862,33 @@ Developer - Application Development
 
         random: {
             read(count = 4096) {
-                const chars =
-                    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-                let output = "";
-
-                for (let i = 0; i < count; i++) {
-                    output += chars[Math.floor(Math.random() * chars.length)];
-                }
-
-                return output;
+                return generateRandomBytes(count);
             },
 
             write(data) {
                 return true;
+            }
+        },
+
+        urandom: {
+            read(count = 4096) {
+                return generateRandomBytes(count);
+            },
+
+            write(data) {
+                return true;
+            }
+        },
+
+        // /dev/full - reads like /dev/zero, but every write fails (as if the
+        // disk were completely out of space). Useful for testing how a
+        // program handles a failed write.
+        full: {
+            read(count = 4096) {
+                return "\0".repeat(count);
+            },
+            write(data) {
+                return false;
             }
         }
     };

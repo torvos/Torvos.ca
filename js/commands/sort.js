@@ -73,7 +73,7 @@ registerCommand("sort", {
                         exitCode: 1  
                     };
                 }
-                contents.push(node.content);
+                contents.push(terminal.fs.readContent(node));
             }
             text = contents.join("\n");
         }

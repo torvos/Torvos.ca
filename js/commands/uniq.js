@@ -68,7 +68,7 @@ registerCommand("uniq", {
                     exitCode: 1
                 };
             }
-            text = node.content;
+            text = terminal.fs.readContent(node);
         }
         let lines = text.split(/\r?\n/);
         if (lines.length && lines[lines.length - 1] === "") {

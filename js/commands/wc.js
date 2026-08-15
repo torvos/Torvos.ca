@@ -70,7 +70,7 @@ registerCommand("wc", {
                 };
             }
             node.accessed = Date.now();
-            content = node.content;
+            content = terminal.fs.readContent(node);
         }
 
         const lines = content.length === 0

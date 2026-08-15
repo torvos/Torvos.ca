@@ -89,7 +89,7 @@ Object.assign(TerminalEngine.prototype, {
                     // Input redirection (`< file`) - read the file's content as stdin
                     if (redirects.operator === "<") {
                         const node = this.fs.get(redirects.target, this.cwd);
-                        if (!node || !this.fs.isFile(node)) {
+                        if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
                             stdin = "";
                             if (index === pipeline.length - 1) {
                                 this.write(
@@ -98,7 +98,7 @@ Object.assign(TerminalEngine.prototype, {
                             }
                             break;
                         }
-                        stdin = node.content ?? "";
+                        stdin = this.fs.readContent(node);
                     }
 
                     let result;
@@ -346,19 +346,17 @@ Object.assign(TerminalEngine.prototype, {
             parent.parent.children[parent.name] = this.fs.createFile(parent.name.startsWith("."));
             node = parent.parent.children[parent.name];
         }
-        if (!this.fs.isFile(node)) {
+        if (!this.fs.isFile(node) && !this.fs.isDevice(node)) {
             return `Invalid directory specified in redirection operator`;
         }
 
-        node.content = append
-            ? ((node.content ?? "") 
-                ? node.content + "\n" + (text ?? "")
-                : (text ?? ""))
-            : (text ?? "");
+        const wrote = this.fs.writeContent(node, text ?? "", { append });
+        if (!wrote) {
+            // A device (e.g. /dev/full) refused the write
+            return `No space left on device`;
+        }
 
-        node.modified = Date.now();
         node.accessed = Date.now();
-
 
         this.saveSettings();
 
