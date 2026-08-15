@@ -22,14 +22,20 @@ registerCommand("printenv", {
         }
         // Build a "KEY: value" line for every env var
         let listing = "";
+        let listingSegments = [];
         for (const key in terminal.env) {
             if (terminal.env.hasOwnProperty(key)) {
-            listing += `${key}: ${terminal.env[key]}\n`;
+                listing += `${key}: ${terminal.env[key]}\n`;
+                listingSegments.push([
+                    { text: `${key}: `, color: COLOR_LABEL },
+                    { text: `${terminal.env[key]}`, color: COLOR_STDOUT }
+                ]);
             }
         }
         
         return {
             stdout: listing.replace(/\r?\n$/, ""), // strip the trailing newline
+            stdoutSegments: listingSegments,
             stderr: "",
             exitCode: 0
         };        

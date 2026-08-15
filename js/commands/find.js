@@ -55,57 +55,46 @@ registerCommand("find", {
                 path = "";
             }
             let output = "";
+            let segments = [];
             if (depth > maxDepth || !node.children) {
-                return output;
+                return { text: output, segments };
             }
             let keys = Object.keys(node.children);
             keys.forEach((key, index) => {
                 const child = node.children[key];
-                if (typeFilter === "f"){
-                    if(terminal.fs.isFile(child)){
-                        if(namePattern){
-                            if(regex.test(key)){
-                                output += `${path}/${key}\n`;
-                            }
-                        }
-                        else{
-                            output += `${path}/${key}\n`;
-                        }
-                    }
-                }                
-                else if (typeFilter === "d"){
-                    if(terminal.fs.isDirectory(child)){
-                        if(namePattern){
-                            if(regex.test(key)){
-                                output += `${path}/${key}\n`;
-                            }                        
-                        }
-                        else{
-                            output += `${path}/${key}\n`;
-                        }
-                    }
+                const isDir = terminal.fs.isDirectory(child);
+                const matches = (namePattern ? regex.test(key) : true);
+
+                const shouldPrint =
+                    typeFilter === "f" ? (terminal.fs.isFile(child) && matches) :
+                    typeFilter === "d" ? (isDir && matches) :
+                    matches;
+
+                if (shouldPrint) {
+                    const line = `${path}/${key}`;
+                    output += `${line}\n`;
+                    // Color directory paths distinctly from file paths,
+                    // same convention as ls/tree.
+                    segments.push({
+                        text: line,
+                        color: isDir ? COLOR_DIRECTORY : COLOR_STDOUT
+                    });
                 }
-                else{
-                    // No type filter - match on name pattern alone (or list everything)
-                    if(namePattern){
-                        if(regex.test(key)){
-                            output += `${path}/${key}\n`;
-                        }                    
-                    }
-                    else{
-                        output += `${path}/${key}\n`;
-                    }
-                }
-                if (terminal.fs.isDirectory(child) && depth < maxDepth) {
+                if (isDir && depth < maxDepth) {
                     const nextPath = path + "/" + key;
-                    output += walk(child, nextPath, depth + 1);
+                    const nested = walk(child, nextPath, depth + 1);
+                    output += nested.text;
+                    segments.push(...nested.segments);
                 }
             });
-            return output;
+            return { text: output, segments };
         }
 
+        const walked = walk(root, path);
+
         return {
-            stdout: walk(root, path).replace(/\r?\n$/, ""),
+            stdout: walked.text.replace(/\r?\n$/, ""),
+            stdoutSegments: walked.segments.map(seg => [seg]),
             stderr: "",
             exitCode: 0
         };

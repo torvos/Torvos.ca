@@ -29,6 +29,7 @@ registerCommand("stat", {
         args = parsed.args;
 
         let funcStdout = "";
+        let funcStdoutSegments = [];
         let funcStderr = "";
         let funcExitCode = 0;
 
@@ -58,16 +59,26 @@ registerCommand("stat", {
 
                 // Appends a formatted metadata block for a single item to funcStdout
                 function printStat(name, item) {
-
-                    funcStdout += `    File: ${name}\n`;
-                    funcStdout += `    Type: ${item.type}\n`;
-                    funcStdout += `    Size: ${terminal.fs.getDirectorySize(item)}\n`;
-                    funcStdout += `    Mode: ${item.mode}\n`;
-                    funcStdout += `   Owner: ${item.owner}\n`;
-                    funcStdout += `   Group: ${item.group}\n`;
-                    funcStdout += ` Created: ${terminal.fs.formatDate(item.created)}\n`;
-                    funcStdout += `Modified: ${terminal.fs.formatDate(item.modified)}\n`;
-                    funcStdout += `Accessed: ${terminal.fs.formatDate(item.accessed)}\n\n`;
+                    const rows = [
+                        ["    File", name],
+                        ["    Type", item.type],
+                        ["    Size", terminal.fs.getDirectorySize(item)],
+                        ["    Mode", item.mode],
+                        ["   Owner", item.owner],
+                        ["   Group", item.group],
+                        [" Created", terminal.fs.formatDate(item.created)],
+                        ["Modified", terminal.fs.formatDate(item.modified)],
+                        ["Accessed", terminal.fs.formatDate(item.accessed)]
+                    ];
+                    for (const [label, value] of rows) {
+                        funcStdout += `${label}: ${value}\n`;
+                        funcStdoutSegments.push([
+                            { text: `${label}: `, color: COLOR_LABEL },
+                            { text: `${value}`, color: COLOR_STDOUT }
+                        ]);
+                    }
+                    funcStdout += "\n";
+                    funcStdoutSegments.push(undefined);
                 }
 
 
@@ -95,6 +106,7 @@ registerCommand("stat", {
         }
         return {
             stdout: funcStdout.replace(/\r?\n$/, ""),
+            stdoutSegments: funcStdoutSegments,
             stderr: funcStderr.replace(/\r?\n$/, ""),
             exitCode: funcExitCode
         };

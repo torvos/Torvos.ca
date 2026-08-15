@@ -236,12 +236,28 @@ Object.assign(TerminalEngine.prototype, {
                         if (result.stdout) {
                             const lines =
                                 result.stdout.split(/\r?\n/);
-                            for (const line of lines) {
+                            // A command can optionally return `stdoutSegments`
+                            // - an array of colored { text, color } segments
+                            // per line, parallel to `stdout`'s lines - to
+                            // color parts of its output (e.g. ls coloring
+                            // directory names). Only used for display; piping
+                            // and redirection always use the plain `stdout`
+                            // string above, untouched. If a command's
+                            // stdoutSegments doesn't line up 1:1 with its own
+                            // stdout (a bug in that command), ignore it
+                            // entirely and fall back to plain rendering
+                            // rather than risk printing mismatched/missing
+                            // lines.
+                            const validSegments =
+                                Array.isArray(result.stdoutSegments) &&
+                                result.stdoutSegments.length === lines.length;
+                            for (let i = 0; i < lines.length; i++) {
+                                const segments = validSegments
+                                    ? result.stdoutSegments[i]
+                                    : undefined;
                                 this.write(
-                                    line,
-                                    {
-                                        color:"#ffffff"
-                                    }
+                                    segments ?? lines[i],
+                                    { color: "#ffffff" }
                                 );
                                 await this.sleep(50);
                             }

@@ -52,8 +52,30 @@ registerCommand("grep", {
         const matches = lines.filter(line =>
             line.includes(pattern)
         );
+
+        // Highlight every occurrence of `pattern` within a matched line,
+        // leaving the rest of the line in the default terminal color -
+        // same idea as `grep --color`.
+        function highlightLine(line) {
+            const segments = [];
+            let rest = line;
+            let idx;
+            while ((idx = rest.indexOf(pattern)) !== -1) {
+                if (idx > 0) {
+                    segments.push({ text: rest.slice(0, idx), color: COLOR_STDOUT });
+                }
+                segments.push({ text: rest.slice(idx, idx + pattern.length), color: COLOR_MATCH });
+                rest = rest.slice(idx + pattern.length);
+            }
+            if (rest) {
+                segments.push({ text: rest, color: COLOR_STDOUT });
+            }
+            return segments;
+        }
+
         return {
             stdout: matches.join("\n"),
+            stdoutSegments: matches.map(highlightLine),
             stderr: "",
             exitCode: matches.length ? 0 : 1
         };

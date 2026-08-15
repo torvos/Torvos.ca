@@ -42,31 +42,48 @@ registerCommand("man", {
         }
         // Build the man-page sections from the command's metadata fields
         const lines = [];
-        lines.push("SUMMARY");
-        lines.push(`    ${command.name}`);
-        lines.push("");
-        lines.push("USAGE SYNTAX");
-        lines.push(`    ${command.synopsis}`);
-        lines.push("");
-        lines.push("DESCRIPTION");
-        lines.push(`    ${command.description}`);
-        lines.push("");
+        const lineSegments = [];
+
+        // Pushes a section heading (colored) or a plain body/blank line
+        // (default color) to both parallel arrays in one go.
+        function pushLine(text, isHeading) {
+            lines.push(text);
+            lineSegments.push(
+                text ? [{ text, color: isHeading ? COLOR_HEADING : COLOR_STDOUT }] : undefined
+            );
+        }
+
+        pushLine("SUMMARY", true);
+        pushLine(`    ${command.name}`, false);
+        pushLine("", false);
+        pushLine("USAGE SYNTAX", true);
+        pushLine(`    ${command.synopsis}`, false);
+        pushLine("", false);
+        pushLine("DESCRIPTION", true);
+        pushLine(`    ${command.description}`, false);
+        pushLine("", false);
         if (command.options?.length) {
-            lines.push("OPTIONS");
+            pushLine("OPTIONS", true);
             for (const option of command.options) {
-                lines.push(`    ${option}`);
+                pushLine(`    ${option}`, false);
             }
-            lines.push("");
+            pushLine("", false);
         }
         if (command.examples?.length) {
-            lines.push("EXAMPLES");
+            pushLine("EXAMPLES", true);
             for (const example of command.examples) {
-                lines.push(`    ${example}`);
+                pushLine(`    ${example}`, false);
             }
-            lines.push("");
+            pushLine("", false);
+        }
+        // Trim the trailing blank line/segment the same way trimEnd() did below.
+        while (lines.length && lines[lines.length - 1] === "") {
+            lines.pop();
+            lineSegments.pop();
         }
         return {
-            stdout: lines.join("\n").trimEnd(),
+            stdout: lines.join("\n"),
+            stdoutSegments: lineSegments,
             stderr: "",
             exitCode: 0
         };

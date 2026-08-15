@@ -53,70 +53,115 @@ registerCommand("ls", {
             ? parsed.args
             : [terminal.cwd];
 
-        let output = [];
+        // Parallel arrays: one plain-text line per entry in `lines`, and
+        // the same line's colored { text, color } segments (or undefined,
+        // for lines that don't need coloring) in `lineSegments`. Kept
+        // strictly parallel/flat throughout so stdout/stdoutSegments never
+        // drift out of sync, even across -R's recursive nesting.
+        let lines = [];
+        let lineSegments = [];
         let errors = [];
 
+        // Returns the color a single entry's name should render in - blue
+        // for directories, cyan for symlinks, default for regular files -
+        // mirroring a real `ls --color` listing.
+        function colorFor(child) {
+            if (terminal.fs.isDirectory(child)) return COLOR_DIRECTORY;
+            if (terminal.fs.isSymlink(child)) return COLOR_SYMLINK;
+            return undefined;
+        }
+
         /**
-         * Builds the listing text for a single directory node. Recurses
-         * into subdirectories (appending their own listings, headed by
-         * their path) when -R is set.
+         * Appends the listing for a single directory node to `lines`/
+         * `lineSegments`. Recurses into subdirectories (appending their
+         * own listings, headed by their path) when -R is set.
          * @param {Object} dirNode - The directory's filesystem node.
          * @param {string} dirPath - This directory's display path prefix
          *   (used to build child paths for recursive listings).
-         * @returns {string} The formatted listing for this directory.
          */
         function listDirectory(dirNode, dirPath) {
             dirNode.accessed = Date.now();
             const children = dirNode.children || {};
             const keys = Object.keys(children);
-            let entries = [];
+
+            // Names/segments for this directory's own entries, collected
+            // separately so the short format can pack them onto one line.
+            let names = [];
+            let nameSegments = [];
             let directories = [];
+
             keys.forEach(name => {
                 const child = children[name];
                 if (child.hidden && !showHidden) {
                     return;
                 }
+                const entryColor = colorFor(child);
+
                 if (longFormat) {
-                    entries.push(terminal.fs.formatLongEntry(name, child));
+                    const line = terminal.fs.formatLongEntry(name, child);
+                    // formatLongEntry always ends with the name (and, for
+                    // dirs/symlinks, a trailing "/" or "-> target") - split
+                    // that off so only the name portion gets colored.
+                    const nameIndex = line.lastIndexOf(name);
+                    names.push(line);
+                    nameSegments.push([
+                        { text: line.slice(0, nameIndex), color: COLOR_STDOUT },
+                        { text: line.slice(nameIndex), color: entryColor ?? COLOR_STDOUT }
+                    ]);
                 }
                 else {
                     // Short format: just the name, with a trailing "/" for directories
-                    entries.push(
-                        terminal.fs.isDirectory(child)
-                            ? `${name}/`
-                            : name
-                    );
+                    const label = terminal.fs.isDirectory(child)
+                        ? `${name}/`
+                        : name;
+                    names.push(label);
+                    nameSegments.push([{ text: label, color: entryColor ?? COLOR_STDOUT }]);
                 }
                 if (terminal.fs.isDirectory(child)) {
-                    directories.push({
-                        name,
-                        node: child
-                    });
+                    directories.push({ name, node: child });
                 }
             });
+
+            if (longFormat || recursive) {
+                // One entry per physical line.
+                if (names.length) {
+                    names.forEach((name, i) => {
+                        lines.push(name);
+                        lineSegments.push(nameSegments[i]);
+                    });
+                } else {
+                    // Empty directory: preserve the blank line a real `ls`
+                    // listing leaves between two target headers.
+                    lines.push("");
+                    lineSegments.push(undefined);
+                }
+            } else if (names.length) {
+                // Short format packs every entry onto a single physical
+                // line, joined by "  " (also just a plain segment).
+                lines.push(names.join("  "));
+                const packed = [];
+                nameSegments.forEach((segs, i) => {
+                    if (i > 0) packed.push({ text: "  ", color: COLOR_STDOUT });
+                    packed.push(...segs);
+                });
+                lineSegments.push(packed);
+            } else {
+                // Empty directory, short format: same blank-line placeholder.
+                lines.push("");
+                lineSegments.push(undefined);
+            }
 
             if (recursive) {
                 // Append each subdirectory's own listing, with a blank line
                 // and a "path:" header, mimicking real `ls -R` output
                 directories.forEach(dir => {
-                    entries.push("");
-                    entries.push(
-                        `${dirPath}${dir.name}:`
-                    );
-                    entries.push(
-                        listDirectory(
-                            dir.node,
-                            `${dirPath}${dir.name}/`
-                        )
-                    );
+                    lines.push("");
+                    lineSegments.push(undefined);
+                    lines.push(`${dirPath}${dir.name}:`);
+                    lineSegments.push(undefined);
+                    listDirectory(dir.node, `${dirPath}${dir.name}/`);
                 });
             }
-
-            return entries.join(
-                recursive || longFormat
-                    ? "\n"   // one entry per line
-                    : "  "   // short format packs entries on one line
-            );
         }
 
         for (const target of targets) {
@@ -131,39 +176,38 @@ registerCommand("ls", {
 
             if (terminal.fs.isFile(node) || terminal.fs.isSymlink(node)) {
                 // Listing a file/symlink directly just prints that one entry
+                const label = target.split(ROOT).pop();
                 if (longFormat) {
-                    output.push(
-                        terminal.fs.formatLongEntry(
-                            target.split(ROOT).pop(),
-                            node
-                        )
-                    );
+                    const line = terminal.fs.formatLongEntry(label, node);
+                    const nameIndex = line.lastIndexOf(label);
+                    lines.push(line);
+                    lineSegments.push([
+                        { text: line.slice(0, nameIndex), color: COLOR_STDOUT },
+                        { text: line.slice(nameIndex), color: colorFor(node) ?? COLOR_STDOUT }
+                    ]);
                 }
                 else {
-                    output.push(
-                        target.split(ROOT).pop()
-                    );
+                    lines.push(label);
+                    lineSegments.push([{ text: label, color: colorFor(node) ?? COLOR_STDOUT }]);
                 }
                 continue;
             }
 
             if (targets.length > 1) {
                 // Multiple targets given - label each directory's listing
-                output.push(
-                    `${target}:`
-                );
+                lines.push(`${target}:`);
+                lineSegments.push(undefined);
             }
 
-            output.push(
-                listDirectory(
-                    node,
-                    target === ROOT ? "" : `${target}/`
-                )
+            listDirectory(
+                node,
+                target === ROOT ? "" : `${target}/`
             );
         }
 
         return {
-            stdout: output.join("\n"),
+            stdout: lines.join("\n"),
+            stdoutSegments: lineSegments,
             stderr: errors.join("\n"),
             exitCode: errors.length ? 1 : 0
         };

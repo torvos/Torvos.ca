@@ -13,3 +13,14 @@ const INPUT_NORMAL = "normal";
 const INPUT_EDITOR = "editor";
 const INPUT_WAIT_FOR_USERNAME = "waitingUsername";
 const INPUT_WAIT_FOR_PASSWORD = "waitingPassword";
+
+// Shared colors for multi-color command output (ls/tree/find/grep/stat/man/etc).
+// Kept in one place so entries, matches, and labels stay visually consistent
+// across every command that colors part of its output.
+const COLOR_STDOUT = "#ffffff";     // default color used for plain stdout text
+const COLOR_ERROR = "#ff6060";      // matches the red used for stderr lines
+const COLOR_DIRECTORY = "#66aaff";  // directory names in ls/tree/find
+const COLOR_SYMLINK = "#5fd7ff";    // symlink names/targets in ls
+const COLOR_MATCH = "#ffff66";      // grep's matched substring
+const COLOR_LABEL = "#888888";      // dim field labels in stat/printenv
+const COLOR_HEADING = "#66ff99";    // section headings in man

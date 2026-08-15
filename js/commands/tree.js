@@ -37,11 +37,17 @@ registerCommand("tree", {
         const target = parsed.args[0] || terminal.cwd;
         const root = terminal.fs.get(target, terminal.cwd);
 
-        // Recursively builds the tree text for `node`, using `prefix` to
-        // draw the connecting lines/indentation for nested levels.
+        // Parallel arrays kept flat/in sync throughout the recursion, same
+        // approach as ls.js: one line of text, one matching segments entry
+        // (or undefined for lines that don't need coloring).
+        const lines = [];
+        const lineSegments = [];
+
+        // Recursively walks `node`, appending a line for every child that
+        // passes the filters, using `prefix` to draw the connecting lines/
+        // indentation for nested levels.
         function walk(node, prefix = "", depth = 1) {
-            let output = "";
-            if (!node.children) return output;
+            if (!node.children) return;
 
             let keys = Object.keys(node.children);
 
@@ -57,16 +63,22 @@ registerCommand("tree", {
                 const isLast = index === keys.length - 1;
                 // Last entry in a directory uses "└──", others use "├──"
                 const connector = isLast ? "└── " : "├── ";
-                output += `${prefix}${connector}${key}${terminal.fs.isDirectory(child) ? ROOT : ""}\n`;
+                const isDir = terminal.fs.isDirectory(child);
+                const label = `${key}${isDir ? ROOT : ""}`;
 
-                if (terminal.fs.isDirectory(child) && depth < maxDepth) {
+                lines.push(`${prefix}${connector}${label}`);
+                lineSegments.push([
+                    { text: `${prefix}${connector}`, color: COLOR_STDOUT },
+                    { text: label, color: isDir ? COLOR_DIRECTORY : COLOR_STDOUT }
+                ]);
+
+                if (isDir && depth < maxDepth) {
                     // Continuation prefix: blank space under the last entry,
                     // a vertical bar under any earlier entry
                     const nextPrefix = prefix + (isLast ? "    " : "│   ");
-                    output += walk(child, nextPrefix, depth + 1);
+                    walk(child, nextPrefix, depth + 1);
                 }
             });
-            return output;
         }
 
         if (!root) {
@@ -77,8 +89,11 @@ registerCommand("tree", {
             };
         }
 
+        walk(root);
+
         return {
-            stdout: walk(root).replace(/\r?\n$/, ""),
+            stdout: lines.join("\n"),
+            stdoutSegments: lineSegments,
             stderr: "",
             exitCode: 0
         };
