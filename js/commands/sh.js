@@ -380,7 +380,7 @@
                 let iterations = 0;
                 while (await evaluateCondition(terminal, stmt.condition)) {
                     if (++iterations > MAX_LOOP_ITERATIONS) {
-                        terminal.write("sh: while loop exceeded maximum iteration limit", { color: "#ff6060" });
+                        terminal.write(terminal.formatErrorLine("sh: while loop exceeded maximum iteration limit"));
                         break;
                     }
                     await maybeYield(iterations);
@@ -396,7 +396,7 @@
                 const items = expandForItems(terminal, stmt.itemsText);
                 for (let i = 0; i < items.length; i++) {
                     if (i > MAX_LOOP_ITERATIONS) {
-                        terminal.write("sh: for loop exceeded maximum iteration limit", { color: "#ff6060" });
+                        terminal.write(terminal.formatErrorLine("sh: for loop exceeded maximum iteration limit"));
                         break;
                     }
                     await maybeYield(i);

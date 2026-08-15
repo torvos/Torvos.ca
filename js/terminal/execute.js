@@ -93,10 +93,7 @@ Object.assign(TerminalEngine.prototype, {
                             stdin = "";
                             if (index === pipeline.length - 1) {
                                 this.write(
-                                    `${redirects.target}: No such file`,
-                                    {
-                                        color:"#ff6060"
-                                    }
+                                    this.formatErrorLine(`${redirects.target}: No such file`)
                                 );
                             }
                             break;
@@ -223,12 +220,7 @@ Object.assign(TerminalEngine.prototype, {
                         if (result.stderr) {
                             const lines = result.stderr.split(/\r?\n/);
                             for (const line of lines) {
-                                this.write(
-                                    line,
-                                    {
-                                        color:"#ff6060"
-                                    }
-                                );
+                                this.write(this.formatErrorLine(line));
                                 await this.sleep(50);
                             }
                         }

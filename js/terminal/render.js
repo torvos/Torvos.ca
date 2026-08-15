@@ -45,16 +45,29 @@ Object.assign(TerminalEngine.prototype, {
 
     /**
      * Appends a line of text to the terminal output.
-     * If the text contains a URL or email address, it is HTML-escaped and
-     * those matches are turned into clickable <a> links; otherwise it's
+     * If a segment's text contains a URL or email address, it is HTML-escaped
+     * and those matches are turned into clickable <a> links; otherwise it's
      * inserted as plain text (safe from HTML injection either way).
-     * @param {string} text - The line to print.
+     *
+     * Supports two calling styles:
+     *   - Whole-line color (legacy, still works exactly as before):
+     *       terminal.write("disk not found", { color: "#ff6060" });
+     *   - Multiple colors within a single line, by passing an array of
+     *     { text, color } segments instead of a string. Segments with no
+     *     color inherit the terminal's default text color:
+     *       terminal.write([
+     *           { text: "error: ", color: "#ff6060" },
+     *           { text: "disk not found" }
+     *       ]);
+     *
+     * @param {string|Array<{text: string, color?: string}>} text - The line
+     *   to print, or an array of colored segments making up the line.
      * @param {Object} [options] - Optional rendering options.
-     * @param {string} [options.color] - CSS color to apply to the line.
+     * @param {string} [options.color] - CSS color for the whole line, used
+     *   only when `text` is a plain string.
      */
     write(text, options = {}) {
         const div = document.createElement("div");
-        const raw = text ?? "";
 
         // Escapes special HTML characters so user/file content can't inject markup
         const escapeHtml = (str) => str
@@ -68,44 +81,99 @@ Object.assign(TerminalEngine.prototype, {
         const pattern1 = /\b(https?:\/\/[^\s<]+)/gi;
         const pattern2 = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 
-        if (pattern1.test(raw) || pattern2.test(raw)){
-            // Escape first, then wrap URLs/emails in anchor tags
-            const output = escapeHtml(raw)
+        // Escapes a chunk of text and turns any URLs/emails within it into
+        // clickable links. The escape happens first, so this is safe to
+        // drop into innerHTML even if the source text contains "<"/">"/etc.
+        const linkify = (str) => escapeHtml(str)
             .replace(
-                /\b(https?:\/\/[^\s<]+)/gi,
+                pattern1,
                 '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
             )
             .replace(
-                /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+                pattern2,
                 '<a href="mailto:$&">$&</a>'
-            );        
-            div.innerHTML = output;
-        } else {
-            // No links present: use innerText for safety; a non-breaking space
-            // keeps empty lines from collapsing to zero height.
-            div.innerText = raw || "\u00A0";
+            );
+
+        // Normalize the input into a list of segments so both calling
+        // styles above are handled identically below.
+        const segments = Array.isArray(text)
+            ? text
+            : [{ text: text ?? "", color: options.color }];
+
+        let wroteContent = false;
+        for (const segment of segments) {
+            const segmentText = segment?.text ?? "";
+            if (!segmentText) continue;
+            wroteContent = true;
+
+            const span = document.createElement("span");
+            span.innerHTML = linkify(segmentText);
+            // Set via the style property (not string-interpolated CSS) so a
+            // segment's color can never break out of the element's markup.
+            if (segment.color) {
+                span.style.color = segment.color;
+            }
+            div.appendChild(span);
         }
-        
-        if (options.color) {
-            div.style.color = options.color;
+
+        if (!wroteContent) {
+            // No segments had any text: a non-breaking space keeps empty
+            // lines from collapsing to zero height.
+            div.innerText = "\u00A0";
         }
+
         this.output.appendChild(div);
         this.scrollToBottom();
     },
 
     /**
+     * Splits a shell error line such as "cat: no such file: foo" (or
+     * "command not found: ls-a") into a red "label: " prefix and the rest
+     * of the message in the terminal's default text color, ready to hand
+     * to write(). Falls back to coloring the whole line red if there's no
+     * "label: " to split off.
+     * @param {string} line - A raw stderr line (typically "cmd: message").
+     * @returns {Array<{text: string, color?: string}>} Segments for write().
+     */
+    formatErrorLine(line) {
+        const match = line.match(/^([^:]*:\s*)([\s\S]*)$/);
+        if (!match) {
+            return [{ text: line, color: "#ff6060" }];
+        }
+        const [, prefix, rest] = match;
+        return [
+            { text: prefix, color: "#ff6060" },
+            { text: rest }
+        ];
+    },
+
+    /**
      * Prints a line using an animated "typewriter" effect (one character
      * at a time). Used during the boot sequence for dramatic effect.
-     * @param {string} text - The line to type out.
+     * Accepts the same two calling styles as write(): a plain string with
+     * an optional whole-line options.color, or an array of colored
+     * { text, color } segments (typed out left to right, in order).
+     * @param {string|Array<{text: string, color?: string}>} text - The line
+     *   to type out, or an array of colored segments making up the line.
      * @param {Object} [options] - Optional rendering options (e.g. color).
      */
     async typeItOut(text, options = {}) {
         const div = document.createElement("div");
         this.output.appendChild(div);
-        if (options.color) {
-            div.style.color = options.color;
-        }        
-        await this.typeWrite(div, text);
+
+        const segments = Array.isArray(text)
+            ? text
+            : [{ text: text ?? "", color: options.color }];
+
+        for (const segment of segments) {
+            const span = document.createElement("span");
+            if (segment.color) {
+                span.style.color = segment.color;
+            }
+            div.appendChild(span);
+            await this.typeWrite(span, segment?.text ?? "");
+        }
+
         this.scrollToBottom();
     },
 
