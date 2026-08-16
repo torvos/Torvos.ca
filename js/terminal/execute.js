@@ -219,6 +219,44 @@ Object.assign(TerminalEngine.prototype, {
 
                     this.lastExitCode = result.exitCode;
 
+                    // Only the LAST stage's stdout is actually printed to the
+                    // terminal (earlier stages' output is consumed by the next
+                    // stage in the pipe). This happens regardless of exit code:
+                    // a non-zero exit (e.g. `diff` reporting differences, or
+                    // `grep -c` reporting zero matches) isn't necessarily an
+                    // error - real shells still print stdout in that case, they
+                    // just also surface the exit code via $? and stop further
+                    // `&&` chaining. This must run BEFORE the error handling
+                    // below, or a non-zero exit would swallow stdout entirely.
+                    if (index === pipeline.length - 1 && result.stdout) {
+                        const lines = result.stdout.split(/\r?\n/);
+                        // A command can optionally return `stdoutSegments`
+                        // - an array of colored { text, color } segments
+                        // per line, parallel to `stdout`'s lines - to
+                        // color parts of its output (e.g. ls coloring
+                        // directory names). Only used for display; piping
+                        // and redirection always use the plain `stdout`
+                        // string above, untouched. If a command's
+                        // stdoutSegments doesn't line up 1:1 with its own
+                        // stdout (a bug in that command), ignore it
+                        // entirely and fall back to plain rendering
+                        // rather than risk printing mismatched/missing
+                        // lines.
+                        const validSegments =
+                            Array.isArray(result.stdoutSegments) &&
+                            result.stdoutSegments.length === lines.length;
+                        for (let i = 0; i < lines.length; i++) {
+                            const segments = validSegments
+                                ? result.stdoutSegments[i]
+                                : undefined;
+                            this.write(
+                                segments ?? lines[i],
+                                { color: "#ffffff" }
+                            );
+                            await this.sleep(50);
+                        }
+                    }
+
                     if (result.exitCode !== 0) {
                         // Non-zero exit: print stderr (line by line, with a small
                         // delay for effect) and stop the rest of the pipeline.
@@ -234,40 +272,6 @@ Object.assign(TerminalEngine.prototype, {
 
                     // Successful stage - its stdout becomes stdin for the next pipeline stage
                     stdin = result.stdout;
-
-                    // Only the LAST stage's stdout is actually printed to the terminal
-                    // (earlier stages' output is consumed by the next stage in the pipe)
-                    if (index === pipeline.length - 1) {
-                        if (result.stdout) {
-                            const lines =
-                                result.stdout.split(/\r?\n/);
-                            // A command can optionally return `stdoutSegments`
-                            // - an array of colored { text, color } segments
-                            // per line, parallel to `stdout`'s lines - to
-                            // color parts of its output (e.g. ls coloring
-                            // directory names). Only used for display; piping
-                            // and redirection always use the plain `stdout`
-                            // string above, untouched. If a command's
-                            // stdoutSegments doesn't line up 1:1 with its own
-                            // stdout (a bug in that command), ignore it
-                            // entirely and fall back to plain rendering
-                            // rather than risk printing mismatched/missing
-                            // lines.
-                            const validSegments =
-                                Array.isArray(result.stdoutSegments) &&
-                                result.stdoutSegments.length === lines.length;
-                            for (let i = 0; i < lines.length; i++) {
-                                const segments = validSegments
-                                    ? result.stdoutSegments[i]
-                                    : undefined;
-                                this.write(
-                                    segments ?? lines[i],
-                                    { color: "#ffffff" }
-                                );
-                                await this.sleep(50);
-                            }
-                        }
-                    }
                 }
             }
         }
