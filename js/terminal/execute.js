@@ -30,24 +30,21 @@ Object.assign(TerminalEngine.prototype, {
                 .filter(Boolean);
 
             for (const rawGroup of commandGroups) {
-                // Expand $VAR, $?, and $((arithmetic)) references, then resolve
-                // any $(command substitution) by actually running the inner command
+                // Expand $VAR, $?, and $((arithmetic)) references first.
                 let group = this.expandArithmetic(this.expandVariables(rawGroup));
-                group = await this.expandCommandSubstitution(group);
 
-                // Split on unquoted "|" to build the pipeline stages
-                const pipeline = this.splitTopLevel(group, "|")
-                    .map(cmd => cmd.trim())
-                    .filter(Boolean);
-
-                // A lone "NAME=value" (no pipe) is treated as an environment
-                // variable assignment rather than a command to run.
-                const assignMatch = pipeline.length === 1 &&
-                    pipeline[0].match(/^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/);
+                // A lone "NAME=value" is a variable assignment. This must be
+                // detected BEFORE resolving $(...) command substitution and
+                // BEFORE splitting on "|": like real shells, the right-hand
+                // side of an assignment is never word-split, so a substituted
+                // value's own ";"/"|" characters (e.g. `x=$(cat file)` where
+                // the file contains a pipe) must not be reinterpreted here as
+                // pipe/statement separators.
+                const assignMatch = group.match(/^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/);
 
                 if (assignMatch) {
                     const varName = assignMatch[1];
-                    let varValue = assignMatch[2];
+                    let varValue = await this.expandCommandSubstitution(assignMatch[2]);
                     const isAnsiC =
                         varValue.startsWith("$'") && varValue.endsWith("'") && varValue.length >= 3;
                     const isQuoted =
@@ -62,6 +59,14 @@ Object.assign(TerminalEngine.prototype, {
                     this.lastExitCode = 0;
                     continue; // nothing further to execute for this group
                 }
+
+                // Not an assignment - resolve $(...) command substitution now.
+                group = await this.expandCommandSubstitution(group);
+
+                // Split on unquoted "|" to build the pipeline stages
+                const pipeline = this.splitTopLevel(group, "|")
+                    .map(cmd => cmd.trim())
+                    .filter(Boolean);
 
                 let stdin = ""; // piped input carried between pipeline stages
 

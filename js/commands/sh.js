@@ -56,6 +56,65 @@
         return tokens;
     }
 
+    /**
+     * Joins physical script lines back together wherever a single/double
+     * quote opened on one line is still unclosed at its end (e.g. a
+     * variable assignment like `x="line one\nline two"` written as an
+     * actual multi-line string). Comment/blank-line skipping only applies
+     * to lines that start a new logical line (i.e. no quote is currently
+     * open) - a "#" or blank line appearing inside an open quote is literal
+     * content, not a comment or something to skip.
+     * @param {string[]} rawLines - Physical lines (not yet trimmed).
+     * @returns {string[]} Logical lines, quote-spanning lines joined with "\n".
+     */
+    function mergeQuoteContinuations(rawLines) {
+        const merged = [];
+        let buffer = null;
+        let inSingle = false;
+        let inDouble = false;
+
+        for (const rawLine of rawLines) {
+            if (buffer === null) {
+                const trimmed = rawLine.trim();
+                if (!trimmed || trimmed.startsWith("#")) {
+                    continue;
+                }
+                buffer = rawLine;
+            } else {
+                buffer += "\n" + rawLine;
+            }
+
+            // Update the running quote state against this line's characters
+            // (state persists across lines so a quote opened earlier stays
+            // "open" until its matching close character is found).
+            for (const ch of rawLine) {
+                if (inSingle) {
+                    if (ch === "'") inSingle = false;
+                    continue;
+                }
+                if (inDouble) {
+                    if (ch === '"') inDouble = false;
+                    continue;
+                }
+                if (ch === "'") { inSingle = true; continue; }
+                if (ch === '"') { inDouble = true; continue; }
+            }
+
+            if (!inSingle && !inDouble) {
+                merged.push(buffer);
+                buffer = null;
+            }
+            // else: quote still open, keep accumulating on the next line
+        }
+        if (buffer !== null) {
+            // Quote never closed before end of file - push what we have so
+            // the parser can surface a clear syntax error rather than
+            // silently dropping the tail of the script.
+            merged.push(buffer);
+        }
+        return merged;
+    }
+
     // Keywords that must start their own statement/clause even when they
     // appear on the same physical line as other tokens (e.g. "for x in y do").
     const STANDALONE_KEYWORDS = new Set(["do", "then", "else", "fi", "done"]);
@@ -190,13 +249,13 @@
         function parseStatement() {
             const line = lines[pos++];
 
-            const ifMatch = line.match(/^if\s+(.*)$/);
+            const ifMatch = line.match(/^if\s+([\s\S]*)$/);
             if (ifMatch) return parseIf(ifMatch[1]);
 
-            const whileMatch = line.match(/^while\s+(.*)$/);
+            const whileMatch = line.match(/^while\s+([\s\S]*)$/);
             if (whileMatch) return parseWhile(whileMatch[1]);
 
-            const forMatch = line.match(/^for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+(.*)$/);
+            const forMatch = line.match(/^for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+([\s\S]*)$/);
             if (forMatch) return parseFor(forMatch[1], forMatch[2]);
 
             if (line === "break") return { type: "break" };
@@ -557,8 +616,9 @@
             // strip comments/blank lines, substitute positional params, and
             // split each physical line into its constituent statement clauses.
             const rawLines = terminal.fs.readContent(node).split(/\r?\n/);
+            const logicalLines = mergeQuoteContinuations(rawLines);
             const lines = [];
-            for (const rawLine of rawLines) {
+            for (const rawLine of logicalLines) {
                 const trimmed = rawLine.trim();
                 if (!trimmed || trimmed.startsWith("#")) {
                     continue;
