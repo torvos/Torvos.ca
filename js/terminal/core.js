@@ -32,6 +32,7 @@ class TerminalEngine {
         this.cwd = HOME;                 // current working directory
         this.lastExpansionEmpty = false; // set by parser when a glob/expansion matched nothing
         this.lastExitCode = 0;           // exit status of the last executed command
+        this.sessionStart = Date.now();  // when this page/tab session began (used by `neofetch`'s Uptime)
 
         // Wire up keyboard/DOM event listeners (defined in js/terminal/input.js)
         this.bindEvents();
