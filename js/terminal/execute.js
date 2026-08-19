@@ -169,7 +169,14 @@ Object.assign(TerminalEngine.prototype, {
                     this.lastExitCode = result.exitCode;
                     let redirectreturn = "";
 
-                    // Apply output redirection, if any, writing stdout/stderr to a file instead
+                    // Apply output redirection, if any, writing stdout/stderr to a file instead.
+                    // On success, the redirected stream is cleared from `result` so it isn't
+                    // ALSO printed to the terminal below - real shells never show output on
+                    // screen once it's been redirected to a file. The exit code is untouched
+                    // either way (a command's success/failure isn't affected by where its
+                    // output went); only the failure branch below still surfaces text, since
+                    // that's reporting a NEW error (e.g. an invalid path) about the redirect
+                    // itself, not the original command's output.
                     switch (redirects.operator) {
                         case ">":
                             redirectreturn = this.writeRedirect(
@@ -180,6 +187,8 @@ Object.assign(TerminalEngine.prototype, {
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
                                 result.exitCode = 1;
+                            } else {
+                                result.stdout = "";
                             }
                             break;
                         case ">>":
@@ -191,6 +200,8 @@ Object.assign(TerminalEngine.prototype, {
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
                                 result.exitCode = 1;
+                            } else {
+                                result.stdout = "";
                             }
                             break;
                         case "2>":
@@ -202,6 +213,8 @@ Object.assign(TerminalEngine.prototype, {
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
                                 result.exitCode = 1;
+                            } else {
+                                result.stderr = "";
                             }
                             break;
                         case "2>>":
@@ -213,6 +226,8 @@ Object.assign(TerminalEngine.prototype, {
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
                                 result.exitCode = 1;
+                            } else {
+                                result.stderr = "";
                             }
                             break;
                     }
