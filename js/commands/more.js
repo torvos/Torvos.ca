@@ -57,6 +57,23 @@ registerCommand("more", {
 
         node.accessed = Date.now();
         const lines = terminal.fs.readContent(node).split(/\r?\n/);
+
+        // If the whole file fits within one page (or paging isn't
+        // configured/available - e.g. pageSize is still 0), there's
+        // nothing to actually paginate. Return the content the normal
+        // way instead of writing it directly, so short files compose
+        // naturally with capture ($()), pipes, and redirects, the same
+        // as any other command. Real pagination (writing progressively
+        // with pause-on-full-page) only kicks in when it's genuinely
+        // needed, for files longer than one screen.
+        if (terminal.pager.pageSize <= 0 || lines.length <= terminal.pager.pageSize) {
+            return {
+                stdout: lines.join("\n"),
+                stderr: "",
+                exitCode: 0
+            };
+        }
+
         terminal.pager.linesPrinted = 0;
         // Write lines directly, pausing at each page boundary until the
         // user presses a key (space/enter to continue, q to quit early)
