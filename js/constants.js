@@ -25,3 +25,5 @@ const COLOR_DEVICE = "#ffcc66";     // device file names in ls (/dev/*)
 const COLOR_MATCH = "#ffff66";      // grep's matched substring
 const COLOR_LABEL = "#888888";      // dim field labels in stat/printenv
 const COLOR_HEADING = "#66ff99";    // section headings in man
+const COLOR_SUCCESS = "#66ff99";    // green used for success/PASS-style status text
+const COLOR_MAGENTA = "#ff66ff";    // magenta, used by echo's ANSI color code support
