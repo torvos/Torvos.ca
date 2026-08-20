@@ -21,7 +21,7 @@ registerCommand("help", {
             };                
         }        
         return {
-            stdout: `+--------------------------------------------------------------------+
+            stdout: `    +--------------------------------------------------------------------+
     |  Welcome to Torvos.ca the following are some commands you can use  |
     |  To view the contents of this site.                                |
     +--------------------------------------------------------------------+
