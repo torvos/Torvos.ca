@@ -72,6 +72,28 @@ registerCommand("ls", {
             return undefined;
         }
 
+        // Splits a formatLongEntry() line into its non-colored prefix and
+        // the colored "name portion" (name + any trailing "/" or
+        // "-> target"). This is computed from known, fixed-length pieces
+        // rather than searching the line for `name` - a plain
+        // `line.lastIndexOf(name)` looks correct at a glance, but breaks
+        // whenever the name happens to reappear later in the line, e.g. a
+        // symlink named "test" pointing at "test2" formats as
+        // "... test -> test2", and lastIndexOf("test") finds the "test"
+        // INSIDE "test2" instead of the real name - which then colors
+        // "test2" as if it were the entry's name and leaves the actual
+        // name uncolored.
+        function splitLongEntryName(line, name, node) {
+            const suffix =
+                (node.type === "dir" ? "/" : "") +
+                (node.type === "symlink" ? ` -> ${node.target}` : "");
+            const nameIndex = line.length - name.length - suffix.length;
+            return [
+                { text: line.slice(0, nameIndex), color: COLOR_STDOUT },
+                { text: line.slice(nameIndex), color: colorFor(node) ?? COLOR_STDOUT }
+            ];
+        }
+
         /**
          * Appends the listing for a single directory node to `lines`/
          * `lineSegments`. Recurses into subdirectories (appending their
@@ -96,22 +118,15 @@ registerCommand("ls", {
                 if (child.hidden && !showHidden) {
                     return;
                 }
-                const entryColor = colorFor(child);
 
                 if (longFormat) {
                     const line = terminal.fs.formatLongEntry(name, child);
-                    // formatLongEntry always ends with the name (and, for
-                    // dirs/symlinks, a trailing "/" or "-> target") - split
-                    // that off so only the name portion gets colored.
-                    const nameIndex = line.lastIndexOf(name);
                     names.push(line);
-                    nameSegments.push([
-                        { text: line.slice(0, nameIndex), color: COLOR_STDOUT },
-                        { text: line.slice(nameIndex), color: entryColor ?? COLOR_STDOUT }
-                    ]);
+                    nameSegments.push(splitLongEntryName(line, name, child));
                 }
                 else {
                     // Short format: just the name, with a trailing "/" for directories
+                    const entryColor = colorFor(child);
                     const label = terminal.fs.isDirectory(child)
                         ? `${name}/`
                         : name;
@@ -166,6 +181,37 @@ registerCommand("ls", {
         }
 
         for (const target of targets) {
+            // Look up the RAW entry first (without following a trailing
+            // symlink) so a symlink pointing at a file/device can show its
+            // OWN line below (type "l", its own mode, "-> target") instead
+            // of silently being replaced by whatever it points to - real
+            // `ls` only follows a symlink for display purposes when it
+            // points at a directory (to list that directory's contents);
+            // for anything else it shows the link itself.
+            const fullPath = terminal.fs.getFullPath(target, terminal.cwd);
+            const rawEntry = fullPath === ROOT ? null : terminal.fs.getParent(target, terminal.cwd);
+            const rawNode = rawEntry ? rawEntry.parent.children[rawEntry.name] : null;
+
+            if (rawNode && terminal.fs.isSymlink(rawNode)) {
+                const resolved = terminal.fs.get(target, terminal.cwd);
+                if (!resolved || !terminal.fs.isDirectory(resolved)) {
+                    // Symlink to a non-directory (or a dangling symlink) -
+                    // show the symlink's own info, don't follow it
+                    const label = target.split(ROOT).pop();
+                    if (longFormat) {
+                        const line = terminal.fs.formatLongEntry(label, rawNode);
+                        lines.push(line);
+                        lineSegments.push(splitLongEntryName(line, label, rawNode));
+                    } else {
+                        lines.push(label);
+                        lineSegments.push([{ text: label, color: colorFor(rawNode) ?? COLOR_STDOUT }]);
+                    }
+                    continue;
+                }
+                // Else: a symlink to a directory - fall through below and
+                // follow it, same as real `ls` does by default.
+            }
+
             const node = terminal.fs.get(target, terminal.cwd);
 
             if (!node) {
@@ -175,17 +221,13 @@ registerCommand("ls", {
                 continue;
             }
 
-            if (terminal.fs.isFile(node) || terminal.fs.isSymlink(node) || terminal.fs.isDevice(node)) {
-                // Listing a file/symlink/device directly just prints that one entry
+            if (terminal.fs.isFile(node) || terminal.fs.isDevice(node)) {
+                // Listing a file/device directly just prints that one entry
                 const label = target.split(ROOT).pop();
                 if (longFormat) {
                     const line = terminal.fs.formatLongEntry(label, node);
-                    const nameIndex = line.lastIndexOf(label);
                     lines.push(line);
-                    lineSegments.push([
-                        { text: line.slice(0, nameIndex), color: COLOR_STDOUT },
-                        { text: line.slice(nameIndex), color: colorFor(node) ?? COLOR_STDOUT }
-                    ]);
+                    lineSegments.push(splitLongEntryName(line, label, node));
                 }
                 else {
                     lines.push(label);
