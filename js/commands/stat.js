@@ -49,13 +49,13 @@ registerCommand("stat", {
                     funcExitCode = 1;
                     continue;
                 }
-                if(terminal.fs.isInBin(target, terminal.cwd)){
-                    return {
-                        stdout: "",
-                        stderr: `stat: cannot display files in /bin`,
-                        exitCode: 1
-                    };
-                }             
+                // Note: unlike cat/wc/etc., stat is deliberately NOT
+                // gated by isProtected() - showing that something exists
+                // and its metadata (size/mode/owner/timestamps) is the
+                // whole "you can see it's there" half of the /bin and
+                // /dev design; it's reading actual CONTENT that's
+                // restricted, same as ls/find/tree are already
+                // unrestricted for these paths.
 
                 // Appends a formatted metadata block for a single item to funcStdout
                 function printStat(name, item) {

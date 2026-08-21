@@ -24,61 +24,104 @@ registerCommand("cp", {
                 exitCode: 0
             };                
         }
-        let source = args[0];
-        let destination = args[1];
+        // -R/-r doesn't need to do anything here - structuredClone() below
+        // already recurses through a directory's children automatically -
+        // but real `cp -R dir dest` should still be accepted rather than
+        // treating "-R" itself as the source path.
+        const parsed = terminal.parseFlags(args, { R: false, r: false });
+        const operands = parsed.args;
 
-        if (source === undefined || destination === undefined) {
+        if (operands.length < 2) {
             return {
                 stdout: "",
                 stderr: `cp: missing operand`,
                 exitCode: 1
             };    
         }
-        
-        const src = terminal.fs.getParent(source, terminal.cwd);
-        const dest = terminal.fs.getParent(destination, terminal.cwd);
 
-        if (!src || !dest) {
+        const destination = operands[operands.length - 1];
+        const sources = operands.slice(0, -1);
+
+        // Structural (clones a whole node into a new location) - blocked
+        // if EITHER end is a protected system path. This is stricter than
+        // the read-only commands' device exemption on purpose: cp doesn't
+        // go through readContent()/the device's read() handler at all, it
+        // structuredClone()s the raw node, so there's no sensible "copy of
+        // /dev/null" to produce anyway.
+        if (terminal.fs.isProtected(destination, terminal.cwd)) {
             return {
                 stdout: "",
-                stderr: `cp: invalid path`,
-                exitCode: 1
-            };    
-        }
-
-        if (!src.parent.children[src.name]) {
-            return {
-                stdout: "",
-                stderr: `cp: cannot stat '${source}': No such file or directory`,
+                stderr: `cp: cannot copy to '${destination}': Permission denied`,
                 exitCode: 1
             };
         }
 
-        if (dest.parent.children[dest.name]) {
-            // Destination already exists - refuse rather than silently overwrite
+        const destNode = terminal.fs.get(destination, terminal.cwd);
+        const destIsDir = destNode && terminal.fs.isDirectory(destNode);
+
+        // Like real `cp a b c dest/`, more than one source only makes
+        // sense when the destination is an existing directory to copy
+        // each of them into.
+        if (sources.length > 1 && !destIsDir) {
             return {
                 stdout: "",
-                stderr: `cp: ${destination}: already exists`,
+                stderr: `cp: target '${destination}' is not a directory`,
                 exitCode: 1
-            };    
+            };
         }
 
-        src.parent.modified = Date.now();
-        dest.parent.modified = Date.now();
+        // Copies a single source to `destPath`, returning an error
+        // message string on failure or null on success.
+        function copyOne(source, destPath) {
+            if (terminal.fs.isProtected(source, terminal.cwd)) {
+                return `cp: cannot copy '${source}': Permission denied`;
+            }
 
-        // Deep clone so the copy is fully independent of the original
-        // (structuredClone recurses through `children` for directories)
-        const copy = structuredClone(src.parent.children[src.name]);
-        const now = Date.now();
-        copy.created = now;
-        copy.modified = now;
-        copy.accessed = now;
-        dest.parent.children[dest.name] = copy;
+            const src = terminal.fs.getParent(source, terminal.cwd);
+            const dest = terminal.fs.getParent(destPath, terminal.cwd);
+
+            if (!src || !dest) {
+                return `cp: invalid path`;
+            }
+
+            if (!src.parent.children[src.name]) {
+                return `cp: cannot stat '${source}': No such file or directory`;
+            }
+
+            if (dest.parent.children[dest.name]) {
+                // Destination already exists - refuse rather than silently overwrite
+                return `cp: ${destPath}: already exists`;
+            }
+
+            src.parent.modified = Date.now();
+            dest.parent.modified = Date.now();
+
+            // Deep clone so the copy is fully independent of the original
+            // (structuredClone recurses through `children` for directories)
+            const copy = structuredClone(src.parent.children[src.name]);
+            const now = Date.now();
+            copy.created = now;
+            copy.modified = now;
+            copy.accessed = now;
+            dest.parent.children[dest.name] = copy;
+            return null;
+        }
+
+        const errors = [];
+        for (const source of sources) {
+            const destPath = destIsDir
+                ? `${destination.replace(/\/$/, "")}/${terminal.fs.getParent(source, terminal.cwd)?.name ?? source}`
+                : destination;
+            const error = copyOne(source, destPath);
+            if (error) {
+                errors.push(error);
+            }
+        }
 
         return {
             stdout: "",
-            stderr: "",
-            exitCode: 0
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
         };
     }
 });

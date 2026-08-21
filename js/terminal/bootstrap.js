@@ -8,6 +8,11 @@ window.createVirtualBin = function() {
     const bin = {
         type: "dir",
         hidden: false,
+        // Flags this whole subtree as read-only system territory - see
+        // FileSystemAPI.isProtected() in filesystem.js. Guests can still
+        // see it (ls/find/tree all work normally), just not modify or
+        // read into it.
+        protected: true,
         mode: "rwxr-xr-x",
         owner: "root",
         group: "root",
@@ -43,6 +48,12 @@ window.createVirtualDev = function() {
     const dev = {
         type: "dir",
         hidden: false,
+        // Same protected-subtree flag as /bin (see FileSystemAPI.isProtected()).
+        // Individual device files underneath are still fully readable/
+        // writable through their normal device semantics (see
+        // window.FileDevices) - this only blocks structurally
+        // renaming/deleting/chmod'ing them or adding new entries here.
+        protected: true,
         mode: "rwxr-xr-x",
         owner: "root",
         group: "root",

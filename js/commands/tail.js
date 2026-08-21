@@ -27,11 +27,9 @@ registerCommand("tail", {
         const maxDepth = parsed.options?.n !== undefined
             ? parseInt(parsed.options.n, 10)
             : 10;
-        const target = parsed.args[0];
-        
-        let content = "";
+        const targets = parsed.args;
 
-        if (!target) {
+        if (targets.length === 0) {
             // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
@@ -40,41 +38,50 @@ registerCommand("tail", {
                     exitCode: 1
                 };
             }
+            return {
+                stdout: stdin
+                    .split(/\r?\n/)
+                    .slice(-maxDepth) // negative slice = last N lines
+                    .join("\n"),
+                stderr: "",
+                exitCode: 0
+            };
+        }
 
-            content = stdin;
+        // With multiple files, real `tail` prints a "==> name <==" header
+        // above each one's output so they stay distinguishable.
+        const chunks = [];
+        const errors = [];
 
-        } else {
-
+        for (const target of targets) {
             const node = terminal.fs.get(target, terminal.cwd);
             if (!node) {
-                return {
-                    stdout: "",
-                    stderr: `tail: no such file: ${target}`,
-                    exitCode: 1
-                };
+                errors.push(`tail: no such file: ${target}`);
+                continue;
+            }
+
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                errors.push(`tail: ${target}: Permission denied`);
+                continue;
             }
 
             if (terminal.fs.isDirectory(node)) {
-                return {
-                    stdout: "",
-                    stderr: `tail: ${target}: is a directory`,
-                    exitCode: 1
-                };
+                errors.push(`tail: ${target}: is a directory`);
+                continue;
             }
 
             node.accessed = Date.now();
-            content = terminal.fs.readContent(node);
+            const body = terminal.fs.readContent(node)
+                .split(/\r?\n/)
+                .slice(-maxDepth)
+                .join("\n");
+            chunks.push(targets.length > 1 ? `==> ${target} <==\n${body}` : body);
         }
 
-
         return {
-            stdout: content
-                .split(/\r?\n/)
-                .slice(-maxDepth) // negative slice = last N lines
-                .join("\n"),
-
-            stderr: "",
-            exitCode: 0
+            stdout: chunks.join("\n\n"),
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
         };
     }
 });

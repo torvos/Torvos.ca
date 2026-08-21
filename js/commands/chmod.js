@@ -84,11 +84,15 @@ registerCommand("chmod", {
                 funcExitCode = 1;
                 continue;
             }
-            if(terminal.fs.isInBin(path, terminal.cwd)){
-                funcStderr += `chmod: cannot access files in /bin\n`;
+            // Structural change (permission bits) - always blocked for
+            // protected system paths, devices included: a device's mode
+            // string is cosmetic display only, not something a guest
+            // should be able to change.
+            if (terminal.fs.isProtected(path, terminal.cwd)) {
+                funcStderr += `chmod: changing permissions of '${path}': Permission denied\n`;
                 funcExitCode = 1;
                 continue;
-            }             
+            }
             chmodNode({node});
         }
 

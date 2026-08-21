@@ -41,13 +41,13 @@ registerCommand("less", {
             };        
         }
 
-        if(terminal.fs.isInBin(target, terminal.cwd)){
+        if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
             return {
                 stdout: "",
-                stderr: `less: cannot display files in /bin`,
+                stderr: `less: ${target}: Permission denied`,
                 exitCode: 1
             };
-        }             
+        }
 
         if (terminal.fs.isDirectory(node)) {
             return {

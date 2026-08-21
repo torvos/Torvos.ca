@@ -53,10 +53,10 @@ registerCommand("base64", {
                 };
             }
 
-            if (terminal.fs.isInBin(target, terminal.cwd)) {
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
                 return {
                     stdout: "",
-                    stderr: `base64: cannot access files in /bin`,
+                    stderr: `base64: ${target}: Permission denied`,
                     exitCode: 1
                 };
             }

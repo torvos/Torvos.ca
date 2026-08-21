@@ -27,10 +27,9 @@ registerCommand("head", {
         const maxDepth = parsed.options?.n !== undefined
             ? parseInt(parsed.options.n, 10)
             : 10;
-        const target = parsed.args[0];
-        let content = "";
-        
-        if (!target) {
+        const targets = parsed.args;
+
+        if (targets.length === 0) {
             // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
@@ -39,35 +38,48 @@ registerCommand("head", {
                     exitCode: 1
                 };
             }
-            content = stdin;
-        } else {
+            return {
+                stdout: stdin
+                    .split(/\r?\n/)
+                    .slice(0, maxDepth)
+                    .join("\n"),
+                stderr: "",
+                exitCode: 0
+            };
+        }
+
+        // With multiple files, real `head` prints a "==> name <==" header
+        // above each one's output so they stay distinguishable.
+        const chunks = [];
+        const errors = [];
+
+        for (const target of targets) {
             const node = terminal.fs.get(target, terminal.cwd);
 
             if (!node) {
-                return {
-                    stdout: "",
-                    stderr: `head: no such file: ${target}`,
-                    exitCode: 1
-                };
+                errors.push(`head: no such file: ${target}`);
+                continue;
+            }
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                errors.push(`head: ${target}: Permission denied`);
+                continue;
             }
             if (terminal.fs.isDirectory(node)) {
-                return {
-                    stdout: "",
-                    stderr: `head: ${target}: is a directory`,
-                    exitCode: 1
-                };
+                errors.push(`head: ${target}: is a directory`);
+                continue;
             }
             node.accessed = Date.now();
-            content = terminal.fs.readContent(node);
+            const body = terminal.fs.readContent(node)
+                .split(/\r?\n/)
+                .slice(0, maxDepth)
+                .join("\n");
+            chunks.push(targets.length > 1 ? `==> ${target} <==\n${body}` : body);
         }
 
         return {
-            stdout: content
-                .split(/\r?\n/)
-                .slice(0,maxDepth)
-                .join("\n"),
-            stderr: "",
-            exitCode: 0
+            stdout: chunks.join("\n\n"),
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
         };
     }
 });

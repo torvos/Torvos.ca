@@ -21,66 +21,58 @@ registerCommand("rmdir", {
                 exitCode: 0
             };                
         }
-        let target = args[0];
-        if (target === undefined) {
+        const targets = args.filter(a => a !== "--help");
+        if (targets.length === 0) {
             return {
                 stdout: "",
                 stderr: `rmdir: missing operand`,
                 exitCode: 1
             };          
         }
-        const node = terminal.fs.get(target, terminal.cwd);
-        if (!node){
-            return {
-                stdout: "",
-                stderr: `rmdir: directory ${target} not found`,
-                exitCode: 1
-            };          
-        }
-        if (node && terminal.fs.isDirectory(node)){
-            if (Object.keys(node.children).length > 0) {
-                // Not empty - refuse to remove (rmdir's core safety behavior)
-                return {
-                    stdout: "",
-                    stderr: `rmdir: failed to remove ${target}: Directory not empty`,
-                    exitCode: 1
-                };           
-            }
-            else{
-                const result = terminal.fs.getParent(target, terminal.cwd);
 
-                if (!result) {
-                    return {
-                        stdout: "",
-                        stderr: `rmdir: directory ${target} not found`,
-                        exitCode: 1
-                    };           
+        // Removes a single target, returning an error message string on
+        // failure or null on success - errors accumulate across targets
+        // (e.g. `rmdir *` shouldn't stop at the first non-empty directory).
+        function removeOne(target) {
+            const node = terminal.fs.get(target, terminal.cwd);
+            if (!node) {
+                return `rmdir: directory ${target} not found`;
+            }
+            if (terminal.fs.isProtected(target, terminal.cwd)) {
+                return `rmdir: failed to remove ${target}: Permission denied`;
+            }
+            if (terminal.fs.isDirectory(node)) {
+                if (Object.keys(node.children).length > 0) {
+                    // Not empty - refuse to remove (rmdir's core safety behavior)
+                    return `rmdir: failed to remove ${target}: Directory not empty`;
                 }
-
+                const result = terminal.fs.getParent(target, terminal.cwd);
+                if (!result) {
+                    return `rmdir: directory ${target} not found`;
+                }
                 result.parent.modified = Date.now();
-                delete result.parent.children[result.name];       
-                return {
-                    stdout: "",
-                    stderr: "",
-                    exitCode: 0
-                };            
+                delete result.parent.children[result.name];
+                return null;
+            }
+            if (terminal.fs.isFile(node)) {
+                // Point the user toward `rm` for files
+                return `rmdir: ${target} is a file please use rm`;
+            }
+            return `rmdir: failed to remove '${target}': Not a directory`;
+        }
+
+        const errors = [];
+        for (const target of targets) {
+            const error = removeOne(target);
+            if (error) {
+                errors.push(error);
             }
         }
-        else if (terminal.fs.isFile(node)){
-            // Point the user toward `rm` for files
-            return {
-                stdout: "",
-                stderr: `rmdir: ${target} is a file please use rm`,
-                exitCode: 1
-            };           
 
-        }
-        else {
-            return {
-                stdout: "",
-                stderr: `rmdir: failed to remove '${target}': Not a directory`,
-                exitCode: 1
-            };
-        }
+        return {
+            stdout: "",
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
+        };
     }
 });

@@ -26,10 +26,10 @@ registerCommand("cat", {
         }
         const parsed = terminal.parseFlags(args,{n: false});
         const numberLines = parsed.flags.has("n");
-        const target = parsed.args[0];
+        const targets = parsed.args;
         let content = "";
 
-        if (!target) {
+        if (targets.length === 0) {
             // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
@@ -41,44 +41,57 @@ registerCommand("cat", {
 
             content = stdin;
         } else {
-            const node = terminal.fs.get(target, terminal.cwd);
-            if (!node) {
-                return {
-                    stdout: "",
-                    stderr: `cat: no such file: ${target}`,
-                    exitCode: 1
-                };         
+            // Real `cat` concatenates every file it's given, in order,
+            // and keeps going (printing an error for each bad one) rather
+            // than stopping at the first failure - important for
+            // `cat *.txt`, where one bad match shouldn't hide the rest.
+            const parts = [];
+            const errors = [];
+
+            for (const target of targets) {
+                const node = terminal.fs.get(target, terminal.cwd);
+                if (!node) {
+                    errors.push(`cat: no such file: ${target}`);
+                    continue;
+                }
+
+                // Blocked for protected system files (/bin, /dev) - EXCEPT
+                // devices, which are meant to be read through (cat /dev/random
+                // etc. is a real feature, not a security hole).
+                if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                    errors.push(`cat: ${target}: Permission denied`);
+                    continue;
+                }
+
+                if (terminal.fs.isDirectory(node)) {
+                    errors.push(`cat: ${target}: is a directory`);
+                    continue;
+                }
+                node.accessed = Date.now();
+                parts.push(terminal.fs.readContent(node));
             }
 
-            if(terminal.fs.isInBin(target, terminal.cwd)){
+            if (parts.length === 0) {
                 return {
                     stdout: "",
-                    stderr: `cat: cannot display files in /bin`,
+                    stderr: errors.join("\n"),
                     exitCode: 1
                 };
-            }             
-
-            if (terminal.fs.isDirectory(node)) {
-                return {
-                    stdout: "",
-                    stderr: `cat: ${target}: is a directory`,
-                    exitCode: 1
-                };         
             }
-            node.accessed = Date.now();
-            content = terminal.fs.readContent(node);
+
+            content = parts.join("\n");
+
+            if (errors.length > 0) {
+                return {
+                    stdout: numberLines ? numberContent(content) : content,
+                    stderr: errors.join("\n"),
+                    exitCode: 1
+                };
+            }
         }
 
         if (numberLines){        
-            // Prefix each line with its (1-based) line number
-            let lineNumber = 1;
-            let returnContent = "";
-            let contents = content.split(/\r?\n/);
-            for (const line of contents) {
-                returnContent += `  ${lineNumber}  ${line} \n`;
-                lineNumber++;
-            }
-            content = returnContent.replace(/\r?\n$/, "");
+            content = numberContent(content);
         }
 
         return {
@@ -86,5 +99,18 @@ registerCommand("cat", {
             stderr: "",
             exitCode: 0
         };    
+
+        // Prefixes each line of `text` with its (1-based) line number -
+        // numbered continuously across every concatenated file, matching
+        // real `cat -n` rather than restarting the count per file.
+        function numberContent(text) {
+            let lineNumber = 1;
+            let returnContent = "";
+            for (const line of text.split(/\r?\n/)) {
+                returnContent += `  ${lineNumber}  ${line} \n`;
+                lineNumber++;
+            }
+            return returnContent.replace(/\r?\n$/, "");
+        }
     }
 });

@@ -58,13 +58,13 @@ registerCommand("sort", {
                     };
                 }
 
-                if(terminal.fs.isInBin(file, terminal.cwd)){
+                if (terminal.fs.isProtected(file, terminal.cwd) && !terminal.fs.isDevice(node)) {
                     return {
                         stdout: "",
-                        stderr: `sort: cannot display files in /bin`,
+                        stderr: `sort: ${file}: Permission denied`,
                         exitCode: 1
                     };
-                }             
+                }
 
                 if (terminal.fs.isDirectory(node)) {
                     return {

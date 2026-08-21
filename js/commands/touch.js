@@ -21,53 +21,57 @@ registerCommand("touch", {
                 exitCode: 0
             };                
         }
-        let target = args[0];
+        const targets = args.filter(a => a !== "--help");
 
-        if (target === undefined) {
+        if (targets.length === 0) {
             return {
                 stdout: "",
                 stderr: `touch: missing operand`,
                 exitCode: 1
             };           
         }
-        if(terminal.fs.isInBin(target, terminal.cwd)){
-            return {
-                stdout: "",
-                stderr: `touch: cannot create file in /bin`,
-                exitCode: 1
-            };
+
+        // Touches a single target, returning an error message string on
+        // failure or null on success.
+        function touchOne(target) {
+            // Structural (creates an entry, or bumps an existing one's
+            // timestamps) - always blocked for protected system paths.
+            if (terminal.fs.isProtected(target, terminal.cwd)) {
+                return `touch: cannot touch '${target}': Permission denied`;
+            }
+
+            const node = terminal.fs.get(target, terminal.cwd);
+            if (node) {
+                // File/dir already exists - just bump its timestamps
+                node.modified = Date.now();
+                node.accessed = Date.now();
+                return null;
+            }
+
+            // Doesn't exist yet - find its parent directory to create it in
+            const result = terminal.fs.getParent(target, terminal.cwd);
+
+            if (!result) {
+                return `touch: invalid path ${target}`;
+            }
+
+            result.parent.modified = Date.now();
+            result.parent.children[result.name] = terminal.fs.createFile(result.name.startsWith("."));
+            return null;
         }
 
-        const node = terminal.fs.get(target, terminal.cwd);
-        if (node){
-            // File/dir already exists - just bump its timestamps
-            node.modified = Date.now();
-            node.accessed = Date.now();
-            return {
-                stdout: "",
-                stderr: "",
-                exitCode: 0
-            };           
+        const errors = [];
+        for (const target of targets) {
+            const error = touchOne(target);
+            if (error) {
+                errors.push(error);
+            }
         }
-
-        // Doesn't exist yet - find its parent directory to create it in
-        const result = terminal.fs.getParent(target, terminal.cwd);
-
-        if (!result) {
-            return {
-                stdout: "",
-                stderr: `touch: invalid path ${target}`,
-                exitCode: 1
-            };           
-        }
-
-        result.parent.modified = Date.now();
-        result.parent.children[result.name] = terminal.fs.createFile(result.name.startsWith("."));
 
         return {
             stdout: "",
-            stderr: "",
-            exitCode: 0
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
         };    
     }
 });

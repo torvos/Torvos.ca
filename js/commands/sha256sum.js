@@ -59,8 +59,8 @@ registerCommand("sha256sum", {
                 exitCode = 1;
                 continue;
             }
-            if (terminal.fs.isInBin(target, terminal.cwd)) {
-                err += `sha256sum: cannot access files in /bin\n`;
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                err += `sha256sum: ${target}: Permission denied\n`;
                 exitCode = 1;
                 continue;
             }

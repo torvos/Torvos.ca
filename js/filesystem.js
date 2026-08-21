@@ -238,6 +238,29 @@ Developer - Application Development
     }
 
     /**
+     * Walks `fullPath` (already normalized/absolute) segment by segment
+     * from root, returning true as soon as it encounters a node flagged
+     * `protected: true` - either root itself, some ancestor directory
+     * along the way (e.g. /bin or /dev), or the final node. Stops (and
+     * returns false) as soon as a segment doesn't exist, which correctly
+     * handles not-yet-created targets too: e.g. for "mkdir /bin/new",
+     * the walk reaches the existing, protected "bin" node and returns
+     * true immediately, before ever needing "new" to exist.
+     * @param {string} fullPath
+     * @returns {boolean}
+     */
+    function isProtectedPath(fullPath) {
+        let node = FileSystem[ROOT];
+        if (node.protected) return true;
+        for (const part of fullPath.split(ROOT).filter(Boolean)) {
+            if (!node.children || !node.children[part]) return false;
+            node = node.children[part];
+            if (node.protected) return true;
+        }
+        return false;
+    }
+
+    /**
      * Finds the parent directory node of an absolute path, without
      * resolving symlinks along the way for the final segment.
      * @param {string} path - Absolute path.
@@ -598,10 +621,38 @@ Developer - Application Development
             return fullPath;
         },
 
-        // True if `path` resolves to somewhere under the read-only /bin directory.
-        isInBin(path, cwd = "/") {
+        /**
+         * True if `path` (or any ancestor directory containing it) is
+         * flagged as a protected system location - currently /bin and
+         * /dev, see bootstrap.js, which mounts each with `protected: true`.
+         *
+         * This intentionally isn't a hardcoded path-prefix check (that
+         * was the old isInBin(), which only ever covered "/bin/" and
+         * quietly left /dev completely unprotected). Protection now lives
+         * as data on the node itself, so any future protected directory
+         * just needs that one flag set when it's created/mounted, and
+         * everything nested under it - including things added to it
+         * later - is automatically covered without touching every
+         * command in js/commands/ again.
+         *
+         * Callers that want files under a protected directory to remain
+         * genuinely usable (e.g. /dev/null, /dev/random) rather than
+         * fully locked away should combine this with isDevice(): block
+         * when isProtected() is true AND the node ISN'T a device, so
+         * reading/writing a device's simulated content still works
+         * exactly as designed, while renaming/deleting/chmod'ing it (or
+         * creating brand-new entries in /bin or /dev) stays blocked.
+         *
+         * Known limitation (shared with the old isInBin()): this checks
+         * the path as typed, without following intermediate symlinks -
+         * a symlink INTO a protected directory isn't itself caught here.
+         * @param {string} path
+         * @param {string} [cwd="/"]
+         * @returns {boolean}
+         */
+        isProtected(path, cwd = "/") {
             const fullPath = resolveRelativePath(cwd, path);
-            return fullPath.startsWith("/bin/");
+            return isProtectedPath(fullPath);
         },
 
         // Accepts either a path string or an already-resolved node.

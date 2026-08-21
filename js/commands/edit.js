@@ -47,14 +47,26 @@ registerCommand("edit", {
             result.parent.children[result.name] = terminal.fs.createFile(result.name.startsWith("."));
             node = result.parent.children[result.name];        
         } else {
-            if(!terminal.fs.isInBin(target, terminal.cwd)){
-                node = pathresult.node;
-            }
-            else{
-                // /bin is read-only "installed commands" - can't edit those
+            node = pathresult.node;
+
+            if (terminal.fs.isDevice(node)) {
+                // Editing a device (e.g. /dev/random) interactively doesn't
+                // make sense - its content is generated on read, not
+                // stored - so this gets its own specific message rather
+                // than the generic "protected" one below.
                 return {
                     stdout: "",
-                    stderr: `edit: cannot open file in /bin`,
+                    stderr: `edit: ${target}: cannot edit a device file`,
+                    exitCode: 1
+                };
+            }
+            // Structural (opens the real file node for in-place editing) -
+            // blocked for anything else under a protected system path,
+            // e.g. /bin/ls.
+            if (terminal.fs.isProtected(target, terminal.cwd)) {
+                return {
+                    stdout: "",
+                    stderr: `edit: ${target}: Permission denied`,
                     exitCode: 1
                 };
             }
@@ -62,15 +74,6 @@ registerCommand("edit", {
                 return {
                     stdout: "",
                     stderr: `edit: ${target}: is a directory`,
-                    exitCode: 1
-                };
-            }
-            if (terminal.fs.isDevice(node)) {
-                // Editing a device (e.g. /dev/random) interactively doesn't
-                // make sense - its content is generated on read, not stored.
-                return {
-                    stdout: "",
-                    stderr: `edit: ${target}: cannot edit a device file`,
                     exitCode: 1
                 };
             }

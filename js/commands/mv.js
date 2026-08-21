@@ -21,10 +21,12 @@ registerCommand("mv", {
                 exitCode: 0
             };                
         }        
-        let source = args[0];
-        let destination = args[1];
+        // Real `mv a b c dest/` supports multiple sources when the last
+        // operand is an existing directory, same as `cp` - handled the
+        // same way here for consistency.
+        const operands = args.filter(a => a !== "--help");
 
-        if (source === undefined || destination === undefined) {
+        if (operands.length < 2) {
             return {
                 stdout: "",
                 stderr: `mv: missing operand`,
@@ -32,47 +34,81 @@ registerCommand("mv", {
             };           
         }
 
-        const src = terminal.fs.getParent(source, terminal.cwd);
-        const dest = terminal.fs.getParent(destination, terminal.cwd);
+        const destination = operands[operands.length - 1];
+        const sources = operands.slice(0, -1);
 
-        if (!src || !dest) {
+        // Structural (removes the source entry, creates/replaces the
+        // destination entry) - always blocked if EITHER end is a
+        // protected system path, devices included: neither moving
+        // /dev/null out nor moving a file in over it is allowed.
+        if (terminal.fs.isProtected(destination, terminal.cwd)) {
             return {
                 stdout: "",
-                stderr: `mv: invalid path`,
-                exitCode: 1
-            };   
-        }
-
-        if (!src.parent.children[src.name]) {
-            return {
-                stdout: "",
-                stderr: `mv: cannot stat '${source}': No such file or directory`,
+                stderr: `mv: cannot move to '${destination}': Permission denied`,
                 exitCode: 1
             };
         }
 
-        if (dest.parent.children[dest.name]) {
-            // Destination already exists - refuse rather than silently overwrite
+        const destNode = terminal.fs.get(destination, terminal.cwd);
+        const destIsDir = destNode && terminal.fs.isDirectory(destNode);
+
+        if (sources.length > 1 && !destIsDir) {
             return {
                 stdout: "",
-                stderr: `mv: ${destination}: already exists`,
+                stderr: `mv: target '${destination}' is not a directory`,
                 exitCode: 1
-            };           
+            };
         }
 
-        src.parent.modified = Date.now();
-        dest.parent.modified = Date.now();
+        // Moves a single source to `destPath`, returning an error message
+        // string on failure or null on success.
+        function moveOne(source, destPath) {
+            if (terminal.fs.isProtected(source, terminal.cwd)) {
+                return `mv: cannot move '${source}': Permission denied`;
+            }
 
-        // Re-parent: attach the node under its new name/location...
-        dest.parent.children[dest.name] = src.parent.children[src.name];
+            const src = terminal.fs.getParent(source, terminal.cwd);
+            const dest = terminal.fs.getParent(destPath, terminal.cwd);
 
-        // ...then remove it from its old location
-        delete src.parent.children[src.name];
+            if (!src || !dest) {
+                return `mv: invalid path`;
+            }
+
+            if (!src.parent.children[src.name]) {
+                return `mv: cannot stat '${source}': No such file or directory`;
+            }
+
+            if (dest.parent.children[dest.name]) {
+                // Destination already exists - refuse rather than silently overwrite
+                return `mv: ${destPath}: already exists`;
+            }
+
+            src.parent.modified = Date.now();
+            dest.parent.modified = Date.now();
+
+            // Re-parent: attach the node under its new name/location...
+            dest.parent.children[dest.name] = src.parent.children[src.name];
+
+            // ...then remove it from its old location
+            delete src.parent.children[src.name];
+            return null;
+        }
+
+        const errors = [];
+        for (const source of sources) {
+            const destPath = destIsDir
+                ? `${destination.replace(/\/$/, "")}/${terminal.fs.getParent(source, terminal.cwd)?.name ?? source}`
+                : destination;
+            const error = moveOne(source, destPath);
+            if (error) {
+                errors.push(error);
+            }
+        }
 
         return {
             stdout: "",
-            stderr: "",
-            exitCode: 0
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
         };
     }    
 });

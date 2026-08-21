@@ -30,10 +30,60 @@ registerCommand("wc", {
         const countLines = parsed.flags.has("l");
         const countWords = parsed.flags.has("w");
         const countBytes = parsed.flags.has("c");
-        const target = parsed.args[0];
-        let content = "";
+        const targets = parsed.args;
 
-        if (!target) {
+        // Counts lines/words/bytes for one chunk of text.
+        function countOf(content) {
+            const lines = content.length === 0
+                ? 0
+                : content.split(/\r?\n/).length;
+
+            const words = content
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean)
+                .length;
+
+            const bytes = new TextEncoder()
+                .encode(content)
+                .length;
+
+            return { lines, words, bytes };
+        }
+
+        // Formats one counts object into this command's output line,
+        // optionally suffixed with a filename (real `wc` does the same
+        // for its own line/word/byte columns).
+        function formatCounts(counts, label) {
+            let output;
+            if (countLines || countWords || countBytes) {
+                // At least one specific count was requested - print only those,
+                // in l/w/c order, space-separated (no labels)
+                const values = [];
+                if (countLines) {
+                    values.push(counts.lines);
+                }
+                if (countWords) {
+                    values.push(counts.words);
+                }
+                if (countBytes) {
+                    values.push(counts.bytes);
+                }
+                output = values.join(" ");
+            } else {
+                // No flags - print all three counts with labels
+                output =
+                    `Lines: ${String(counts.lines)}  ` +
+                    `Words: ${String(counts.words)}  ` +
+                    `Bytes: ${String(counts.bytes)}  `;
+            }
+            if (label) {
+                output += ` ${label}`;
+            }
+            return output;
+        }
+
+        if (targets.length === 0) {
             // No file given - fall back to piped stdin
             if (!stdin) {
                 return {
@@ -42,82 +92,53 @@ registerCommand("wc", {
                     exitCode: 1
                 };
             }
-            content = stdin;
-        } else {
+            return {
+                stdout: formatCounts(countOf(stdin), null),
+                stderr: "",
+                exitCode: 0
+            };
+        }
+
+        // Real `wc` prints one line per file (in order), keeps going after
+        // a bad file rather than stopping, and - when given more than one
+        // file - adds a final "total" line summing every count.
+        const lines = [];
+        const errors = [];
+        const total = { lines: 0, words: 0, bytes: 0 };
+
+        for (const target of targets) {
             const node = terminal.fs.get(target, terminal.cwd);
 
             if (!node) {
-                return {
-                    stdout: "",
-                    stderr: `wc: ${target}: no such file`,
-                    exitCode: 1
-                };
+                errors.push(`wc: ${target}: no such file`);
+                continue;
             }
 
-            if(terminal.fs.isInBin(target, terminal.cwd)){
-                return {
-                    stdout: "",
-                    stderr: `wc: cannot access files in /bin`,
-                    exitCode: 1
-                };
-            }             
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                errors.push(`wc: ${target}: Permission denied`);
+                continue;
+            }
 
             if (terminal.fs.isDirectory(node)) {
-                return {
-                    stdout: "",
-                    stderr: `wc: ${target}: is a directory`,
-                    exitCode: 1
-                };
+                errors.push(`wc: ${target}: is a directory`);
+                continue;
             }
             node.accessed = Date.now();
-            content = terminal.fs.readContent(node);
+            const counts = countOf(terminal.fs.readContent(node));
+            total.lines += counts.lines;
+            total.words += counts.words;
+            total.bytes += counts.bytes;
+            lines.push(formatCounts(counts, target));
         }
 
-        const lines = content.length === 0
-            ? 0
-            : content.split(/\r?\n/).length;
-
-        const words = content
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean)
-            .length;
-
-        const bytes = new TextEncoder()
-            .encode(content)
-            .length;
-
-        let output;
-
-        if (countLines || countWords || countBytes) {
-            // At least one specific count was requested - print only those,
-            // in l/w/c order, space-separated (no labels)
-            const values = [];
-            if (countLines) {
-                values.push(lines);
-            }
-            if (countWords) {
-                values.push(words);
-            }
-            if (countBytes) {
-                values.push(bytes);
-            }
-            output = values.join(" ");
-        } else {
-            // No flags - print all three counts with labels
-            output =
-                `Lines: ${String(lines)}  ` +
-                `Words: ${String(words)}  ` +
-                `Bytes: ${String(bytes)}  `;
-
+        if (targets.length > 1 && lines.length > 0) {
+            lines.push(formatCounts(total, "total"));
         }
-            if (target) {
-            output += ` ${target}`;
-        }
+
         return {
-            stdout: output,
-            stderr: "",
-            exitCode: 0
+            stdout: lines.join("\n"),
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
         };
     }
 });

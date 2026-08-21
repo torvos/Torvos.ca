@@ -23,8 +23,7 @@ registerCommand("grep", {
             };                
         }
         const pattern = args[0];
-
-        let content = "";
+        const targets = args.slice(1);
 
         if (!pattern) {
             return {
@@ -34,38 +33,15 @@ registerCommand("grep", {
             };
         }
 
-        // Prefer piped stdin; otherwise read the named file argument
-        if (stdin.length != 0) {
-            content = stdin;
-        }
-        else if (args.length === 2) {
-            const node = terminal.fs.get(args[1], terminal.cwd);
-            if (!node) {
-                return {
-                    stdout: "",
-                    stderr: `grep: ${args[1]}: No such file or directory`,
-                    exitCode: 1
-                };
-            }
-            content = terminal.fs.readContent(node);
-        }
-        if (content.length === 0){
-            return {
-                stdout: "",
-                stderr: "grep: no input",
-                exitCode: 1
-            };
-        }
-        const lines = content.split(/\r?\n/);
-        const matches = lines.filter(line =>
-            line.includes(pattern)
-        );
-
         // Highlight every occurrence of `pattern` within a matched line,
         // leaving the rest of the line in the default terminal color -
-        // same idea as `grep --color`.
-        function highlightLine(line) {
+        // same idea as `grep --color`. `prefix` (a filename, when more
+        // than one file is being searched) is prepended un-highlighted.
+        function highlightLine(line, prefix) {
             const segments = [];
+            if (prefix) {
+                segments.push({ text: prefix, color: COLOR_STDOUT });
+            }
             let rest = line;
             let idx;
             while ((idx = rest.indexOf(pattern)) !== -1) {
@@ -81,11 +57,72 @@ registerCommand("grep", {
             return segments;
         }
 
+        // Prefer piped stdin; otherwise read every named file argument -
+        // like real grep, one bad/missing file doesn't stop the rest from
+        // being searched, and matches from multiple files get a
+        // "filename:" prefix so they stay distinguishable.
+        if (stdin.length != 0) {
+            const lines = stdin.split(/\r?\n/);
+            const matches = lines.filter(line => line.includes(pattern));
+            return {
+                stdout: matches.join("\n"),
+                stdoutSegments: matches.map(line => highlightLine(line, null)),
+                stderr: "",
+                exitCode: matches.length ? 0 : 1
+            };
+        }
+
+        if (targets.length === 0) {
+            return {
+                stdout: "",
+                stderr: "grep: no input",
+                exitCode: 1
+            };
+        }
+
+        const outLines = [];
+        const outSegments = [];
+        const errors = [];
+        const multi = targets.length > 1;
+
+        for (const target of targets) {
+            const node = terminal.fs.get(target, terminal.cwd);
+            if (!node) {
+                errors.push(`grep: ${target}: No such file or directory`);
+                continue;
+            }
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                errors.push(`grep: ${target}: Permission denied`);
+                continue;
+            }
+            if (terminal.fs.isDirectory(node)) {
+                errors.push(`grep: ${target}: Is a directory`);
+                continue;
+            }
+            const matches = terminal.fs.readContent(node)
+                .split(/\r?\n/)
+                .filter(line => line.includes(pattern));
+
+            for (const line of matches) {
+                const prefix = multi ? `${target}:` : null;
+                outLines.push(prefix ? `${prefix}${line}` : line);
+                outSegments.push(highlightLine(line, prefix));
+            }
+        }
+
+        if (outLines.length === 0 && errors.length > 0) {
+            return {
+                stdout: "",
+                stderr: errors.join("\n"),
+                exitCode: 1
+            };
+        }
+
         return {
-            stdout: matches.join("\n"),
-            stdoutSegments: matches.map(highlightLine),
-            stderr: "",
-            exitCode: matches.length ? 0 : 1
+            stdout: outLines.join("\n"),
+            stdoutSegments: outSegments,
+            stderr: errors.join("\n"),
+            exitCode: outLines.length ? 0 : 1
         };
     }
 });

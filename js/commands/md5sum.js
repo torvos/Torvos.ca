@@ -111,8 +111,8 @@ registerCommand("md5sum", {
                 exitCode = 1;
                 continue;
             }
-            if (terminal.fs.isInBin(target, terminal.cwd)) {
-                err += `md5sum: cannot access files in /bin\n`;
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                err += `md5sum: ${target}: Permission denied\n`;
                 exitCode = 1;
                 continue;
             }

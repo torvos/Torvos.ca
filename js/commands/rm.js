@@ -29,102 +29,99 @@ registerCommand("rm", {
         const parsed = terminal.parseFlags(args,{f: false,r: false});
         const force = parsed.flags.has("f");
         const recursive = parsed.flags.has("r");
-        const target = parsed.args[0];
+        const targets = parsed.args;
 
-        if (target === undefined) {
+        if (targets.length === 0) {
             return {
                 stdout: "",
                 stderr: `rm: missing operand`,
                 exitCode: 1
             };    
         }
-        
-        if(target === ROOT){
+
+        // Recursively deletes every descendant entry of `dir` before the
+        // directory itself gets removed by the caller below.
+        function removeChildren(dir) {
+            if (!dir.children) {
+                return;
+            }
+
+            for (const key of Object.keys(dir.children)) {
+                const child = dir.children[key];
+
+                if (terminal.fs.isDirectory(child)) {
+                    removeChildren(child);
+                }
+
+                delete dir.children[key];
+            }
+        }
+
+        // Removes a single target, returning an error message string on
+        // failure or null on success. Errors are collected by the loop
+        // below rather than aborting the whole command - like real `rm`,
+        // one bad target (e.g. a wildcard match that's a directory,
+        // hit without -r) shouldn't stop the rest from being removed.
+        function removeOne(target) {
+            if (target === ROOT) {
                 // Hard-coded guard: never allow deleting the filesystem root
-                return {
-                    stdout: "",
-                    stderr: "rm: prohibited to use on '/'",
-                    exitCode: 1
-                };          
-        }
-
-        const result = terminal.fs.getParent(target, terminal.cwd);
-        
-        if (!result || !result.parent.children[result.name]) {
-            if (force) {
-                // -f: missing target is silently treated as success
-                return {
-                    stdout: "",
-                    stderr: "",
-                    exitCode: 0
-                };
+                return "rm: prohibited to use on '/'";
             }
-            return {
-                stdout: "",
-                stderr: `rm: cannot remove '${target}': No such file or directory`,
-                exitCode: 1
-            };   
-        }
-        
-        const node = result.parent.children[result.name];
 
-        if (terminal.fs.isSymlink(node)) {
-            // Symlinks themselves are removed directly (their target is untouched)
+            // Structural (deletes the entry) - always blocked for protected
+            // system paths, devices included: `rm /dev/null` shouldn't work
+            // even though /dev/null itself is happy to be written *through*.
+            if (terminal.fs.isProtected(target, terminal.cwd)) {
+                return `rm: cannot remove '${target}': Permission denied`;
+            }
+
+            const result = terminal.fs.getParent(target, terminal.cwd);
+
+            if (!result || !result.parent.children[result.name]) {
+                if (force) {
+                    // -f: missing target is silently treated as success
+                    return null;
+                }
+                return `rm: cannot remove '${target}': No such file or directory`;
+            }
+
+            const node = result.parent.children[result.name];
+
+            if (terminal.fs.isSymlink(node)) {
+                // Symlinks themselves are removed directly (their target is untouched)
+                result.parent.modified = Date.now();
+                delete result.parent.children[result.name];
+                return null;
+            }
+
+            if (terminal.fs.isDirectory(node)) {
+                if (!recursive) {
+                    return `rm: cannot remove '${target}': Is a directory`;
+                }
+                removeChildren(node);
+                result.parent.modified = Date.now();
+                delete result.parent.children[result.name];
+                return null;
+            }
+
+            // Plain file
             result.parent.modified = Date.now();
             delete result.parent.children[result.name];
-            return {
-                stdout: "",
-                stderr: "",
-                exitCode: 0
-            };   
+            return null;
         }
 
-        if (terminal.fs.isDirectory(node)) {
-            if (!recursive) {
-                return {
-                    stdout: "",
-                    stderr: `rm: cannot remove '${target}': Is a directory`,
-                    exitCode: 1
-                };
+        const errors = [];
+        for (const target of targets) {
+            const error = removeOne(target);
+            if (error) {
+                errors.push(error);
             }
-
-            // Recursively deletes every descendant entry of `dir` before
-            // the directory itself gets removed below
-            function removeChildren(dir) {
-                if (!dir.children) {
-                    return;
-                }
-
-                for (const key of Object.keys(dir.children)) {
-                    const child = dir.children[key];
-
-                    if (terminal.fs.isDirectory(child)) {
-                        removeChildren(child);
-                    }
-
-                    delete dir.children[key];
-                }
-            }
-            removeChildren(node);
-
-            result.parent.modified = Date.now();
-            delete result.parent.children[result.name];
-
-            return {
-                stdout: "",
-                stderr: "",
-                exitCode: 0
-            };
         }
-
-        // Plain file
-        result.parent.modified = Date.now();
-        delete result.parent.children[result.name];    
 
         return {
             stdout: "",
-            stderr: "",
-            exitCode: 0
-        };    
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
+        };
     }
 });

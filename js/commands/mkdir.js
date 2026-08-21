@@ -26,9 +26,9 @@ registerCommand("mkdir", {
         }
         const parsed = terminal.parseFlags(args, { p: false });
         const parents = parsed.flags.has("p");
-        const target = parsed.args[0];
+        const targets = parsed.args;
 
-        if (!target) {
+        if (targets.length === 0) {
             return {
                 stdout: "",
                 stderr: "mkdir: missing operand",
@@ -36,8 +36,6 @@ registerCommand("mkdir", {
             };        
 
         }
-
-        const path = terminal.fs.getFullPath(target, terminal.cwd);
 
         // Walks the path segment by segment, creating any directory that
         // doesn't already exist yet (used for `mkdir -p`).
@@ -53,12 +51,7 @@ registerCommand("mkdir", {
                 if (node) {
                     if (!terminal.fs.isDirectory(node)) {
                         // A path segment already exists but isn't a directory - can't proceed
-                        return {
-                            stdout: "",
-                            stderr: `mkdir: ${part}: Not a directory`,
-                            exitCode: 1
-                        };        
-
+                        return `mkdir: ${part}: Not a directory`;
                     }
                     continue; // already a directory - move on to the next segment
                 }
@@ -66,56 +59,59 @@ registerCommand("mkdir", {
                 const result = terminal.fs.getParent(currentPath, terminal.cwd);
 
                 if (!result) {
-                    return {
-                        stdout: "",
-                        stderr: `mkdir: invalid path ${currentPath}`,
-                        exitCode: 1
-                    };        
+                    return `mkdir: invalid path ${currentPath}`;
                 }
                 result.parent.modified = Date.now();
                 result.parent.children[result.name] = terminal.fs.createDirectory(result.name.startsWith("."));
             }
 
-            return {
-                stdout: "",
-                stderr: "",
-                exitCode: 0
-            };     
-        }
-        
-        if (parents) {
-            return mkdirRecursive(path);
+            return null;
         }
 
-        const node = terminal.fs.get(path, terminal.cwd);
+        // Creates a single target directory, returning an error message
+        // string on failure or null on success.
+        function mkdirOne(target) {
+            const path = terminal.fs.getFullPath(target, terminal.cwd);
 
-        if (node) {
-            // Without -p, an existing target is an error
-            return {
-                stdout: "",
-                stderr: `mkdir: directory ${target} already exists`,
-                exitCode: 1
-            };           
+            if (terminal.fs.isProtected(path, terminal.cwd)) {
+                return `mkdir: cannot create directory '${target}': Permission denied`;
+            }
+
+            if (parents) {
+                return mkdirRecursive(path);
+            }
+
+            if (terminal.fs.get(path, terminal.cwd)) {
+                // Without -p, an existing target is an error
+                return `mkdir: directory ${target} already exists`;
+            }
+
+            const result = terminal.fs.getParent(path, terminal.cwd);
+
+            if (!result) {
+                // Immediate parent directory doesn't exist and -p wasn't given
+                return `mkdir: cannot create directory '${target}': No such file or directory`;
+            }
+
+            result.parent.modified = Date.now();
+            result.parent.children[result.name] = terminal.fs.createDirectory(result.name.startsWith("."));
+            return null;
         }
 
-        const result = terminal.fs.getParent(path, terminal.cwd);
-
-        if (!result) {
-            // Immediate parent directory doesn't exist and -p wasn't given
-            return {
-                stdout: "",
-                stderr: `mkdir: cannot create directory '${target}': No such file or directory`,
-                exitCode: 1
-            };           
+        // Like real `mkdir a b c`, every target is attempted even if an
+        // earlier one fails - errors accumulate rather than aborting early.
+        const errors = [];
+        for (const target of targets) {
+            const error = mkdirOne(target);
+            if (error) {
+                errors.push(error);
+            }
         }
-        
-        result.parent.modified = Date.now();
-        result.parent.children[result.name] = terminal.fs.createDirectory(result.name.startsWith("."));
-        
+
         return {
             stdout: "",
-            stderr: "",
-            exitCode: 0
+            stderr: errors.join("\n"),
+            exitCode: errors.length ? 1 : 0
         };
     }
 });

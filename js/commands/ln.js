@@ -45,20 +45,20 @@ registerCommand("ln", {
                 const linkPath = terminal.fs.getFullPath(link, terminal.cwd);
                 const linkNode = terminal.fs.get(link, terminal.cwd);
 
-                if(terminal.fs.isInBin(link, terminal.cwd)){
+                if (terminal.fs.isProtected(link, terminal.cwd)) {
                     return {
                         stdout: "",
-                        stderr: `ln: cannot create link in /bin`,
+                        stderr: `ln: ${link}: Permission denied`,
                         exitCode: 1
                     };
-                }    
-                if(terminal.fs.isInBin(target, terminal.cwd)){
+                }
+                if (terminal.fs.isProtected(target, terminal.cwd)) {
                     return {
                         stdout: "",
-                        stderr: `ln: cannot create link to files in /bin`,
+                        stderr: `ln: ${target}: Permission denied`,
                         exitCode: 1
                     };
-                }    
+                }
 
                 if (!targetNode) {
                     return {

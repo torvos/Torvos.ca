@@ -44,8 +44,8 @@ registerCommand("diff", {
             if (!node) {
                 return { error: `diff: ${target}: No such file or directory` };
             }
-            if (terminal.fs.isInBin(target, terminal.cwd)) {
-                return { error: `diff: cannot access files in /bin` };
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                return { error: `diff: ${target}: Permission denied` };
             }
             if (terminal.fs.isDirectory(node)) {
                 return { error: `diff: ${target}: Is a directory` };

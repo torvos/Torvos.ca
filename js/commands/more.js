@@ -39,13 +39,13 @@ registerCommand("more", {
             };        
         }
 
-        if(terminal.fs.isInBin(target, terminal.cwd)){
+        if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
             return {
                 stdout: "",
-                stderr: `more: cannot display files in /bin`,
+                stderr: `more: ${target}: Permission denied`,
                 exitCode: 1
             };
-        }             
+        }
 
         if (terminal.fs.isDirectory(node)) {
             return {

@@ -532,10 +532,10 @@
             const trace = options.trace === true || options.trace === "true";
             const label = options.label ?? target;
 
-            if (terminal.fs.isInBin(target, terminal.cwd)) {
+            if (terminal.fs.isProtected(target, terminal.cwd)) {
                 return {
                     stdout: "",
-                    stderr: `${label}: cannot execute files in /bin`,
+                    stderr: `${label}: ${target}: Permission denied`,
                     exitCode: 1
                 };
             }

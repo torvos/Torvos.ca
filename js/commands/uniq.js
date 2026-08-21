@@ -53,13 +53,13 @@ registerCommand("uniq", {
                 };
             }
 
-            if(terminal.fs.isInBin(parsed.args[0], terminal.cwd)){
+            if (terminal.fs.isProtected(parsed.args[0], terminal.cwd) && !terminal.fs.isDevice(node)) {
                 return {
                     stdout: "",
-                    stderr: `uniq: cannot display files in /bin`,
+                    stderr: `uniq: ${parsed.args[0]}: Permission denied`,
                     exitCode: 1
                 };
-            }             
+            }
 
             if (terminal.fs.isDirectory(node)) {
                 return {

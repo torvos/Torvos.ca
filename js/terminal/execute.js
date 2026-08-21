@@ -103,6 +103,18 @@ Object.assign(TerminalEngine.prototype, {
                             }
                             break;
                         }
+                        // Reading a protected, non-device file (e.g. /bin/ls)
+                        // is blocked - reading an existing device (e.g.
+                        // /dev/random) is exactly what it's there for.
+                        if (this.fs.isProtected(redirects.target, this.cwd) && !this.fs.isDevice(node)) {
+                            stdin = "";
+                            if (index === pipeline.length - 1) {
+                                this.write(
+                                    this.formatErrorLine(`${redirects.target}: Permission denied`)
+                                );
+                            }
+                            break;
+                        }
                         stdin = this.fs.readContent(node);
                     }
 
@@ -357,18 +369,30 @@ Object.assign(TerminalEngine.prototype, {
      * @returns {true|string} true on success, or an error message string on failure.
      */
     writeRedirect(path, text, append = false) {
-        if(this.fs.isInBin(path, this.cwd)){
-            return `Cannot create files in /bin`;
-        }             
         let node = this.fs.get(path, this.cwd);
+
         if (!node) {
-            // Target doesn't exist yet - try to create it in its parent directory
+            // Target doesn't exist yet - creating a brand-new entry
+            // anywhere under a protected directory (/bin, /dev) is never
+            // allowed, even though writing to an EXISTING device down
+            // there (e.g. /dev/null) is fine - see the isProtected() case
+            // just below for that distinction.
+            if (this.fs.isProtected(path, this.cwd)) {
+                return `Cannot create files here`;
+            }
+            // Try to create it in its parent directory
             const parent = this.fs.getParent(path, this.cwd);
             if (!parent || !this.fs.isDirectory(parent.parent)) {
                 return `Invalid parent directory`;
             }
             parent.parent.children[parent.name] = this.fs.createFile(parent.name.startsWith("."));
             node = parent.parent.children[parent.name];
+        } else if (this.fs.isProtected(path, this.cwd) && !this.fs.isDevice(node)) {
+            // Existing target under a protected directory, but not a
+            // device (e.g. /bin/ls) - devices are the one thing under a
+            // protected directory that's genuinely meant to be written
+            // to (that's the whole feature of /dev/null, /dev/full...).
+            return `Permission denied`;
         }
         if (!this.fs.isFile(node) && !this.fs.isDevice(node)) {
             return `Invalid directory specified in redirection operator`;

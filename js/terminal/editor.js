@@ -71,7 +71,13 @@ Object.assign(TerminalEngine.prototype, {
         document.getElementById("output").style.display = "";
         this.inputMode = INPUT_NORMAL;
         this.hiddenInput.focus();
-        this.showPrompt();
+        this.renderPrompt();
+        // #output was `display: none` while the editor was open, so the
+        // #terminal container's scroll position wasn't maintained against
+        // it - without this, re-showing it leaves the view sitting near
+        // the top instead of back where the user was (the bottom, same as
+        // every other place that writes to the terminal).
+        this.scrollToBottom();
     }
 
 });
