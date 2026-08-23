@@ -39,6 +39,12 @@ class TerminalEngine {
 
         this.version = TERMINAL_VERSION;
 
+        // Tracks, per seed file path (resume.md, contact.md, etc.), the
+        // last seedVersion reconciled for this profile - see
+        // reconcileSeed() in filesystem.js. Populated from saved settings
+        // (or left empty for a fresh profile) in init().
+        this.seedSync = {};
+
         // State for the `more`/`less`-style pager used by commands with long output
         this.pager = {
             active: false,
@@ -106,20 +112,20 @@ class TerminalEngine {
             }
 
             if (settings) {
-                // If the saved session was created by a different terminal version,
-                // wipe it out and reload fresh rather than risk incompatible state.
-                if(settings.version != TERMINAL_VERSION){
-                    localStorage.removeItem("terminalSettings");
-                    localStorage.removeItem("FileSystem");
-                    this.cwd = HOME;
-                    location.reload();
-                    return;
-                }
+                // Note: there's no version check/wipe here anymore. A
+                // saved session from an older TERMINAL_VERSION is merged
+                // on top of today's defaults the same way any saved
+                // session is (see the `??`/spread fallbacks below), and
+                // any seed CONTENT that changed between versions is
+                // reconciled file-by-file below via reconcileSeed() -
+                // there's nothing left that a full wipe was uniquely
+                // necessary for.
                 this.history = settings.history ?? [];
                 this.historyIndex = settings.historyIndex ?? -1;
                 this.cursorPos = settings.cursorPos ?? 0;
                 this.hasbooted = settings.hasbooted ?? 0;
                 this.cwd = settings.cwd ?? HOME;
+                this.seedSync = settings.seedSync ?? {};
 
                 // Merge saved env/aliases on top of the defaults so new default
                 // keys introduced in later versions still show up.
@@ -147,6 +153,15 @@ class TerminalEngine {
             }
         }
 
+        // Bring the starter seed files (resume.md, contact.md, etc.) up to
+        // date with whatever this version of the code ships, without
+        // touching anything else in the user's filesystem - see
+        // reconcileSeed()'s own docs in filesystem.js for the exact rules
+        // (new files get added, unedited files get updated, anything the
+        // user has touched or deleted is left alone).
+        const { seedSync, changes: seedChanges } = FileSystemAPI.reconcileSeed(this.seedSync);
+        this.seedSync = seedSync;
+
         const params = new URLSearchParams(window.location.search);
         await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
         if (settingsWereCorrupted) {
@@ -154,6 +169,10 @@ class TerminalEngine {
         }
         if (filesystemWasCorrupted) {
             await this.write(`[WARN] Saved filesystem was corrupted, restored defaults..[FAIL]`, {color: "#ff5555"});
+        }
+        for (const change of seedChanges) {
+            const verb = change.action === "added" ? "added" : "updated";
+            await this.write(`[INFO] ${change.path} was ${verb} by the developer.......[ OK ]`, {color: "#ffffff"});
         }
 
         // `?quickboot` query param lets you skip straight to a "resumed session" state
@@ -224,7 +243,8 @@ class TerminalEngine {
             version: this.version,
             cwd: this.cwd,
             env: this.env,
-            aliases: this.aliases
+            aliases: this.aliases,
+            seedSync: this.seedSync
         };
 
         // localStorage.setItem can throw (quota exceeded, private-browsing
