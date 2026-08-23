@@ -1,6 +1,6 @@
 // Global configuration constants shared across the terminal engine and commands.
 
-const TERMINAL_VERSION = "2.8.0";   // Displayed by commands like `man`/version banners
+const TERMINAL_VERSION = "3.0.0";   // Displayed by commands like `man`/version banners
 const ROOT = "/";                   // Filesystem root path
 const HOME = "/home/guest";         // Default home directory for the guest user
 const DEFAULT_USER = "guest";       // Username used when no login has occurred
