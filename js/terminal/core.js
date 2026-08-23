@@ -157,8 +157,9 @@ class TerminalEngine {
         // date with whatever this version of the code ships, without
         // touching anything else in the user's filesystem - see
         // reconcileSeed()'s own docs in filesystem.js for the exact rules
-        // (new files get added, unedited files get updated, anything the
-        // user has touched or deleted is left alone).
+        // (missing/outdated files are (re)written from the current seed
+        // content whenever their seedVersion moves forward, even if the
+        // user had edited or deleted them; everything else is untouched).
         const { seedSync, changes: seedChanges } = FileSystemAPI.reconcileSeed(this.seedSync);
         this.seedSync = seedSync;
 

@@ -173,27 +173,6 @@ Developer - Application Development
     const DEFAULT_FILESYSTEM_JSON = JSON.stringify(FileSystem);
 
     /**
-     * Cheap, deterministic string hash (djb2) - not cryptographic, just
-     * needs to reliably answer "has this file's content changed since we
-     * last looked at it" for reconcileSeed(). Deliberately not comparing
-     * `modified`/`created` timestamps for that: the seed data itself
-     * ships with different `created` and `modified` values on every seed
-     * file (to look like a plausible pre-existing file), and ordinary
-     * metadata-only operations like `touch` bump `modified` without
-     * changing content at all - either would make a perfectly untouched
-     * file look "edited" forever. Comparing actual content sidesteps both.
-     * @param {string} str
-     * @returns {number} Unsigned 32-bit hash.
-     */
-    function hashContent(str) {
-        let hash = 5381;
-        for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0; // hash*33 + c
-        }
-        return hash >>> 0;
-    }
-
-    /**
      * Recursively visits every node in `node`'s subtree that carries a
      * `seedVersion` field, calling `visit(node, absolutePath)` for each -
      * used by reconcileSeed() to find the small set of "seed content"
@@ -939,28 +918,22 @@ Developer - Application Development
          * users everything else they'd done in their session to deliver
          * it. Instead, each seed file carries its own `seedVersion` in
          * filesystem.js, bumped by hand only when that file's *content*
-         * changes, and this reconciles against it:
+         * changes, and this reconciles against it, version by version:
          *
-         *   - Brand new seed file (never seen before) -> added.
-         *   - Existing seed file whose content still matches what we last
-         *     synced (i.e. genuinely untouched since), and the shipped
-         *     version moved forward -> content updated.
-         *   - Existing seed file whose content no longer matches what we
-         *     last synced (the user has edited it) -> left alone, and
-         *     marked user-owned - PERMANENTLY, not just for this one
-         *     version bump - so even a later shipped update can't sneak
-         *     in and overwrite it on some future boot after the user has
-         *     otherwise stopped touching it. Once it's been customized,
-         *     it's the user's file from then on.
-         *   - Seed file that no longer exists locally, but which
-         *     `seedSync` shows the user previously had -> left deleted;
-         *     we don't resurrect something the user removed.
+         *   - Locally at or past the shipped seedVersion already -> left
+         *     alone completely (this is the common case on every boot).
+         *   - Locally behind the shipped seedVersion (whether because the
+         *     file is missing, was deleted, or was edited - reconcileSeed
+         *     doesn't distinguish those, on purpose) -> replaced outright
+         *     with the shipped content. These four files are meant to
+         *     always reflect what ships in the code once you bump their
+         *     version, not a permanent user sandbox - if you want a file
+         *     users can edit and keep, don't give it a `seedVersion`.
          *
-         * @param {Object.<string, {version: number, hash: number, userOwned?: boolean}>} seedSync
-         *   Map of seed file path -> the seedVersion/content-hash last
-         *   reconciled for it, persisted in terminalSettings across
-         *   reloads. Pass {} for a first run.
-         * @returns {{seedSync: Object.<string, {version: number, hash: number, userOwned?: boolean}>, changes: {path: string, action: "added"|"updated"}[]}}
+         * @param {Object.<string, number>} seedSync - Map of seed file
+         *   path -> the last seedVersion reconciled for it, persisted in
+         *   terminalSettings across reloads. Pass {} for a first run.
+         * @returns {{seedSync: Object.<string, number>, changes: {path: string, action: "added"|"updated"}[]}}
          *   The updated map to persist back, plus a list of what changed
          *   (so the caller can let the user know, if it wants to).
          */
@@ -978,68 +951,34 @@ Developer - Application Development
                 const localNode = parent.children[name];
                 const lastSynced = updatedSync[path];
 
-                if (!localNode) {
-                    if (lastSynced !== undefined) {
-                        // The user had this before and deleted it -
-                        // respect that, just note we've seen this version.
-                        updatedSync[path] = { version: freshNode.seedVersion, hash: hashContent(freshNode.content) };
-                        return;
-                    }
-                    // Never seen locally at all - a new seed file shipped
-                    // in a later version than this profile was created
-                    // under. structuredClone since it'll be mutated
-                    // in-place going forward (accessed/modified timestamps
-                    // etc.) and shouldn't share references with freshTree.
-                    parent.children[name] = structuredClone(freshNode);
-                    parent.modified = Date.now();
-                    updatedSync[path] = { version: freshNode.seedVersion, hash: hashContent(freshNode.content) };
-                    changes.push({ path, action: "added" });
-                    return;
-                }
-
-                if (lastSynced === undefined) {
+                if (localNode && lastSynced === undefined) {
                     // First time this path has ever been reconciled (e.g.
-                    // an existing profile updating to a version that has
-                    // this feature for the first time) - just record
-                    // today's content as the baseline. We don't know
-                    // whether the user has customized it in the past, so
-                    // don't touch content here; only a FUTURE seedVersion
-                    // bump (compared against this baseline) can trigger
-                    // an update, by which point a real edit and a real
-                    // content change are distinguishable again.
-                    updatedSync[path] = { version: freshNode.seedVersion, hash: hashContent(localNode.content) };
+                    // a profile created before this feature existed, or a
+                    // brand new profile) - there's nothing to "update" to,
+                    // the file already reflects whatever the code shipped
+                    // when it was created. Just establish the baseline so
+                    // future version bumps have something to compare
+                    // against, without firing a spurious change here.
+                    updatedSync[path] = freshNode.seedVersion;
                     return;
                 }
 
-                if (lastSynced.userOwned) {
-                    // Permanently hands-off once the user has customized
-                    // this file - keep the version marker current (so we
-                    // don't need to re-derive anything later) but never
-                    // touch its content again.
-                    updatedSync[path] = { ...lastSynced, version: freshNode.seedVersion };
+                if (localNode && lastSynced >= freshNode.seedVersion) {
+                    // Already at (or past) the shipped version - nothing to do.
                     return;
                 }
 
-                const currentHash = hashContent(localNode.content);
-
-                if (currentHash !== lastSynced.hash) {
-                    // Content diverged from what we last saw - the user
-                    // has edited it. Mark it user-owned for good, so a
-                    // LATER version bump can't overwrite this customization
-                    // even after the user leaves it alone again.
-                    updatedSync[path] = { version: freshNode.seedVersion, hash: currentHash, userOwned: true };
-                    return;
-                }
-
-                if (lastSynced.version < freshNode.seedVersion) {
-                    // Untouched since our last sync, and the shipped
-                    // content has moved on - safe to update.
-                    localNode.content = freshNode.content;
-                    localNode.modified = Date.now();
-                    updatedSync[path] = { version: freshNode.seedVersion, hash: hashContent(freshNode.content) };
-                    changes.push({ path, action: "updated" });
-                }
-                // else: untouched and already current - nothing to do.
+                // Missing, or behind the shipped version - (re)write it
+                // from the fresh seed content, regardless of whether it's
+                // missing because it was never here, was deleted, or was
+                // edited. structuredClone since it'll be mutated in-place
+                // going forward (accessed/modified timestamps etc.) and
+                // shouldn't share references with freshTree.
+                const isNew = !localNode;
+                parent.children[name] = structuredClone(freshNode);
+                parent.modified = Date.now();
+                updatedSync[path] = freshNode.seedVersion;
+                changes.push({ path, action: isNew ? "added" : "updated" });
             });
 
             return { seedSync: updatedSync, changes };
