@@ -557,9 +557,13 @@ Developer - Application Development
      * the final one, e.g. "/home/*\/*.txt").
      * @param {string} arg - The raw argument, possibly containing wildcards.
      * @param {string} [cwd="/"] - Current working directory for relative resolution.
-     * @returns {string[]} All matching paths (empty array if arg has no
-     *   wildcards -- callers should treat that case as "not a glob" rather
-     *   than "no matches").
+     * @returns {string[]} All matching paths. If `arg` contains no
+     *   wildcard characters at all, it's returned unchanged as a single-
+     *   element array (`[arg]`) - there's nothing to expand. An empty
+     *   array specifically means `arg` DID look like a glob but matched
+     *   nothing; callers (see execute.js, sh.js) treat that case as "fall
+     *   back to the literal pattern", matching a real shell's default
+     *   behavior for an unmatched glob.
      */
     function expandWildcards(arg, cwd = "/") {
         if (!arg.includes("*") && !arg.includes("?")) {
@@ -596,7 +600,17 @@ Developer - Application Development
                     +
                     "$"
                 );
+                // A bare "*"/"?" pattern shouldn't match hidden dotfiles -
+                // real shells only do that if the pattern itself starts
+                // with a literal "." (bash's `dotglob` is off by default).
+                // Without this, something like `rm *` would silently sweep
+                // up .script.sh along with everything else, which is both
+                // surprising and not how any real shell behaves.
+                const matchesHidden = part.startsWith(".");
                 for (const name of Object.keys(node.children)) {
+                    if (!matchesHidden && name.startsWith(".")) {
+                        continue;
+                    }
                     const child = node.children[name];
                     if (regex.test(name)) {
                         walk(

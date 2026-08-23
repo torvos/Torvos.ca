@@ -420,13 +420,21 @@ Object.assign(TerminalEngine.prototype, {
      */
     changeDirectory(path) {
         const resolved = this.fs.getFullPath(path, this.cwd);
-        const node = this.fs.getNode(resolved);
+        // fs.get() follows symlinks (unlike fs.getNode()), so `cd` into a
+        // symlink pointing at a directory works the same way it does in a
+        // real shell, rather than failing with "Not a directory" just
+        // because the final path segment happens to be a symlink.
+        const node = this.fs.get(path, this.cwd);
         if (!node) {
             return `cd: ${path}: No such file or directory`;
         }
         if (!this.fs.isDirectory(node)) {
             return `cd: ${path}: Not a directory`;
         }
+        // Keep the logical (as-typed) path rather than the symlink's
+        // resolved target - matches a real shell's default `cd` (without
+        // `-P`): `pwd` shows the symlink path you navigated through, not
+        // what it points to.
         this.cwd = resolved;
         this.renderPrompt();
     }
