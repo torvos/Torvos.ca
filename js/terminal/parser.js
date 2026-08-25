@@ -11,32 +11,75 @@ Object.assign(TerminalEngine.prototype, {
      * Expands brace patterns like "file{1,2,3}.txt" into
      * ["file1.txt", "file2.txt", "file3.txt"]. Recurses to support multiple
      * brace groups in one string (e.g. "a{1,2}{x,y}").
+     *
+     * Only considers a "{...}" group that appears OUTSIDE any quotes -
+     * matching real bash, where quoting (either kind) suppresses brace
+     * expansion entirely: `echo {a,b}` expands, but `echo "{a,b}"` prints
+     * `{a,b}` literally. An escaped "{" or "}" (e.g. `echo \{a,b\}`)
+     * is likewise left alone rather than treated as a real brace group.
      * @param {string} input - Input string possibly containing a {a,b,c} group.
      * @returns {string[]} All expanded variants (or [input] if no braces found).
      */
     expandBraces(input) {
-        const match = input.match(/\{([^{}]+)\}/);
-        if (!match) {
-            return [input];
+        let inSingle = false;
+        let inDouble = false;
+        let braceStart = -1;
+
+        for (let i = 0; i < input.length; i++) {
+            const ch = input[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < input.length) {
+                const next = input[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    i++; // an escaped character can't start/end a brace group
+                    continue;
+                }
+            }
+
+            if (inSingle) {
+                if (ch === "'") inSingle = false;
+                continue;
+            }
+            if (inDouble) {
+                if (ch === '"') inDouble = false;
+                continue;
+            }
+            if (ch === "'") { inSingle = true; continue; }
+            if (ch === '"') { inDouble = true; continue; }
+
+            if (ch === "{" && braceStart === -1) {
+                braceStart = i;
+            } else if (ch === "}" && braceStart !== -1) {
+                const inner = input.slice(braceStart + 1, i);
+                if (inner.includes("{")) {
+                    // Contains a nested "{" - not a flat group this simple
+                    // implementation handles as a match; leave this one
+                    // as-is and keep scanning for the next "{".
+                    braceStart = -1;
+                    continue;
+                }
+                const values = inner.split(",");
+                const results = [];
+                for (const value of values) {
+                    const expanded =
+                        input.slice(0, braceStart) + value.trim() + input.slice(i + 1);
+                    // Recurse in case there are additional brace groups left to expand
+                    results.push(...this.expandBraces(expanded));
+                }
+                return results;
+            }
         }
-        const values = match[1].split(",");
-        const results = [];
-        for (const value of values) {
-            const expanded = input.replace(
-                match[0],
-                value.trim()
-            );
-            // Recurse in case there are additional brace groups left to expand
-            results.push(
-                ...this.expandBraces(expanded)
-            );
-        }
-        return results;
+
+        return [input];
     },
 
     /**
      * Splits `str` on `delimiter`, but ignores delimiters that appear inside
      * single or double quotes (so quoted content is never split apart).
+     * Backslash-escaped characters are skipped over as a pair so an escaped
+     * quote (e.g. the `\"` in `"a\";b"`) doesn't look like it closes the
+     * quote early - which would otherwise make the `;` right after it look
+     * like a real top-level delimiter instead of quoted text.
      * @param {string} str - String to split.
      * @param {string} delimiter - Single character to split on.
      * @returns {string[]} The split parts, quotes left intact.
@@ -49,6 +92,21 @@ Object.assign(TerminalEngine.prototype, {
 
         for (let i = 0; i < str.length; i++) {
             const ch = str[i];
+
+            // Backslash escaping (bash rules): outside quotes, "\" escapes
+            // ANY next character. Inside double quotes, it only escapes
+            // $ ` " \ and newline - anything else is left as a literal
+            // backslash and falls through to the normal handling below.
+            // Single quotes (checked next) never allow escapes at all.
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                const next = str[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    current += ch + next;
+                    i++;
+                    continue;
+                }
+            }
+
             if (inSingle) {
                 current += ch;
                 if (ch === "'") inSingle = false;
@@ -85,6 +143,11 @@ Object.assign(TerminalEngine.prototype, {
      * leaving quote characters and unquoted text untouched. Used so regexes
      * like the redirect-operator matcher can safely scan for unquoted
      * special characters without accidentally matching inside a quoted string.
+     * A backslash-escaped character (e.g. the `\"` in `"a\";b"`, or an
+     * unquoted `\>`) is masked as a pair too, for the same reason
+     * splitTopLevel() treats it as a pair: an escaped quote shouldn't be
+     * read as closing the quote, and an escaped operator character
+     * shouldn't be read as a real operator.
      * @param {string} str - Input string.
      * @returns {string} Same length string with quoted contents masked.
      */
@@ -93,7 +156,18 @@ Object.assign(TerminalEngine.prototype, {
         let inSingle = false;
         let inDouble = false;
 
-        for (const ch of str) {
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                const next = str[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    masked += "xx";
+                    i++;
+                    continue;
+                }
+            }
+
             if (inSingle) {
                 masked += "x";
                 if (ch === "'") inSingle = false;
@@ -188,10 +262,18 @@ Object.assign(TerminalEngine.prototype, {
 
     /**
      * Splits a command line into individual argument tokens, honoring
-     * single quotes (literal, no escapes), double quotes (literal, quotes
-     * just group whitespace), and bash-style $'...' ANSI-C quoting (which
-     * expands backslash escapes like \n). Whitespace outside quotes
-     * separates tokens.
+     * single quotes (literal, no escapes at all), double quotes (mostly
+     * literal, but "\" still escapes $ ` " \ and newline), bash-style
+     * $'...' ANSI-C quoting (which expands backslash escapes like \n),
+     * and backslash-escaping outside quotes (escapes any next character,
+     * e.g. `a\ b` is one token "a b", `a\;b` is one token "a;b"). This
+     * mirrors bash's actual escaping rules rather than treating "\" as an
+     * ordinary character - without it, something like `echo "a\";b"`
+     * would see the `\"` as closing the quote early instead of as an
+     * escaped literal `"`, corrupting both this token and (via
+     * splitTopLevel, which uses the same rules) how the line gets split
+     * on `;`/`|` in the first place.
+     * Whitespace outside quotes separates tokens.
      * @param {string} command - Raw command text.
      * @returns {string[]} Array of parsed tokens (command name + args combined).
      */
@@ -204,6 +286,7 @@ Object.assign(TerminalEngine.prototype, {
 
         for (let i = 0; i < command.length; i++) {
             const ch = command[i];
+
             if (inSingle) {
                 if (ch === "'") {
                     inSingle = false;
@@ -212,6 +295,22 @@ Object.assign(TerminalEngine.prototype, {
                 }
                 continue;
             }
+
+            // Backslash escaping (bash rules): outside quotes, "\" escapes
+            // ANY next character. Inside double quotes, it only escapes
+            // $ ` " \ and newline - anything else is left as a literal
+            // backslash and falls through to the plain double-quote
+            // handling below. Single quotes (handled above) never escape.
+            if (ch === "\\" && i + 1 < command.length) {
+                const next = command[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    current += next;
+                    hasToken = true;
+                    i++;
+                    continue;
+                }
+            }
+
             if (inDouble) {
                 if (ch === '"') {
                     inDouble = false;
@@ -270,14 +369,69 @@ Object.assign(TerminalEngine.prototype, {
     /**
      * Expands `$?` (last exit code) and `$VARNAME` references against the
      * shell's environment variables. Unknown variables expand to "".
+     *
+     * Skips expansion entirely inside single-quoted regions - matching
+     * real bash, where single quotes suppress ALL expansion, so
+     * `echo '$HOME'` must print the literal text `$HOME` rather than the
+     * actual value (which is exactly what double quotes, or no quotes at
+     * all, DO allow: `echo "$HOME"` and `echo $HOME` both still expand).
+     * A backslash-escaped `$` (outside single quotes) is also left alone,
+     * matching bash's `\$` escape.
+     * @param {string} input
+     * @returns {string}
      */
     expandVariables(input) {
-        return input
-            .replace(/\$\?/g, () => String(this.lastExitCode ?? 0))
-            .replace(
-                /\$([A-Za-z_][A-Za-z0-9_]*)/g,
-                (_, name) => this.env[name] ?? ""
-            );
+        let result = "";
+        let inSingle = false;
+        let inDouble = false;
+
+        for (let i = 0; i < input.length; i++) {
+            const ch = input[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < input.length) {
+                const next = input[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    result += ch + next;
+                    i++;
+                    continue;
+                }
+            }
+
+            if (ch === "'" && !inDouble) {
+                inSingle = !inSingle;
+                result += ch;
+                continue;
+            }
+            if (ch === '"' && !inSingle) {
+                inDouble = !inDouble;
+                result += ch;
+                continue;
+            }
+
+            if (inSingle) {
+                // No expansion at all inside single quotes - copy through as-is
+                result += ch;
+                continue;
+            }
+
+            if (ch === "$" && input[i + 1] === "?") {
+                result += String(this.lastExitCode ?? 0);
+                i++; // skip the "?"
+                continue;
+            }
+            if (ch === "$") {
+                const nameMatch = /^[A-Za-z_][A-Za-z0-9_]*/.exec(input.slice(i + 1));
+                if (nameMatch) {
+                    result += this.env[nameMatch[0]] ?? "";
+                    i += nameMatch[0].length; // the leading "$" itself is consumed by the loop's own i++
+                    continue;
+                }
+            }
+
+            result += ch;
+        }
+
+        return result;
     },
 
     /**
