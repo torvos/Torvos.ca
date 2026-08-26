@@ -7,6 +7,9 @@ registerCommand("ln", {
     name: "Create hard or symbolic links.",
     synopsis : "ln [OPTIONS] TARGET LINK_NAME",
     description: "is a built-in utility used to create links between files and directories, acting like shortcuts or aliases to prevent data duplication. By default, the ln command creates hard links, but it is most frequently used with the -s flag to create symbolic links (soft links)",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [
         "-s.   create a symbolic link"
     ],

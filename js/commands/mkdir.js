@@ -8,6 +8,9 @@ registerCommand("mkdir", {
     name: "Create directories.",
     synopsis : "mkdir [OPTIONS] DIRECTORY",
     description: "is used to create one or more new folders inside your file system.",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [
         "-p    create all directorys in a chain"
     ],

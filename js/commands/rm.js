@@ -9,6 +9,9 @@ registerCommand("rm", {
     name: "Remove files/directories.",
     synopsis : "rm [OPTIONS] FILE_OR_DIRECTORY",
     description: "is used to permanently delete files and directories from the filesystem.",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [
         "-f    force the deletion of the files or directory.",
         "-r    apply permissions recursively to contents of a folder."

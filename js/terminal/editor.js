@@ -47,6 +47,7 @@ Object.assign(TerminalEngine.prototype, {
         }
         this.editor.node.content = this.editorEl.value;
         this.editor.node.modified = Date.now();
+        this.fsDirty = true;
         this.saveSettings();
         this.editor.modified = false;
     },

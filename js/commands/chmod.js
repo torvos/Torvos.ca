@@ -9,6 +9,9 @@ registerCommand("chmod", {
     name: "Change file or directory permissions.",
     synopsis : "chmod [OPTIONS] MODE FILE...",
     description: "Modify the permission bits associated with one or more files or directories. Only symbolic or numeric modes supported by this shell are accepted.",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [
         "-R    apply permissions recursively to contents of a folder."
     ],
@@ -63,7 +66,7 @@ registerCommand("chmod", {
         function chmodNode(wrapper) {
             const node = wrapper.node;
             const fileOwner = node.owner;
-            if (fileOwner == DEFAULT_USER) {
+            if (fileOwner === DEFAULT_USER) {
                 applyMode(node);
             }
             if (recursive && terminal.fs.isDirectory(node) && node.children) {

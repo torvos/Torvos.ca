@@ -9,6 +9,9 @@ registerCommand("cp", {
     name: "Copy files and directories.",
     synopsis : "cp SOURCE... DESTINATION",
     description: "Copy one or more files to another location. Directories may be copied recursively using the recursive option.",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [],
     examples: [
         "cp notes.txt backup.txt",

@@ -8,6 +8,9 @@ registerCommand("mv", {
     name: "Move or rename files/directories.",
     synopsis : "mv [OPTIONS] SOURCE DESTINATION",
     description: "is a fundamental Linux utility used to move or rename files and directories. Unlike copying, mv permanently alters the source file's location or name without creating a duplicate.",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [],
     examples: [
         "mv resumer.md cv.txt"

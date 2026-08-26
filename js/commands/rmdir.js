@@ -7,6 +7,9 @@ registerCommand("rmdir", {
     name: "Remove empty directories.",
     synopsis : "rmdir DIRECTORY_NAME ",
     description: "is used exclusively to remove empty directories from the filesystem. It acts as a safety mechanism, failing completely if the folder contains any files or subdirectories to prevent accidental data loss.",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [],
     examples: [
         "rmdir test",

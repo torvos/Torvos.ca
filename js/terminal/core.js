@@ -39,6 +39,14 @@ class TerminalEngine {
 
         this.version = TERMINAL_VERSION;
 
+        // Set whenever something has actually changed the virtual
+        // filesystem since it was last persisted (a mutating command ran,
+        // an output redirect wrote to a file, the editor saved, ...).
+        // saveSettings() only pays the cost of re-serializing the whole
+        // FileSystem tree when this is true - see saveSettings() below
+        // and the `mutatesFilesystem` flag on command definitions.
+        this.fsDirty = false;
+
         // Tracks, per seed file path (resume.md, contact.md, etc.), the
         // last seedVersion reconciled for this profile - see
         // reconcileSeed() in filesystem.js. Populated from saved settings
@@ -227,15 +235,32 @@ class TerminalEngine {
 
         this.renderPrompt();     
         this.renderInput();   
-        this.saveSettings();
+        // Boot-time save: always persist the filesystem here, since seed
+        // reconciliation above may have added/updated files even on a
+        // returning session where nothing else would otherwise mark
+        // fsDirty this turn.
+        this.saveSettings({ forceFs: true });
         this.hiddenInput.focus();
     }
 
     /**
      * Persists terminal session state (history, cwd, env, aliases, etc.)
-     * and the virtual filesystem to localStorage so they survive page reloads.
+     * to localStorage, and - only when needed - the virtual filesystem
+     * too, so both survive page reloads.
+     *
+     * The session settings are cheap (a small object) and are always
+     * saved. Serializing the FileSystem tree is comparatively expensive
+     * and grows with however much the user has created/edited, so it's
+     * only done when `this.fsDirty` is set (or `forceFs` is passed) -
+     * otherwise this would re-serialize and rewrite the entire virtual
+     * filesystem after every single command, including plain reads like
+     * `ls` or `cat` that never touched it.
+     * @param {Object} [options]
+     * @param {boolean} [options.forceFs=false] - Save the filesystem even
+     *   if `fsDirty` is false (used at boot, right after seed reconciliation
+     *   may have changed it).
      */
-    saveSettings(){
+    saveSettings({ forceFs = false } = {}){
         const terminalSettings = {
             history: this.history,
             historyIndex: this.historyIndex,
@@ -253,7 +278,10 @@ class TerminalEngine {
         // means "this session isn't persisted", not "the terminal breaks".
         try {
             localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
-            localStorage.setItem("FileSystem", FileSystemAPI.serialize());
+            if (forceFs || this.fsDirty) {
+                localStorage.setItem("FileSystem", FileSystemAPI.serialize());
+                this.fsDirty = false;
+            }
         } catch (err) {
             console.error("Torvos: failed to save session to localStorage", err);
             if (!this._storageWriteWarned) {

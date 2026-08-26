@@ -1,29 +1,83 @@
 /**
  * Shell-parsing utilities for TerminalEngine: brace expansion, quote-aware
- * tokenizing/splitting, I/O redirection parsing, variable and arithmetic
- * expansion, command substitution ($(...)), and alias expansion. These are
- * used by execute.js to turn a raw typed command line into something that
- * can actually be run.
+ * tokenizing/splitting, I/O redirection parsing, variable expansion,
+ * command substitution ($(...)), and alias expansion. These are used by
+ * execute.js to turn a raw typed command line into something that can
+ * actually be run.
+ *
+ * `$((...))` arithmetic expansion itself lives in js/terminal/arithmetic.js -
+ * it's a self-contained tokenizer/evaluator with no dependency on the
+ * quote-tracking state shared by everything else in this file. This file
+ * still calls into it (expandArithmetic(), from execute.js's expansion
+ * pipeline) the same way it always has.
  */
 Object.assign(TerminalEngine.prototype, {
 
     /**
      * Expands brace patterns like "file{1,2,3}.txt" into
-     * ["file1.txt", "file2.txt", "file3.txt"]. Recurses to support multiple
-     * brace groups in one string (e.g. "a{1,2}{x,y}").
+     * ["file1.txt", "file2.txt", "file3.txt"]. Recurses to support both
+     * multiple brace groups in one string (e.g. "a{1,2}{x,y}") and nested
+     * groups (e.g. "a{1,{2,3}}" -> "a1", "a2", "a3").
      *
      * Only considers a "{...}" group that appears OUTSIDE any quotes -
      * matching real bash, where quoting (either kind) suppresses brace
      * expansion entirely: `echo {a,b}` expands, but `echo "{a,b}"` prints
      * `{a,b}` literally. An escaped "{" or "}" (e.g. `echo \{a,b\}`)
      * is likewise left alone rather than treated as a real brace group.
+     *
+     * Matching real bash, a "{...}" group with no top-level comma inside it
+     * (e.g. "file{bar}") is NOT a real brace expansion and is left as
+     * literal text - `echo foo{bar}` prints `foo{bar}`, not `foobar`.
      * @param {string} input - Input string possibly containing a {a,b,c} group.
      * @returns {string[]} All expanded variants (or [input] if no braces found).
      */
     expandBraces(input) {
+        const group = this.findBraceGroup(input);
+        if (!group) {
+            return [input];
+        }
+
+        const { start, end, inner } = group;
+        const alternatives = this.splitBraceAlternatives(inner);
+
+        if (alternatives.length < 2) {
+            // No top-level comma inside the braces - not a real expansion.
+            // Leave this group exactly as-is and keep looking for a real
+            // one later in the string.
+            const tailResults = this.expandBraces(input.slice(end + 1));
+            const prefix = input.slice(0, end + 1);
+            return tailResults.map(tail => prefix + tail);
+        }
+
+        const results = [];
+        for (const alt of alternatives) {
+            const expanded =
+                input.slice(0, start) + alt.trim() + input.slice(end + 1);
+            // Recurse over the whole reconstructed string: this picks up
+            // both any further sibling groups ("a{1,2}{x,y}") and any
+            // brace group that was nested inside this alternative
+            // ("a{1,{2,3}}" - once "{2,3}" is substituted in, the next
+            // call finds it as an ordinary top-level group of its own).
+            results.push(...this.expandBraces(expanded));
+        }
+        return results;
+    },
+
+    /**
+     * Finds the first top-level (unquoted, unescaped) "{...}" group in
+     * `input`, matching nested braces by depth so e.g. "{1,{2,3}}" is
+     * found as a single group spanning the outer braces rather than
+     * stopping at the first inner "}".
+     * @param {string} input
+     * @returns {{start: number, end: number, inner: string}|null} Index of
+     *   the opening "{", index of the matching closing "}", and the text
+     *   between them - or null if there's no complete top-level group.
+     */
+    findBraceGroup(input) {
         let inSingle = false;
         let inDouble = false;
-        let braceStart = -1;
+        let start = -1;
+        let depth = 0;
 
         for (let i = 0; i < input.length; i++) {
             const ch = input[i];
@@ -47,30 +101,73 @@ Object.assign(TerminalEngine.prototype, {
             if (ch === "'") { inSingle = true; continue; }
             if (ch === '"') { inDouble = true; continue; }
 
-            if (ch === "{" && braceStart === -1) {
-                braceStart = i;
-            } else if (ch === "}" && braceStart !== -1) {
-                const inner = input.slice(braceStart + 1, i);
-                if (inner.includes("{")) {
-                    // Contains a nested "{" - not a flat group this simple
-                    // implementation handles as a match; leave this one
-                    // as-is and keep scanning for the next "{".
-                    braceStart = -1;
-                    continue;
+            if (ch === "{") {
+                if (start === -1) start = i;
+                depth++;
+            } else if (ch === "}" && start !== -1) {
+                depth--;
+                if (depth === 0) {
+                    return { start, end: i, inner: input.slice(start + 1, i) };
                 }
-                const values = inner.split(",");
-                const results = [];
-                for (const value of values) {
-                    const expanded =
-                        input.slice(0, braceStart) + value.trim() + input.slice(i + 1);
-                    // Recurse in case there are additional brace groups left to expand
-                    results.push(...this.expandBraces(expanded));
-                }
-                return results;
             }
         }
 
-        return [input];
+        return null; // no group found, or an unbalanced "{" with no match
+    },
+
+    /**
+     * Splits the inside of a brace group on top-level commas - i.e. commas
+     * that aren't themselves inside a nested "{...}" group or a quoted
+     * section. Used so "{a,{b,c},d}"'s inner text "a,{b,c},d" splits into
+     * ["a", "{b,c}", "d"] rather than breaking the nested group apart.
+     * @param {string} str - Text between a brace group's outer { and }.
+     * @returns {string[]} The comma-separated alternatives.
+     */
+    splitBraceAlternatives(str) {
+        const parts = [];
+        let current = "";
+        let inSingle = false;
+        let inDouble = false;
+        let depth = 0;
+
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                const next = str[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    current += ch + next;
+                    i++;
+                    continue;
+                }
+            }
+
+            if (inSingle) {
+                current += ch;
+                if (ch === "'") inSingle = false;
+                continue;
+            }
+            if (inDouble) {
+                current += ch;
+                if (ch === '"') inDouble = false;
+                continue;
+            }
+            if (ch === "'") { inSingle = true; current += ch; continue; }
+            if (ch === '"') { inDouble = true; current += ch; continue; }
+
+            if (ch === "{") { depth++; current += ch; continue; }
+            if (ch === "}") { depth--; current += ch; continue; }
+
+            if (ch === "," && depth === 0) {
+                parts.push(current);
+                current = "";
+                continue;
+            }
+
+            current += ch;
+        }
+        parts.push(current);
+        return parts;
     },
 
     /**
@@ -432,143 +529,6 @@ Object.assign(TerminalEngine.prototype, {
         }
 
         return result;
-    },
-
-    /**
-     * Expands bash-style arithmetic expressions `$((expr))` by evaluating
-     * them with evaluateArithmetic. On evaluation error, silently expands
-     * to "0" (mirroring the tolerant behavior expected in a toy shell).
-     */
-    expandArithmetic(input) {
-        return input.replace(/\$\(\((.*?)\)\)/g, (_, expr) => {
-            try {
-                return String(this.evaluateArithmetic(expr));
-            } catch {
-                return "0";
-            }
-        });
-    },
-
-    /**
-     * Tokenizes an arithmetic expression string into numbers and operator/
-     * paren characters, for use by evaluateArithmetic's recursive-descent parser.
-     * @throws {Error} If an unexpected character is encountered.
-     */
-    tokenizeArithmetic(str) {
-        const tokens = [];
-        let i = 0;
-        while (i < str.length) {
-            const ch = str[i];
-            if (/\s/.test(ch)) {
-                i++;
-                continue;
-            }
-            if (/\d/.test(ch)) {
-                let num = "";
-                while (i < str.length && /\d/.test(str[i])) {
-                    num += str[i++];
-                }
-                tokens.push(num);
-                continue;
-            }
-            if ("+-*/%()".includes(ch)) {
-                tokens.push(ch);
-                i++;
-                continue;
-            }
-            throw new Error("invalid arithmetic expression");
-        }
-        return tokens;
-    },
-
-    /**
-     * Evaluates a simple arithmetic expression (integers, + - * / %,
-     * parentheses, unary +/-) using a small recursive-descent parser.
-     * Variable names inside the expression are substituted from this.env
-     * first (undefined/empty vars become 0), mimicking bash's `$((x + 1))`
-     * behavior where bare variable names are allowed inside arithmetic contexts.
-     * @param {string} expr - The raw expression inside $(( ... )).
-     * @returns {number} Integer result (truncated toward zero, like bash).
-     * @throws {Error} On malformed expressions or division/modulo by zero.
-     */
-    evaluateArithmetic(expr) {
-        const substituted = expr.replace(
-            /\$?([A-Za-z_][A-Za-z0-9_]*)/g,
-            (_, name) => {
-                const value = this.env[name];
-                return value !== undefined && value !== "" ? value : "0";
-            }
-        );
-
-        const tokens = this.tokenizeArithmetic(substituted);
-        let pos = 0;
-
-        const peek = () => tokens[pos];
-        const advance = () => tokens[pos++];
-
-        // factor := ('+' | '-')? factor | '(' expr ')' | NUMBER
-        const parseFactor = () => {
-            if (peek() === "+") {
-                advance();
-                return parseFactor();
-            }
-            if (peek() === "-") {
-                advance();
-                return -parseFactor();
-            }
-            if (peek() === "(") {
-                advance();
-                const value = parseExpr();
-                if (advance() !== ")") {
-                    throw new Error("missing closing parenthesis");
-                }
-                return value;
-            }
-            const token = advance();
-            if (token === undefined || !/^\d+$/.test(token)) {
-                throw new Error("invalid arithmetic expression");
-            }
-            return parseInt(token, 10);
-        };
-
-        // term := factor (('*' | '/' | '%') factor)*
-        const parseTerm = () => {
-            let value = parseFactor();
-            while (peek() === "*" || peek() === "/" || peek() === "%") {
-                const op = advance();
-                const rhs = parseFactor();
-                if ((op === "/" || op === "%") && rhs === 0) {
-                    throw new Error("division by 0");
-                }
-                if (op === "*") value *= rhs;
-                else if (op === "/") value = Math.trunc(value / rhs);
-                else value = value % rhs;
-            }
-            return value;
-        };
-
-        // expr := term (('+' | '-') term)*
-        const parseExpr = () => {
-            let value = parseTerm();
-            while (peek() === "+" || peek() === "-") {
-                const op = advance();
-                const rhs = parseTerm();
-                value = op === "+" ? value + rhs : value - rhs;
-            }
-            return value;
-        };
-
-        const result = tokens.length === 0 ? 0 : parseExpr();
-
-        if (pos !== tokens.length) {
-            // Not all tokens were consumed -> trailing garbage in the expression
-            throw new Error("invalid arithmetic expression");
-        }
-        if (typeof result !== "number" || !Number.isFinite(result)) {
-            throw new Error("invalid arithmetic result");
-        }
-
-        return Math.trunc(result);
     },
 
     /**

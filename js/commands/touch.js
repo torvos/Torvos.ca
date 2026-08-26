@@ -8,6 +8,9 @@ registerCommand("touch", {
     name: "Create files or update timestamps.",
     synopsis : "touch [FILE]",
     description: "is primarily used to create empty files and update file timestamps (access time and modification time).",
+    // Tells the executor to persist the filesystem after this command
+    // runs - see the `mutatesFilesystem` check in execute.js.
+    mutatesFilesystem: true,
     options: [],
     examples: [
         "touch myfile.txt"

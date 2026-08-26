@@ -137,6 +137,16 @@ Object.assign(TerminalEngine.prototype, {
                                 exitCode: 1
                             };
                         }
+                        // Commands that can write to the virtual filesystem
+                        // (rm, mv, cp, mkdir, ...) declare `mutatesFilesystem: true`
+                        // on their registration - mark the session dirty so
+                        // saveSettings() knows to persist it. Marked regardless
+                        // of exit code: a partially-failed multi-target command
+                        // (e.g. `rm -f a b` where only `a` exists) can still have
+                        // mutated the filesystem before reporting an error.
+                        if (command.mutatesFilesystem) {
+                            this.fsDirty = true;
+                        }
                     }
                     else if (cmd.includes("/")) {
                         // Not a built-in, but looks like a path (e.g. "./script.sh")
@@ -335,6 +345,12 @@ Object.assign(TerminalEngine.prototype, {
                 } catch (err) {
                     result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: 1 };
                 }
+                // See the matching comment in the main dispatch loop above -
+                // a mutating command run inside $(...) still needs to mark
+                // the session dirty.
+                if (command.mutatesFilesystem) {
+                    this.fsDirty = true;
+                }
             } else if (cmd && cmd.includes("/")) {
                 try {
                     result = await window.Commands.sh.runScript(this, cmd, args, { label: cmd });
@@ -406,6 +422,7 @@ Object.assign(TerminalEngine.prototype, {
 
         node.accessed = Date.now();
 
+        this.fsDirty = true;
         this.saveSettings();
 
         return true;

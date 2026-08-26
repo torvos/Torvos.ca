@@ -172,6 +172,11 @@ registerCommand("sed", {
                     exitCode: 1
                 };
             }
+            // Only -i actually touches the filesystem - plain `sed` just
+            // transforms stdout, so this is set here rather than via a
+            // blanket `mutatesFilesystem: true` on the command (which
+            // would mark every ordinary sed call dirty too).
+            terminal.fsDirty = true;
             return {
                 stdout: "",
                 stderr: "",
