@@ -81,6 +81,25 @@ registerCommand("mv", {
                 return `mv: cannot stat '${source}': No such file or directory`;
             }
 
+            const srcNode = src.parent.children[src.name];
+
+            // Refuse to move a directory to a location inside itself (or
+            // inside one of its own descendants). Without this check,
+            // re-parenting the same live node object into its own subtree
+            // below would create a structural cycle (dirA/sub/dirA/sub/...)
+            // that any recursive walker (rm -r, find, tree, ...) would
+            // recurse into forever - real `mv` rejects this case up front
+            // for the same reason.
+            if (terminal.fs.isDirectory(srcNode)) {
+                const sourceFullPath = terminal.fs.getFullPath(source, terminal.cwd);
+                const destFullPath = terminal.fs.getFullPath(destPath, terminal.cwd);
+                if (sourceFullPath && destFullPath &&
+                    (destFullPath === sourceFullPath ||
+                     destFullPath.startsWith(`${sourceFullPath}${ROOT}`))) {
+                    return `mv: cannot move '${source}' to a subdirectory of itself, '${destPath}'`;
+                }
+            }
+
             if (dest.parent.children[dest.name]) {
                 // Destination already exists - refuse rather than silently overwrite
                 return `mv: ${destPath}: already exists`;
