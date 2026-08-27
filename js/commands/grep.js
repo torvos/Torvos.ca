@@ -7,7 +7,7 @@
 registerCommand("grep", {
     name: "Search files for matching text.",
     synopsis : "grep [options] 'pattern' filename",
-    description: "Is a powerful command-line utility used to search for specific words, phrases, or regular expression patterns inside text files or command outputs. It prints every line that contains a match to your terminal screen by default.",
+    description: "Searches text for lines containing a literal substring (not a regular expression) and prints every matching line - like `grep --fixed-strings`. Reads from a piped stdin if given, otherwise from one or more named files.",
     options: [],
     examples: [
         "grep \"error\" log.txt",
@@ -61,7 +61,7 @@ registerCommand("grep", {
         // like real grep, one bad/missing file doesn't stop the rest from
         // being searched, and matches from multiple files get a
         // "filename:" prefix so they stay distinguishable.
-        if (stdin.length != 0) {
+        if (stdin.length !== 0) {
             const lines = stdin.split(/\r?\n/);
             const matches = lines.filter(line => line.includes(pattern));
             return {
