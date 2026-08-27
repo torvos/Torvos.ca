@@ -36,18 +36,12 @@ Object.assign(TerminalEngine.prototype, {
             this.pager.pageSize = this.getPageSize();
         });
 
-        // Clicking anywhere in the output/document/page should refocus whichever
-        // input surface is currently active (the hidden text input for normal
-        // shell use, or the editor textarea when the full-screen editor is open).
-        output.addEventListener("click", () => {
-            if (this.inputMode === INPUT_NORMAL) {            
-                this.hiddenInput.focus();
-            }
-            else if (this.inputMode === INPUT_EDITOR) {
-                this.editorEl.focus();
-            }
-        });
-
+        // Clicking anywhere in the page should refocus whichever input
+        // surface is currently active (the hidden text input for normal
+        // shell use, or the editor textarea when the full-screen editor is
+        // open). A single document-level listener covers clicks inside
+        // #output too, since it bubbles up from there - no separate
+        // listener needed on #output itself.
         document.addEventListener("click", () => {
             if (this.inputMode === INPUT_NORMAL) {            
                 this.hiddenInput.focus();
@@ -451,57 +445,56 @@ Object.assign(TerminalEngine.prototype, {
     },
 
     /**
-     * Handles Tab-key autocompletion. If the current word being typed looks
-     * like a path (contains "/"), completes it against matching filesystem
-     * entries; if it's the first word, completes against known command
-     * names; otherwise completes the last word as a path relative to cwd.
-     * Only autocompletes when there is exactly one unambiguous match.
+     * Handles Tab-key autocompletion for the word at the cursor - not
+     * necessarily the last word on the line, so completing an earlier
+     * argument doesn't disturb anything typed after it. That word spans
+     * from the nearest whitespace before the cursor to the nearest
+     * whitespace after it (so completing mid-word replaces the whole
+     * word, not just the part before the cursor).
+     *
+     * If the word is the very first one on the line and doesn't already
+     * look like a path (no "/"), it's completed against known command
+     * names; otherwise it's completed as a filesystem path relative to
+     * cwd. Only autocompletes when there is exactly one unambiguous
+     * match - otherwise nothing changes, including the cursor position.
      */
     autocomplete() {
         if (!this.currentInput.trim()) return;
 
-        const isAtEndOfWord = !this.currentInput.endsWith(" ");
-        const parts = this.currentInput.trimStart().split(/\s+/);
-        if (parts.length === 1) {
-            // Only one word typed so far - could be a command name or a path
-            const partial = parts[0];
+        const input = this.currentInput;
+        const before = input.slice(0, this.cursorPos);
+        const after = input.slice(this.cursorPos);
 
-            if (partial.includes(ROOT)) {
-                // Looks like a path (contains "/") - complete against filesystem entries
-                const matches = this.findPathMatches(partial);
+        const wordStart = before.search(/\S*$/);
+        const wordEnd = this.cursorPos + after.match(/^\S*/)[0].length;
 
-                if (matches.length === 1) {
-                    this.currentInput = matches[0];
-                    this.cursorPos = this.currentInput.length;
-                    this.renderInput();
-                }
+        const partial = before.slice(wordStart);      // text to match, up to the cursor
+        const linePrefix = input.slice(0, wordStart);  // everything before this word
+        const lineSuffix = input.slice(wordEnd);       // everything after this word
 
-                return;
-            }
+        // Nothing but whitespace before this word -> it's the first word
+        // on the line (a command name), unless it already looks like a path.
+        const isFirstWord = linePrefix.trim() === "";
 
-            // Otherwise complete against registered command names
+        let completion;
+        if (isFirstWord && !partial.includes(ROOT)) {
             const commands = Object.keys(window.Commands);
-            const match = commands.find(c => c.startsWith(partial));
+            completion = commands.find(c => c.startsWith(partial));
+        } else {
+            const matches = this.findPathMatches(partial);
+            completion = matches.length === 1 ? matches[0] : undefined;
+        }
 
-            if (match) {
-                this.currentInput = match;
-                this.cursorPos = this.currentInput.length;
-                this.renderInput();
-            }
-
+        if (!completion) {
+            // No match, or more than one - leave the input and cursor
+            // exactly as they were rather than guessing.
             return;
         }
 
-        // Multiple words typed: complete the final (in-progress) word as a path argument
-        const partial = parts.pop();
-        const matches = this.findPathMatches(partial);
-
-        if (matches.length === 1) {
-            parts.push(matches[0]);
-            this.currentInput = parts.join(" ");
-            this.renderInput();
-        }
-        this.cursorPos = this.currentInput.length;
+        this.currentInput = linePrefix + completion + lineSuffix;
+        this.cursorPos = (linePrefix + completion).length;
+        this.syncHiddenInput();
+        this.renderInput();
     },
 
     /**
