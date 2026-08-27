@@ -77,8 +77,17 @@ Object.assign(TerminalEngine.prototype, {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#39;");
 
-        // Detect http(s) URLs and email addresses so they can be linkified
-        const pattern1 = /\b(https?:\/\/[^\s<]+)/gi;
+        // Detect http(s) URLs and email addresses so they can be linkified.
+        // This runs AFTER escapeHtml (see linkify below), so by this point
+        // any literal "<", ">", '"', "'" in the original text have already
+        // become "&lt;", "&gt;", "&quot;", "&#39;" sequences. Excluding
+        // those specific sequences (but still allowing a bare "&amp;" -
+        // i.e. a literal "&", which is extremely common in real URLs, e.g.
+        // query-string separators like "?a=1&b=2") stops the URL match
+        // right at that boundary, so a URL sitting hard up against such a
+        // character with no whitespace in between (e.g. "http://x.com<b>")
+        // doesn't have the escaped entity swallowed into its href.
+        const pattern1 = /\b(https?:\/\/(?:[^\s&]|&(?!lt;|gt;|quot;|#39;))+)/gi;
         const pattern2 = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 
         // Escapes a chunk of text and turns any URLs/emails within it into
