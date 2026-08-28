@@ -11,7 +11,7 @@ registerCommand("sort", {
     options: [
         "-r    Reverses the sorting order to descending.",
         "-n    Sorts values numerically rather than alphabetically.",
-        "-f    Folds lowercase characters into uppercase to ignore case sensitivity.",
+        "-f    Case-insensitive sort (ignores upper/lowercase when comparing).",
         "-u    Suppresses duplicate lines, returning only unique records"
     ],
     examples: [
