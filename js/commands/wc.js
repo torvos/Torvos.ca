@@ -34,9 +34,15 @@ registerCommand("wc", {
 
         // Counts lines/words/bytes for one chunk of text.
         function countOf(content) {
+            // Real `wc -l` counts newline CHARACTERS, not the number of
+            // pieces splitting on them produces - a file with no trailing
+            // newline has one fewer line than split()'s length would say
+            // (its last, unterminated chunk isn't a counted "line"), and
+            // a file that ends with a newline has exactly as many lines
+            // as newlines, not one more for the trailing empty chunk.
             const lines = content.length === 0
                 ? 0
-                : content.split(/\r?\n/).length;
+                : (content.match(/\r?\n/g) || []).length;
 
             const words = content
                 .trim()
