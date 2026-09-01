@@ -345,6 +345,27 @@
      *     condition is true iff that command exited with code 0
      *     (mirroring real shell `if some_command; then` behavior)
      */
+    // Runs one line of script text through the terminal's normal execute()
+    // pipeline - either writing its output live (the default, matching
+    // real shell/terminal feel for an interactive `sh script.sh`), or,
+    // when terminal._captureBuffer is set (this script's own output is
+    // itself being piped/redirected - see runScript below), accumulating
+    // it into that buffer instead so it can flow through to whatever's
+    // consuming the script's output, exactly like any other command's.
+    // Nested scripts inherit this the same way: a script calling another
+    // script dispatches that call through terminal.execute() too, which
+    // (see this._pipeOutputConsumed in execute.js) forces capture mode on
+    // for anything run while the outer call is itself capturing.
+    async function runCommandLine(terminal, text) {
+        if (!terminal._captureBuffer) {
+            await terminal.execute(text);
+            return;
+        }
+        const result = await terminal.execute(text, { capture: true });
+        if (result.stdout) terminal._captureBuffer.stdout.push(result.stdout);
+        if (result.stderr) terminal._captureBuffer.stderr.push(result.stderr);
+    }
+
     async function evaluateCondition(terminal, conditionRaw) {
         const condition = terminal.expandVariables(conditionRaw).trim();
         if (!condition) return false;
@@ -360,7 +381,7 @@
         if (expr.startsWith("[") && expr.endsWith("]")) {
             result = evaluateTest(terminal, expr.slice(1, -1).trim());
         } else {
-            await terminal.execute(expr);
+            await runCommandLine(terminal, expr);
             result = terminal.lastExitCode === 0;
         }
 
@@ -420,7 +441,7 @@
                 if (terminal.env.SCRIPTDEBUG === "true") {
                     terminal.write(`+ ${stmt.text}`, { color: "#888888" });
                 }
-                await terminal.execute(stmt.text);
+                await runCommandLine(terminal, stmt.text);
                 return null;
             }
 
@@ -641,6 +662,21 @@
             node.accessed = Date.now();
             terminal._scriptStack.push(fullPath);
 
+            // Only capture this script's output (instead of writing it
+            // live, as usual) when something downstream actually needs it
+            // - a later pipe stage, an output/error redirect, or (for a
+            // script calling another script) an enclosing script that's
+            // itself capturing. See this._pipeOutputConsumed in
+            // execute.js's dispatch loop for exactly how that's decided.
+            // Saved/restored (rather than just set/cleared) so a nested
+            // script-in-script call correctly resumes accumulating into
+            // the OUTER script's buffer once the inner one returns.
+            const capturing = terminal._pipeOutputConsumed === true;
+            const previousCaptureBuffer = terminal._captureBuffer;
+            if (capturing) {
+                terminal._captureBuffer = { stdout: [], stderr: [] };
+            }
+
             // Temporarily force SCRIPTDEBUG on for the duration of this script
             // when -x was passed, then restore whatever it was before
             const previousDebug = terminal.env.SCRIPTDEBUG;
@@ -648,6 +684,7 @@
                 terminal.env.SCRIPTDEBUG = "true";
             }
 
+            let ownCaptureBuffer;
             try {
                 await runStatements(terminal, program);
             } finally {
@@ -655,11 +692,13 @@
                     terminal.env.SCRIPTDEBUG = previousDebug;
                 }
                 terminal._scriptStack.pop();
+                ownCaptureBuffer = terminal._captureBuffer;
+                terminal._captureBuffer = previousCaptureBuffer;
             }
 
             return {
-                stdout: "",
-                stderr: "",
+                stdout: capturing ? ownCaptureBuffer.stdout.join("\n") : "",
+                stderr: capturing ? ownCaptureBuffer.stderr.join("\n") : "",
                 exitCode: terminal.lastExitCode ?? 0
             };
         }

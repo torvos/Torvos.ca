@@ -10,12 +10,60 @@
 Object.assign(TerminalEngine.prototype, {
 
     /**
-     * Top-level entry point: takes a raw line of shell input the user
-     * pressed Enter on, expands it, and executes each resulting command
-     * (writing output/errors directly to the terminal as it goes).
+     * Top-level entry point: takes a raw line of shell input and expands +
+     * executes it (writing output/errors directly to the terminal as it
+     * goes, by default).
+     *
+     * `options.capture` (used internally by sh.js, not by normal user
+     * input) switches to accumulating stdout/stderr into a returned
+     * {stdout, stderr, exitCode} instead of writing them - so a script
+     * statement's output can flow into a pipe or redirect like any other
+     * command's, instead of always being printed live. See the comment on
+     * `this._pipeOutputConsumed` below for how this is decided.
      * @param {string} input - Raw command line text.
+     * @param {Object} [options]
+     * @param {boolean} [options.capture=false]
+     * @returns {Promise<{stdout:string, stderr:string, exitCode:number}>|undefined}
      */
-    async execute(input) {
+    async execute(input, options = {}) {
+        const capture = options.capture === true;
+        const capturedOut = [];
+        const capturedErr = [];
+
+        // Writes one unit of output (a line, possibly with color segments)
+        // - or, in capture mode, accumulates it instead and skips the
+        // per-line animation delay (there's no point animating work
+        // nobody can see yet).
+        const emit = async (text, opts) => {
+            if (capture) {
+                capturedOut.push(
+                    typeof text === "string"
+                        ? text
+                        : (Array.isArray(text) ? text.map(s => s.text ?? s).join("") : String(text))
+                );
+            } else {
+                this.write(text, opts);
+                await this.sleep(50);
+            }
+        };
+        const emitErrorLine = async (line) => {
+            if (capture) {
+                capturedErr.push(line);
+            } else {
+                this.write(this.formatErrorLine(line));
+                await this.sleep(50);
+            }
+        };
+        // Same as emitErrorLine, but for one-off messages that (even when
+        // not capturing) were never animated with a delay to begin with.
+        const emitErrorLineImmediate = (line) => {
+            if (capture) {
+                capturedErr.push(line);
+            } else {
+                this.write(this.formatErrorLine(line));
+            }
+        };
+
         this.lastExpansionEmpty = false;
 
         // Expand aliases (e.g. "ll" -> "ls -la") and brace patterns
@@ -97,9 +145,7 @@ Object.assign(TerminalEngine.prototype, {
                         if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
                             stdin = "";
                             if (index === pipeline.length - 1) {
-                                this.write(
-                                    this.formatErrorLine(`${redirects.target}: No such file`)
-                                );
+                                emitErrorLineImmediate(`${redirects.target}: No such file`);
                             }
                             break;
                         }
@@ -109,9 +155,7 @@ Object.assign(TerminalEngine.prototype, {
                         if (this.fs.isProtected(redirects.target, this.cwd) && !this.fs.isDevice(node)) {
                             stdin = "";
                             if (index === pipeline.length - 1) {
-                                this.write(
-                                    this.formatErrorLine(`${redirects.target}: Permission denied`)
-                                );
+                                emitErrorLineImmediate(`${redirects.target}: Permission denied`);
                             }
                             break;
                         }
@@ -119,8 +163,24 @@ Object.assign(TerminalEngine.prototype, {
                     }
 
                     let result;
-                    
+
                     const command = window.Commands?.[cmd];
+
+                    // Tells a command (currently only sh.js pays attention
+                    // to this) whether ANYTHING will actually consume its
+                    // returned stdout/stderr - a later pipe stage, an
+                    // output/error redirect on this stage, or (if this
+                    // whole execute() call is itself running in capture
+                    // mode, e.g. a script statement inside an outer script
+                    // that's being piped/redirected) the caller of THIS
+                    // execute() call. If nothing does, output can be
+                    // written live to the screen as it's produced instead
+                    // of being held until the command fully finishes.
+                    this._pipeOutputConsumed =
+                        capture ||
+                        index < pipeline.length - 1 ||
+                        redirects.operator === ">" || redirects.operator === ">>" ||
+                        redirects.operator === "2>" || redirects.operator === "2>>";
 
                     if (command?.execute) {
                         // Registered built-in command - run its execute() handler
@@ -286,31 +346,46 @@ Object.assign(TerminalEngine.prototype, {
                             const segments = validSegments
                                 ? result.stdoutSegments[i]
                                 : undefined;
-                            this.write(
+                            await emit(
                                 segments ?? lines[i],
                                 { color: "#ffffff" }
                             );
-                            await this.sleep(50);
                         }
                     }
 
                     if (result.exitCode !== 0) {
-                        // Non-zero exit: print stderr (line by line, with a small
-                        // delay for effect) and stop the rest of the pipeline.
+                        // Non-zero exit: print stderr (line by line, with a
+                        // small delay for effect). This does NOT stop the
+                        // rest of the pipeline - a real shell pipe runs every
+                        // stage regardless of an earlier stage's exit code
+                        // (only the pipe's overall exit status, via
+                        // this.lastExitCode above, reflects the LAST stage).
+                        // `false | echo hi` must still run `echo hi`, and
+                        // `sh script.sh | grep x` must still run `grep` even
+                        // if the script's last command failed (sh's own exit
+                        // code is that command's, per its execute() below).
                         if (result.stderr) {
                             const lines = result.stderr.split(/\r?\n/);
                             for (const line of lines) {
-                                this.write(this.formatErrorLine(line));
-                                await this.sleep(50);
+                                await emitErrorLine(line);
                             }
                         }
-                        break;
                     }
 
-                    // Successful stage - its stdout becomes stdin for the next pipeline stage
+                    // Stage's stdout (possibly empty, if it failed) becomes
+                    // stdin for the next pipeline stage, same as a real
+                    // shell pipe - regardless of this stage's exit code.
                     stdin = result.stdout;
                 }
             }
+        }
+
+        if (capture) {
+            return {
+                stdout: capturedOut.join("\n"),
+                stderr: capturedErr.join("\n"),
+                exitCode: this.lastExitCode
+            };
         }
     },
 
@@ -339,6 +414,12 @@ Object.assign(TerminalEngine.prototype, {
             }
 
             const command = window.Commands?.[cmd];
+            // Everything run inside $(...) has its output fully consumed
+            // programmatically (never printed live) - see the matching
+            // comment on this._pipeOutputConsumed in the main dispatch loop
+            // above; sh.js checks this to decide whether to capture a
+            // script's output instead of writing it straight to the screen.
+            this._pipeOutputConsumed = true;
             if (command?.execute) {
                 try {
                     result = await command.execute(this, args, stdin);
