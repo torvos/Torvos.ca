@@ -202,6 +202,10 @@ class TerminalEngine {
             this.hasbooted = 1;
         }
 
+        // Seed the virtual filesystem with standard /bin and /dev entries
+        createVirtualBin();
+        createVirtualDev();
+
         // Print the ASCII-art welcome banner
         await this.write(`+------------------------------------------------------+`, {color: "#ffffff"});
         await this.write(`| ████████╗ ██████╗ ██████╗ ██╗   ██╗ ██████╗ ███████╗ |`, {color: "#ffffff"});
@@ -229,10 +233,6 @@ class TerminalEngine {
         const lineHeight = parseFloat(style.lineHeight) || parseFloat(getComputedStyle(document.body).lineHeight);
         this.pager.pageSize = Math.floor(document.getElementById("terminal").clientHeight / lineHeight) - 1;
         
-        // Seed the virtual filesystem with standard /bin and /dev entries
-        createVirtualBin();
-        createVirtualDev();
-
         this.renderPrompt();     
         this.renderInput();   
         // Boot-time save: always persist the filesystem here, since seed
