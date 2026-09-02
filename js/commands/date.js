@@ -40,21 +40,21 @@ registerCommand("date", {
 
         if (formatArg) {
             const fmt = formatArg.slice(1);
-            const hours24 = now.getHours();
+            const hours24 = now.getUTCHours();
             const hours12 = ((hours24 + 11) % 12) + 1;
             const replacements = {
-                "%Y": String(now.getFullYear()),
-                "%y": pad(now.getFullYear() % 100),
-                "%m": pad(now.getMonth() + 1),
-                "%d": pad(now.getDate()),
+                "%Y": String(now.getUTCFullYear()),
+                "%y": pad(now.getUTCFullYear() % 100),
+                "%m": pad(now.getUTCMonth() + 1),
+                "%d": pad(now.getUTCDate()),
                 "%H": pad(hours24),
                 "%I": pad(hours12),
-                "%M": pad(now.getMinutes()),
-                "%S": pad(now.getSeconds()),
-                "%a": dayNamesShort[now.getDay()],
-                "%A": dayNamesLong[now.getDay()],
-                "%b": monthNamesShort[now.getMonth()],
-                "%B": monthNamesLong[now.getMonth()],
+                "%M": pad(now.getUTCMinutes()),
+                "%S": pad(now.getUTCSeconds()),
+                "%a": dayNamesShort[now.getUTCDay()],
+                "%A": dayNamesLong[now.getUTCDay()],
+                "%b": monthNamesShort[now.getUTCMonth()],
+                "%B": monthNamesLong[now.getUTCMonth()],
                 "%p": hours24 < 12 ? "AM" : "PM",
                 "%Z": "UTC",
                 "%s": String(Math.floor(now.getTime() / 1000)),
@@ -70,8 +70,8 @@ registerCommand("date", {
 
         // Default format: "Mon Aug 17 14:32:05 UTC 2026"
         const output =
-            `${dayNamesShort[now.getDay()]} ${monthNamesShort[now.getMonth()]} ${pad(now.getDate())} ` +
-            `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} UTC ${now.getFullYear()}`;
+            `${dayNamesShort[now.getUTCDay()]} ${monthNamesShort[now.getUTCMonth()]} ${pad(now.getUTCDate())} ` +
+            `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC ${now.getUTCFullYear()}`;
 
         return {
             stdout: output,
