@@ -25,7 +25,7 @@ registerCommand("sort", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, {r: false, n: false, f: false, u: false});
@@ -42,7 +42,7 @@ registerCommand("sort", {
                 return {
                     stdout: "",
                     stderr: "sort: missing operand",
-                    exitCode: 1                
+                    exitCode: EXIT_FAILURE                
                 };
             }
             // Concatenate the content of every file argument before sorting
@@ -54,7 +54,7 @@ registerCommand("sort", {
                     return {
                         stdout: "",                    
                         stderr: `sort: ${file}: No such file or directory`,
-                        exitCode: 1  
+                        exitCode: EXIT_FAILURE  
                     };
                 }
 
@@ -62,7 +62,7 @@ registerCommand("sort", {
                     return {
                         stdout: "",
                         stderr: `sort: ${file}: Permission denied`,
-                        exitCode: 1
+                        exitCode: EXIT_FAILURE
                     };
                 }
 
@@ -70,7 +70,7 @@ registerCommand("sort", {
                     return {
                         stdout: "",                    
                         stderr: `sort: ${file}: Is a directory`,
-                        exitCode: 1  
+                        exitCode: EXIT_FAILURE  
                     };
                 }
                 contents.push(terminal.fs.readContent(node));
@@ -123,7 +123,7 @@ registerCommand("sort", {
         return {
             stdout: lines.join("\n"),
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };    
     }
 });

@@ -20,7 +20,7 @@ registerCommand("diff", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 

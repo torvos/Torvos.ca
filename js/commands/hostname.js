@@ -18,21 +18,21 @@ registerCommand("hostname", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         if (args.length > 0) {
             return {
                 stdout: "",
                 stderr: "hostname: you must be root to change the host name",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
         return {
             stdout: terminal.env.HOSTNAME ?? HOSTNAME,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

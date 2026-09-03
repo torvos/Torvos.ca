@@ -16,7 +16,7 @@ registerCommand("login", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         // Switch the terminal into the username-prompt input mode; the rest
@@ -26,7 +26,7 @@ registerCommand("login", {
         return {
             stdout:"",
             stderr:"",
-            exitCode:0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

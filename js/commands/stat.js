@@ -21,7 +21,7 @@ registerCommand("stat", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, { R: false });
@@ -31,13 +31,13 @@ registerCommand("stat", {
         let funcStdout = "";
         let funcStdoutSegments = [];
         let funcStderr = "";
-        let funcExitCode = 0;
+        let funcExitCode = EXIT_SUCCESS;
 
         let text = "";
 
         if (args.length === 0) {
             funcStderr = "stat: missing operand";
-            funcExitCode = 1;            
+            funcExitCode = EXIT_FAILURE;            
         }
         else{
             for (const target of args) {
@@ -46,7 +46,7 @@ registerCommand("stat", {
 
                 if (!node) {
                     funcStderr += `stat: no such file: ${target}\n`;
-                    funcExitCode = 1;
+                    funcExitCode = EXIT_FAILURE;
                     continue;
                 }
                 // Note: unlike cat/wc/etc., stat is deliberately NOT

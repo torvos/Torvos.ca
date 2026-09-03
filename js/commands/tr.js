@@ -26,7 +26,7 @@ registerCommand("tr", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -38,13 +38,13 @@ registerCommand("tr", {
         const set2raw = parsed.args[1];
 
         if (!set1raw) {
-            return { stdout: "", stderr: "tr: missing operand", exitCode: 1 };
+            return { stdout: "", stderr: "tr: missing operand", exitCode: EXIT_FAILURE };
         }
         if (!deleteMode && !squeeze && !set2raw) {
-            return { stdout: "", stderr: "tr: missing operand after SET1 (SET2 is required for translation)", exitCode: 1 };
+            return { stdout: "", stderr: "tr: missing operand after SET1 (SET2 is required for translation)", exitCode: EXIT_FAILURE };
         }
         if (!stdin) {
-            return { stdout: "", stderr: "tr: missing input (pipe text into tr)", exitCode: 1 };
+            return { stdout: "", stderr: "tr: missing input (pipe text into tr)", exitCode: EXIT_FAILURE };
         }
 
         function expandSet(str) {
@@ -120,7 +120,7 @@ registerCommand("tr", {
         return {
             stdout: out,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

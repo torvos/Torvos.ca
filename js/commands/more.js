@@ -18,7 +18,7 @@ registerCommand("more", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const target = args[0];
@@ -26,7 +26,7 @@ registerCommand("more", {
             return {
                 stdout: "",
                 stderr: "more: missing file operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
         }
         const node = terminal.fs.get(target, terminal.cwd);
@@ -35,7 +35,7 @@ registerCommand("more", {
             return {
                 stdout: "",
                 stderr: `more: no such file: ${target}`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
         }
 
@@ -43,7 +43,7 @@ registerCommand("more", {
             return {
                 stdout: "",
                 stderr: `more: ${target}: Permission denied`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -51,7 +51,7 @@ registerCommand("more", {
             return {
                 stdout: "",
                 stderr: `more: ${target}: is a directory`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -70,7 +70,7 @@ registerCommand("more", {
             return {
                 stdout: lines.join("\n"),
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
@@ -91,7 +91,7 @@ registerCommand("more", {
         return {
             stdout:"",
             stderr:"",
-            exitCode:0
+            exitCode: EXIT_SUCCESS
         };    
     }
 });

@@ -25,7 +25,7 @@ registerCommand("ls", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args,{l: false,a: false,R: false});
@@ -42,7 +42,7 @@ registerCommand("ls", {
                 return {
                     stdout:"",
                     stderr:"",
-                    exitCode:0
+                    exitCode: EXIT_SUCCESS
                 };
             }
             // No target given at all - default to the current directory

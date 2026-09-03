@@ -104,7 +104,7 @@ Object.assign(TerminalEngine.prototype, {
                         varValue = varValue.slice(1, -1);
                     }
                     this.env[varName] = varValue;
-                    this.lastExitCode = 0;
+                    this.lastExitCode = EXIT_SUCCESS;
                     continue; // nothing further to execute for this group
                 }
 
@@ -194,7 +194,7 @@ Object.assign(TerminalEngine.prototype, {
                             result = {
                                 stdout: "",
                                 stderr: `${cmd}: ${err.message}`,
-                                exitCode: 1
+                                exitCode: EXIT_FAILURE
                             };
                         }
                         // Commands that can write to the virtual filesystem
@@ -222,7 +222,7 @@ Object.assign(TerminalEngine.prototype, {
                             result = {
                                 stdout: "",
                                 stderr: `${cmd}: ${err.message}`,
-                                exitCode: 1
+                                exitCode: EXIT_FAILURE
                             };
                         }
                     }
@@ -231,7 +231,7 @@ Object.assign(TerminalEngine.prototype, {
                         result = {
                             stdout:"",
                             stderr:`command not found: ${cmd}`,
-                            exitCode:127
+                            exitCode: EXIT_COMMAND_NOT_FOUND
                         };
                     }
 
@@ -241,7 +241,7 @@ Object.assign(TerminalEngine.prototype, {
                         result = {
                             stdout: result,
                             stderr:"",
-                            exitCode:0
+                            exitCode: EXIT_SUCCESS
                         };
                     }
 
@@ -268,7 +268,7 @@ Object.assign(TerminalEngine.prototype, {
                             );
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
-                                result.exitCode = 1;
+                                result.exitCode = EXIT_FAILURE;
                             } else {
                                 result.stdout = "";
                             }
@@ -281,7 +281,7 @@ Object.assign(TerminalEngine.prototype, {
                             );
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
-                                result.exitCode = 1;
+                                result.exitCode = EXIT_FAILURE;
                             } else {
                                 result.stdout = "";
                             }
@@ -294,7 +294,7 @@ Object.assign(TerminalEngine.prototype, {
                             );
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
-                                result.exitCode = 1;
+                                result.exitCode = EXIT_FAILURE;
                             } else {
                                 result.stderr = "";
                             }
@@ -307,7 +307,7 @@ Object.assign(TerminalEngine.prototype, {
                             );
                             if (typeof redirectreturn === 'string'){
                                 result.stderr = redirectreturn;
-                                result.exitCode = 1;
+                                result.exitCode = EXIT_FAILURE;
                             } else {
                                 result.stderr = "";
                             }
@@ -402,7 +402,7 @@ Object.assign(TerminalEngine.prototype, {
             .filter(Boolean);
 
         let stdin = "";
-        let result = { stdout: "", stderr: "", exitCode: 0 };
+        let result = { stdout: "", stderr: "", exitCode: EXIT_SUCCESS };
 
         for (const stage of pipeline) {
             const parsed = this.parseCommand(stage);
@@ -424,7 +424,7 @@ Object.assign(TerminalEngine.prototype, {
                 try {
                     result = await command.execute(this, args, stdin);
                 } catch (err) {
-                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: 1 };
+                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: EXIT_FAILURE };
                 }
                 // See the matching comment in the main dispatch loop above -
                 // a mutating command run inside $(...) still needs to mark
@@ -436,14 +436,14 @@ Object.assign(TerminalEngine.prototype, {
                 try {
                     result = await window.Commands.sh.runScript(this, cmd, args, { label: cmd });
                 } catch (err) {
-                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: 1 };
+                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: EXIT_FAILURE };
                 }
             } else {
-                result = { stdout: "", stderr: `command not found: ${cmd}`, exitCode: 127 };
+                result = { stdout: "", stderr: `command not found: ${cmd}`, exitCode: EXIT_FAILURE27 };
             }
 
             if (typeof result === "string") {
-                result = { stdout: result, stderr: "", exitCode: 0 };
+                result = { stdout: result, stderr: "", exitCode: EXIT_SUCCESS };
             }
             result.stdout ??= "";
             result.stderr ??= "";

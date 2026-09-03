@@ -26,7 +26,7 @@ registerCommand("rm", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args,{f: false,r: false});
@@ -38,7 +38,7 @@ registerCommand("rm", {
             return {
                 stdout: "",
                 stderr: `rm: missing operand`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };    
         }
 

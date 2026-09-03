@@ -23,7 +23,7 @@ registerCommand("id", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, { u: false, g: false, n: false });
@@ -37,7 +37,7 @@ registerCommand("id", {
             return {
                 stdout: showName ? user : String(uid),
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
@@ -45,14 +45,14 @@ registerCommand("id", {
             return {
                 stdout: showName ? group : String(gid),
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
         return {
             stdout: `uid=${uid}(${user}) gid=${gid}(${group}) groups=${gid}(${group})`,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

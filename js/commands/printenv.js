@@ -17,7 +17,7 @@ registerCommand("printenv", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         // Build a "KEY: value" line for every env var
@@ -37,7 +37,7 @@ registerCommand("printenv", {
             stdout: listing.replace(/\r?\n$/, ""), // strip the trailing newline
             stdoutSegments: listingSegments,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };        
     }
 });

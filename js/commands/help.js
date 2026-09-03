@@ -17,7 +17,7 @@ registerCommand("help", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }        
         return {
@@ -44,7 +44,7 @@ registerCommand("help", {
     |  clear            Clear terminal display                           |
     +--------------------------------------------------------------------+`,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

@@ -21,7 +21,7 @@ registerCommand("mv", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }        
         // Real `mv a b c dest/` supports multiple sources when the last
@@ -33,7 +33,7 @@ registerCommand("mv", {
             return {
                 stdout: "",
                 stderr: `mv: missing operand`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };           
         }
 
@@ -48,7 +48,7 @@ registerCommand("mv", {
             return {
                 stdout: "",
                 stderr: `mv: cannot move to '${destination}': Permission denied`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -59,7 +59,7 @@ registerCommand("mv", {
             return {
                 stdout: "",
                 stderr: `mv: target '${destination}' is not a directory`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 

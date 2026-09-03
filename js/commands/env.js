@@ -18,7 +18,7 @@ registerCommand("env", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const target = args[0];
@@ -31,7 +31,7 @@ registerCommand("env", {
             return {
                 stdout: listing,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
@@ -39,14 +39,14 @@ registerCommand("env", {
             return {
                 stdout: terminal.env[target],
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
         else{
             return {
                 stdout: "",
                 stderr: "env: variable not set",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
         }
     }

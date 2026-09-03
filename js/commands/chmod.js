@@ -26,7 +26,7 @@ registerCommand("chmod", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, { R: false });
@@ -36,7 +36,7 @@ registerCommand("chmod", {
             return {
                 stdout: "",
                 stderr: "chmod: missing operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -44,7 +44,7 @@ registerCommand("chmod", {
         const paths = parsed.args.slice(1);
         let funcStdout = "";
         let funcStderr = "";
-        let funcExitCode = 0;
+        let funcExitCode = EXIT_SUCCESS;
 
         // Applies `mode` to a single node, detecting numeric ("755") vs
         // symbolic ("u+x") syntax and delegating to the matching fs helper.
@@ -84,7 +84,7 @@ registerCommand("chmod", {
             const node = terminal.fs.get(path, terminal.cwd);
             if (!node) {
                 funcStderr += `chmod: ${path}: No such file or directory\n`;
-                funcExitCode = 1;
+                funcExitCode = EXIT_FAILURE;
                 continue;
             }
             // Structural change (permission bits) - always blocked for
@@ -93,7 +93,7 @@ registerCommand("chmod", {
             // should be able to change.
             if (terminal.fs.isProtected(path, terminal.cwd)) {
                 funcStderr += `chmod: changing permissions of '${path}': Permission denied\n`;
-                funcExitCode = 1;
+                funcExitCode = EXIT_FAILURE;
                 continue;
             }
             chmodNode({node});

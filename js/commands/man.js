@@ -21,14 +21,14 @@ registerCommand("man", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         if (args.length === 0) {
             return {
                 stdout: "",
                 stderr: "man: missing command operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
         const commandName = args[0];
@@ -37,7 +37,7 @@ registerCommand("man", {
             return {
                 stdout: "",
                 stderr: `man: no manual entry for ${commandName}`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
         // Build the man-page sections from the command's metadata fields
@@ -85,7 +85,7 @@ registerCommand("man", {
             stdout: lines.join("\n"),
             stdoutSegments: lineSegments,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

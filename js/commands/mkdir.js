@@ -24,7 +24,7 @@ registerCommand("mkdir", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, { p: false });
@@ -35,7 +35,7 @@ registerCommand("mkdir", {
             return {
                 stdout: "",
                 stderr: "mkdir: missing operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
 
         }

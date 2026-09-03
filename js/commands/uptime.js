@@ -18,7 +18,7 @@ registerCommand("uptime", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -43,7 +43,7 @@ registerCommand("uptime", {
         return {
             stdout: ` ${timeOfDay} up ${uptimeText},  1 user,  load average: 0.00, 0.00, 0.00`,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

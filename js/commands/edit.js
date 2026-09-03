@@ -18,7 +18,7 @@ registerCommand("edit", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const target = args[0];
@@ -26,7 +26,7 @@ registerCommand("edit", {
             return {
                 stdout: "",
                 stderr: "edit: missing operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
         }
 
@@ -41,7 +41,7 @@ registerCommand("edit", {
                 return {
                     stdout:"",
                     stderr:`edit: invalid path ${target}`,
-                    exitCode:1
+                    exitCode: EXIT_FAILURE
                 };
             }
             result.parent.children[result.name] = terminal.fs.createFile(result.name.startsWith("."));
@@ -57,7 +57,7 @@ registerCommand("edit", {
                 return {
                     stdout: "",
                     stderr: `edit: ${target}: cannot edit a device file`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             // Structural (opens the real file node for in-place editing) -
@@ -67,14 +67,14 @@ registerCommand("edit", {
                 return {
                     stdout: "",
                     stderr: `edit: ${target}: Permission denied`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             if (terminal.fs.isDirectory(node)) {
                 return {
                     stdout: "",
                     stderr: `edit: ${target}: is a directory`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
         }
@@ -84,7 +84,7 @@ registerCommand("edit", {
         return {
             stdout: "",
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

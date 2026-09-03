@@ -23,7 +23,7 @@ registerCommand("wc", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }        
         const parsed = terminal.parseFlags(args, {l: false, w: false, c: false});
@@ -95,13 +95,13 @@ registerCommand("wc", {
                 return {
                     stdout: "",
                     stderr: "wc: missing operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             return {
                 stdout: formatCounts(countOf(stdin), null),
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 

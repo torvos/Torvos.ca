@@ -22,7 +22,7 @@ registerCommand("date", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -64,7 +64,7 @@ registerCommand("date", {
             return {
                 stdout: output,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
@@ -76,7 +76,7 @@ registerCommand("date", {
         return {
             stdout: output,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

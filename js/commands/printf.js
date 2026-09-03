@@ -28,7 +28,7 @@ registerCommand("printf", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -37,7 +37,7 @@ registerCommand("printf", {
             return {
                 stdout: "",
                 stderr: "printf: missing format operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
         const values = args.slice(1);
@@ -121,7 +121,7 @@ registerCommand("printf", {
         return {
             stdout: out,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

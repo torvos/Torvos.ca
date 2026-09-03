@@ -21,7 +21,7 @@ registerCommand("which", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }        
         const parsed = terminal.parseFlags(args, {a: false, all: false});
@@ -36,7 +36,7 @@ registerCommand("which", {
                 return {
                     stdout: "",
                     stderr: "which: missing operand",
-                    exitCode: 1                
+                    exitCode: EXIT_FAILURE                
                 };
             }
         }
@@ -47,13 +47,13 @@ registerCommand("which", {
             return {
                 stdout: path,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         } else {
             return {
                 stdout: "",
                 stderr: `${command}: not found`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
     }

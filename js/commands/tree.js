@@ -24,7 +24,7 @@ registerCommand("tree", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args,{d: false,a: false,L: true});
@@ -85,7 +85,7 @@ registerCommand("tree", {
             return {
                 stdout:"",
                 stderr:`tree: ${target}: no such file or directory`,
-                exitCode:1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -95,7 +95,7 @@ registerCommand("tree", {
             stdout: lines.join("\n"),
             stdoutSegments: lineSegments,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

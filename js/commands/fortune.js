@@ -18,7 +18,7 @@ registerCommand("fortune", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -45,7 +45,7 @@ registerCommand("fortune", {
         return {
             stdout: pick,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

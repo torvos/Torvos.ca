@@ -20,7 +20,7 @@ registerCommand("less", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const target = args[0];
@@ -28,7 +28,7 @@ registerCommand("less", {
             return {
                 stdout: "",
                 stderr: "less: missing file operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
         }
         const node = terminal.fs.get(target, terminal.cwd);
@@ -37,7 +37,7 @@ registerCommand("less", {
             return {
                 stdout: "",
                 stderr: `less: no such file: ${target}`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
         }
 
@@ -45,7 +45,7 @@ registerCommand("less", {
             return {
                 stdout: "",
                 stderr: `less: ${target}: Permission denied`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -53,7 +53,7 @@ registerCommand("less", {
             return {
                 stdout: "",
                 stderr: `less: ${target}: is a directory`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -72,7 +72,7 @@ registerCommand("less", {
             return {
                 stdout: lines.join("\n"),
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
@@ -93,7 +93,7 @@ registerCommand("less", {
         return {
             stdout:"",
             stderr:"",
-            exitCode:0
+            exitCode: EXIT_SUCCESS
         };    
     }
 });

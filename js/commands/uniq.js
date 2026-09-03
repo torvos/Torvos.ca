@@ -25,7 +25,7 @@ registerCommand("uniq", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }        
         const parsed = terminal.parseFlags(args, {c: false, d: false, u: false});
@@ -41,7 +41,7 @@ registerCommand("uniq", {
                 return {
                     stdout: "",
                     stderr: "uniq: missing operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             const node = terminal.fs.get(parsed.args[0], terminal.cwd);
@@ -49,7 +49,7 @@ registerCommand("uniq", {
                 return {
                     stdout: "",
                     stderr: `uniq: ${parsed.args[0]}: No such file or directory`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -57,7 +57,7 @@ registerCommand("uniq", {
                 return {
                     stdout: "",
                     stderr: `uniq: ${parsed.args[0]}: Permission denied`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -65,7 +65,7 @@ registerCommand("uniq", {
                 return {
                     stdout: "",
                     stderr: `uniq: ${parsed.args[0]}: Is a directory`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             text = terminal.fs.readContent(node);
@@ -103,7 +103,7 @@ registerCommand("uniq", {
         return {
             stdout: output.join("\n"),
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

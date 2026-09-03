@@ -27,3 +27,8 @@ const COLOR_LABEL = "#888888";      // dim field labels in stat/printenv
 const COLOR_HEADING = "#66ff99";    // section headings in man
 const COLOR_SUCCESS = "#66ff99";    // green used for success/PASS-style status text
 const COLOR_MAGENTA = "#ff66ff";    // magenta, used by echo's ANSI color code support
+
+//Exit codes
+const EXIT_SUCCESS = 0;
+const EXIT_FAILURE = 1;
+const EXIT_COMMAND_NOT_FOUND = 127;

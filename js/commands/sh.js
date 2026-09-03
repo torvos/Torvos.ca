@@ -516,7 +516,7 @@
                 return {
                     stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                     stderr: "",
-                    exitCode: 0
+                    exitCode: EXIT_SUCCESS
                 };
             }
 
@@ -528,7 +528,7 @@
                 return {
                     stdout: "",
                     stderr: "sh: missing script operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -557,7 +557,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: Permission denied`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -567,7 +567,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: No such file or directory`,
-                    exitCode: 127
+                    EXIT_COMMAND_NOT_FOUND
                 };
             }
 
@@ -575,7 +575,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: Is a directory`,
-                    exitCode: 126
+                    exitCode: EXIT_FAILURE26
                 };
             }
 
@@ -583,7 +583,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: not executable`,
-                    exitCode: 126
+                    exitCode: EXIT_FAILURE26
                 };
             }
 
@@ -594,7 +594,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: Permission denied`,
-                    exitCode: 126
+                    exitCode: EXIT_FAILURE26
                 };
             }
 
@@ -610,7 +610,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: script recursion limit exceeded`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             if (terminal._scriptStack.includes(fullPath)) {
@@ -619,7 +619,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: recursive script invocation blocked`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 

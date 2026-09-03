@@ -24,7 +24,7 @@ registerCommand("cp", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         // -R/-r doesn't need to do anything here - structuredClone() below
@@ -38,7 +38,7 @@ registerCommand("cp", {
             return {
                 stdout: "",
                 stderr: `cp: missing operand`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };    
         }
 
@@ -55,7 +55,7 @@ registerCommand("cp", {
             return {
                 stdout: "",
                 stderr: `cp: cannot copy to '${destination}': Permission denied`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -69,7 +69,7 @@ registerCommand("cp", {
             return {
                 stdout: "",
                 stderr: `cp: target '${destination}' is not a directory`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 

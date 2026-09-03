@@ -26,7 +26,7 @@ registerCommand("uname", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, { a: false, s: false, n: false, r: false, m: false, o: false });
@@ -57,7 +57,7 @@ registerCommand("uname", {
         return {
             stdout: fields.join(" "),
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

@@ -20,7 +20,7 @@ registerCommand("neofetch", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -99,7 +99,7 @@ registerCommand("neofetch", {
             stdout: lines.join("\n"),
             stdoutSegments: lineSegments,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

@@ -16,14 +16,14 @@ registerCommand("whoami", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         
         return {
             stdout: DEFAULT_USER,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };        
     }
 });

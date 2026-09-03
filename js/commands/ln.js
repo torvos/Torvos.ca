@@ -23,7 +23,7 @@ registerCommand("ln", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args,{s: false});
@@ -36,7 +36,7 @@ registerCommand("ln", {
             return {
                 stdout: "",
                 stderr: "ln: Hard links are not supported use -s",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };         
         }
         else{
@@ -52,14 +52,14 @@ registerCommand("ln", {
                     return {
                         stdout: "",
                         stderr: `ln: ${link}: Permission denied`,
-                        exitCode: 1
+                        exitCode: EXIT_FAILURE
                     };
                 }
                 if (terminal.fs.isProtected(target, terminal.cwd)) {
                     return {
                         stdout: "",
                         stderr: `ln: ${target}: Permission denied`,
-                        exitCode: 1
+                        exitCode: EXIT_FAILURE
                     };
                 }
 
@@ -67,7 +67,7 @@ registerCommand("ln", {
                     return {
                         stdout:"",
                         stderr:`ln: ${target}: No such file or directory`,
-                        exitCode:1
+                        exitCode: EXIT_FAILURE
                     };
                 }
 
@@ -77,7 +77,7 @@ registerCommand("ln", {
                     return {
                         stdout: "",
                         stderr: `ln: invalid path ${link}`,
-                        exitCode: 1
+                        exitCode: EXIT_FAILURE
                     };           
                 }
 
@@ -89,14 +89,14 @@ registerCommand("ln", {
                 return {
                     stdout: "",
                     stderr: "ln: missing operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };               
             }
         }
         return {
             stdout: "",
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };    
     }
 });

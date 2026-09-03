@@ -21,7 +21,7 @@ registerCommand("cat", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args,{n: false});
@@ -35,7 +35,7 @@ registerCommand("cat", {
                 return {
                     stdout: "",
                     stderr: "cat: missing file operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -75,7 +75,7 @@ registerCommand("cat", {
                 return {
                     stdout: "",
                     stderr: errors.join("\n"),
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -85,7 +85,7 @@ registerCommand("cat", {
                 return {
                     stdout: numberLines ? numberContent(content) : content,
                     stderr: errors.join("\n"),
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
         }
@@ -97,7 +97,7 @@ registerCommand("cat", {
         return {
             stdout: content,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };    
 
         // Prefixes each line of `text` with its (1-based) line number -

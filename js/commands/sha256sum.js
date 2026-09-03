@@ -19,7 +19,7 @@ registerCommand("sha256sum", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -38,35 +38,35 @@ registerCommand("sha256sum", {
                 return {
                     stdout: "",
                     stderr: "sha256sum: missing operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             return {
                 stdout: `${await sha256(stdin)}  -`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
         let out = "";
         let err = "";
-        let exitCode = 0;
+        let exitCode = EXIT_SUCCESS;
 
         for (const target of targets) {
             const node = terminal.fs.get(target, terminal.cwd);
             if (!node) {
                 err += `sha256sum: ${target}: No such file or directory\n`;
-                exitCode = 1;
+                exitCode = EXIT_FAILURE;
                 continue;
             }
             if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
                 err += `sha256sum: ${target}: Permission denied\n`;
-                exitCode = 1;
+                exitCode = EXIT_FAILURE;
                 continue;
             }
             if (terminal.fs.isDirectory(node)) {
                 err += `sha256sum: ${target}: Is a directory\n`;
-                exitCode = 1;
+                exitCode = EXIT_FAILURE;
                 continue;
             }
             node.accessed = Date.now();

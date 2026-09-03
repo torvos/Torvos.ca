@@ -21,7 +21,7 @@ registerCommand("cd", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         let target = args[0];
@@ -35,7 +35,7 @@ registerCommand("cd", {
                 return {
                     stdout: "",
                     stderr: "cd: OLDPWD not set",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             target = terminal.env.OLDPWD;
@@ -46,14 +46,14 @@ registerCommand("cd", {
             return {
                 stdout: "",
                 stderr: `cd: no such file or directory: ${target}`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
         if (!terminal.fs.isDirectory(node)) {
             return {
                 stdout: "",
                 stderr: `cd: not a directory: ${target}`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
         node.accessed = Date.now();
@@ -66,7 +66,7 @@ registerCommand("cd", {
         return {
             stdout: "",
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

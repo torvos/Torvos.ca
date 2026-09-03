@@ -17,7 +17,7 @@ registerCommand("unalias", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }        
         const target = args[0];
@@ -26,7 +26,7 @@ registerCommand("unalias", {
             return {
                 stdout: "",
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
         else{
@@ -34,7 +34,7 @@ registerCommand("unalias", {
             return {
                 stdout: "",
                 stderr: "unalias: alias doesn't exsist",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };        
         }                 
     }

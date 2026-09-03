@@ -20,7 +20,7 @@ registerCommand("tail", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args,{n: true});
@@ -35,7 +35,7 @@ registerCommand("tail", {
                 return {
                     stdout: "",
                     stderr: "tail: missing file operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             return {
@@ -44,7 +44,7 @@ registerCommand("tail", {
                     .slice(-maxDepth) // negative slice = last N lines
                     .join("\n"),
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 

@@ -23,7 +23,7 @@ registerCommand("base64", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, { d: false, decode: false, w: true });
@@ -39,7 +39,7 @@ registerCommand("base64", {
                 return {
                     stdout: "",
                     stderr: "base64: missing operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             content = stdin;
@@ -49,7 +49,7 @@ registerCommand("base64", {
                 return {
                     stdout: "",
                     stderr: `base64: ${target}: No such file or directory`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -57,7 +57,7 @@ registerCommand("base64", {
                 return {
                     stdout: "",
                     stderr: `base64: ${target}: Permission denied`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -65,7 +65,7 @@ registerCommand("base64", {
                 return {
                     stdout: "",
                     stderr: `base64: ${target}: Is a directory`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             node.accessed = Date.now();
@@ -85,13 +85,13 @@ registerCommand("base64", {
                 return {
                     stdout: decoded,
                     stderr: "",
-                    exitCode: 0
+                    exitCode: EXIT_SUCCESS
                 };
             } catch (err) {
                 return {
                     stdout: "",
                     stderr: "base64: invalid input",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
         }
@@ -115,7 +115,7 @@ registerCommand("base64", {
         return {
             stdout: encoded,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

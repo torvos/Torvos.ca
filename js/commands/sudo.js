@@ -16,13 +16,13 @@ registerCommand("sudo", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         return {
             stdout: "",
             stderr: "guest users are not allowed to invoke sudo, this incident will be reported.",
-            exitCode: 1
+            exitCode: EXIT_FAILURE
         };
     }
 });

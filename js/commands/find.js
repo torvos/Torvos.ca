@@ -25,7 +25,7 @@ registerCommand("find", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, {name: true, type: true, maxdepth: true});
@@ -43,7 +43,7 @@ registerCommand("find", {
             return {
                 stdout: "",
                 stderr: `find: '${target}': No such starting directory`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -96,7 +96,7 @@ registerCommand("find", {
             stdout: walked.text.replace(/\r?\n$/, ""),
             stdoutSegments: walked.segments.map(seg => [seg]),
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

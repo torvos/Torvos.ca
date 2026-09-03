@@ -19,7 +19,7 @@ registerCommand("grep", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const pattern = args[0];
@@ -29,7 +29,7 @@ registerCommand("grep", {
             return {
                 stdout: "",
                 stderr: "grep: missing pattern",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -76,7 +76,7 @@ registerCommand("grep", {
             return {
                 stdout: "",
                 stderr: "grep: no input",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -114,7 +114,7 @@ registerCommand("grep", {
             return {
                 stdout: "",
                 stderr: errors.join("\n"),
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 

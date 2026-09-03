@@ -21,7 +21,7 @@ registerCommand("export", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const assignment = args[0];
@@ -30,7 +30,7 @@ registerCommand("export", {
             return {
                 stdout: "",
                 stderr: "export: missing operand",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -41,7 +41,7 @@ registerCommand("export", {
             return {
                 stdout: "",
                 stderr: "export: usage: export NAME=VALUE",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -53,7 +53,7 @@ registerCommand("export", {
         return {
             stdout: "",
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

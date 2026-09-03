@@ -21,7 +21,7 @@ registerCommand("touch", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const targets = args.filter(a => a !== "--help");
@@ -30,7 +30,7 @@ registerCommand("touch", {
             return {
                 stdout: "",
                 stderr: `touch: missing operand`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };           
         }
 

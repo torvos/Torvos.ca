@@ -27,7 +27,7 @@ registerCommand("sed", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         const parsed = terminal.parseFlags(args, {i: false, n: false});
@@ -38,7 +38,7 @@ registerCommand("sed", {
             return {
                 stdout: "",
                 stderr: "sed: missing script",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -54,7 +54,7 @@ registerCommand("sed", {
                 return {
                     stdout: "",
                     stderr: `sed: ${target}: no such file`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -62,7 +62,7 @@ registerCommand("sed", {
                 return {
                     stdout: "",
                     stderr: `sed: ${target}: Permission denied`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -70,7 +70,7 @@ registerCommand("sed", {
                 return {
                     stdout: "",
                     stderr: `sed: ${target}: is a directory`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -83,7 +83,7 @@ registerCommand("sed", {
                 return {
                     stdout: "",
                     stderr: "sed: no input",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             content = stdin;
@@ -122,7 +122,7 @@ registerCommand("sed", {
                 return {
                     stdout: "",
                     stderr: "sed: invalid regular expression",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
 
@@ -148,7 +148,7 @@ registerCommand("sed", {
             return {
                 stdout: output.join("\n"),
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
         else {
@@ -156,7 +156,7 @@ registerCommand("sed", {
             return {
                 stdout: "",
                 stderr: `sed: unsupported script '${script}'`,
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
 
         }
@@ -169,7 +169,7 @@ registerCommand("sed", {
                 return {
                     stdout: "",
                     stderr: `sed: ${target}: No space left on device`,
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             // Only -i actually touches the filesystem - plain `sed` just
@@ -180,14 +180,14 @@ registerCommand("sed", {
             return {
                 stdout: "",
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
         return {
             stdout: silent ? "" : output,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

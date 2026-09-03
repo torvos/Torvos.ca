@@ -19,7 +19,7 @@ registerCommand("alias", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
         if (args.length === 0) {
@@ -30,7 +30,7 @@ registerCommand("alias", {
             return {
                 stdout: listing,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
@@ -42,7 +42,7 @@ registerCommand("alias", {
             return {
                 stdout: "",
                 stderr: "alias: usage: alias NAME='COMMAND'",
-                exitCode: 1
+                exitCode: EXIT_FAILURE
             };
         }
 
@@ -54,7 +54,7 @@ registerCommand("alias", {
         return {
             stdout: "",
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });        

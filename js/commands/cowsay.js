@@ -18,7 +18,7 @@ registerCommand("cowsay", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -68,7 +68,7 @@ registerCommand("cowsay", {
         return {
             stdout: output,
             stderr: "",
-            exitCode: 0
+            exitCode: EXIT_SUCCESS
         };
     }
 });

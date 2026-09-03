@@ -20,7 +20,7 @@ registerCommand("md5sum", {
             return {
                 stdout: `${this.name} Usage syntax: "${this.synopsis}"`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };                
         }
 
@@ -90,35 +90,35 @@ registerCommand("md5sum", {
                 return {
                     stdout: "",
                     stderr: "md5sum: missing operand",
-                    exitCode: 1
+                    exitCode: EXIT_FAILURE
                 };
             }
             return {
                 stdout: `${md5(stdin)}  -`,
                 stderr: "",
-                exitCode: 0
+                exitCode: EXIT_SUCCESS
             };
         }
 
         let out = "";
         let err = "";
-        let exitCode = 0;
+        let exitCode = EXIT_SUCCESS;
 
         for (const target of targets) {
             const node = terminal.fs.get(target, terminal.cwd);
             if (!node) {
                 err += `md5sum: ${target}: No such file or directory\n`;
-                exitCode = 1;
+                exitCode = EXIT_FAILURE;
                 continue;
             }
             if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
                 err += `md5sum: ${target}: Permission denied\n`;
-                exitCode = 1;
+                exitCode = EXIT_FAILURE;
                 continue;
             }
             if (terminal.fs.isDirectory(node)) {
                 err += `md5sum: ${target}: Is a directory\n`;
-                exitCode = 1;
+                exitCode = EXIT_FAILURE;
                 continue;
             }
             node.accessed = Date.now();
