@@ -75,7 +75,7 @@ registerCommand("rmdir", {
         return {
             stdout: "",
             stderr: errors.join("\n"),
-            exitCode: errors.length ? 1 : 0
+            exitCode: errors.length ? EXIT_FAILURE : EXIT_SUCCESS
         };
     }
 });

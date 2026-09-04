@@ -128,7 +128,7 @@ registerCommand("diff", {
         return {
             stdout: out.join("\n"),
             stderr: "",
-            exitCode: out.length === 0 ? 0 : 1
+            exitCode: out.length === 0 ? EXIT_SUCCESS : EXIT_FAILURE
         };
     }
 });

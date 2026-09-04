@@ -147,11 +147,11 @@ Object.assign(TerminalEngine.prototype, {
     formatErrorLine(line) {
         const match = line.match(/^([^:]*:\s*)([\s\S]*)$/);
         if (!match) {
-            return [{ text: line, color: "#ff6060" }];
+            return [{ text: line, color: COLOR_ERROR }];
         }
         const [, prefix, rest] = match;
         return [
-            { text: prefix, color: "#ff6060" },
+            { text: prefix, color: COLOR_ERROR },
             { text: rest }
         ];
     },

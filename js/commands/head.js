@@ -79,7 +79,7 @@ registerCommand("head", {
         return {
             stdout: chunks.join("\n\n"),
             stderr: errors.join("\n"),
-            exitCode: errors.length ? 1 : 0
+            exitCode: errors.length ? EXIT_FAILURE : EXIT_SUCCESS
         };
     }
 });

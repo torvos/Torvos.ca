@@ -439,7 +439,7 @@
                 // When SCRIPTDEBUG (set via `sh -x`) is on, echo the command
                 // before running it, like bash's `set -x` trace mode
                 if (terminal.env.SCRIPTDEBUG === "true") {
-                    terminal.write(`+ ${stmt.text}`, { color: "#888888" });
+                    terminal.write(`+ ${stmt.text}`, { color: COLOR_LABEL });
                 }
                 await runCommandLine(terminal, stmt.text);
                 return null;
@@ -567,7 +567,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: No such file or directory`,
-                    EXIT_COMMAND_NOT_FOUND
+                    exitCode: EXIT_COMMAND_NOT_FOUND
                 };
             }
 
@@ -575,7 +575,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: Is a directory`,
-                    exitCode: EXIT_FAILURE26
+                    exitCode: EXIT_NOT_EXECUTABLE
                 };
             }
 
@@ -583,7 +583,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: not executable`,
-                    exitCode: EXIT_FAILURE26
+                    exitCode: EXIT_NOT_EXECUTABLE
                 };
             }
 
@@ -594,7 +594,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: Permission denied`,
-                    exitCode: EXIT_FAILURE26
+                    exitCode: EXIT_NOT_EXECUTABLE
                 };
             }
 

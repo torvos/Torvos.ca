@@ -68,7 +68,7 @@ registerCommand("grep", {
                 stdout: matches.join("\n"),
                 stdoutSegments: matches.map(line => highlightLine(line, null)),
                 stderr: "",
-                exitCode: matches.length ? 0 : 1
+                exitCode: matches.length ? EXIT_SUCCESS : EXIT_FAILURE
             };
         }
 
@@ -122,7 +122,7 @@ registerCommand("grep", {
             stdout: outLines.join("\n"),
             stdoutSegments: outSegments,
             stderr: errors.join("\n"),
-            exitCode: outLines.length ? 0 : 1
+            exitCode: outLines.length ? EXIT_SUCCESS : EXIT_FAILURE
         };
     }
 });

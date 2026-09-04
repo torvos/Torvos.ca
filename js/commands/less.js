@@ -80,7 +80,7 @@ registerCommand("less", {
         // Write lines directly, pausing at each page boundary until the
         // user presses a key (space/enter to continue, q to quit early)
         for (const line of lines) {
-            terminal.write(line,{color:"#ffffff"});
+            terminal.write(line,{color:COLOR_STDOUT});
             terminal.pager.linesPrinted++;
             if (terminal.pager.linesPrinted >= terminal.pager.pageSize) {
                 let keepGoing = await terminal.pageBreak();
@@ -88,7 +88,7 @@ registerCommand("less", {
                     break;
                 }
             }
-            await terminal.sleep(20);
+            await terminal.sleep(PAGER_SCROLL_DELAY_MS);
         }
         return {
             stdout:"",

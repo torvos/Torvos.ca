@@ -43,7 +43,7 @@ Object.assign(TerminalEngine.prototype, {
                 );
             } else {
                 this.write(text, opts);
-                await this.sleep(50);
+                await this.sleep(LINE_PRINT_DELAY_MS);
             }
         };
         const emitErrorLine = async (line) => {
@@ -51,7 +51,7 @@ Object.assign(TerminalEngine.prototype, {
                 capturedErr.push(line);
             } else {
                 this.write(this.formatErrorLine(line));
-                await this.sleep(50);
+                await this.sleep(LINE_PRINT_DELAY_MS);
             }
         };
         // Same as emitErrorLine, but for one-off messages that (even when
@@ -348,7 +348,7 @@ Object.assign(TerminalEngine.prototype, {
                                 : undefined;
                             await emit(
                                 segments ?? lines[i],
-                                { color: "#ffffff" }
+                                { color: COLOR_STDOUT }
                             );
                         }
                     }
@@ -439,7 +439,7 @@ Object.assign(TerminalEngine.prototype, {
                     result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: EXIT_FAILURE };
                 }
             } else {
-                result = { stdout: "", stderr: `command not found: ${cmd}`, exitCode: EXIT_FAILURE27 };
+                result = { stdout: "", stderr: `command not found: ${cmd}`, exitCode: EXIT_COMMAND_NOT_FOUND };
             }
 
             if (typeof result === "string") {

@@ -73,11 +73,11 @@ class TerminalEngine {
 
         // Default environment variables, mirroring a typical Unix shell
         this.env = {
-            HOME: "/home/guest",
-            USER: "guest",
-            HOSTNAME: "torvos",
-            PWD: "/home/guest",
-            OLDPWD: "/home/guest",
+            HOME: HOME,
+            USER: DEFAULT_USER,
+            HOSTNAME: HOSTNAME,
+            PWD: HOME,
+            OLDPWD: HOME,
             SHELL: "/bin/bash",
             PATH: "/bin:/usr/bin",
             EDITOR: "edit",
@@ -104,7 +104,7 @@ class TerminalEngine {
         this.inputMode = INPUT_NORMAL;
 
         // Attempt to restore previous session settings (history, cwd, env, aliases)
-        const savedSettings = localStorage.getItem("terminalSettings");
+        const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
         let settingsWereCorrupted = false;
         if (savedSettings) {
             let settings = null;
@@ -114,8 +114,8 @@ class TerminalEngine {
                 // Corrupted/invalid JSON (e.g. manual edit, partial write) —
                 // wipe it out and fall back to defaults rather than throwing
                 // and leaving the terminal unable to boot at all.
-                localStorage.removeItem("terminalSettings");
-                localStorage.removeItem("FileSystem");
+                localStorage.removeItem(STORAGE_KEY_SETTINGS);
+                localStorage.removeItem(STORAGE_KEY_FILESYSTEM);
                 settingsWereCorrupted = true;
             }
 
@@ -150,13 +150,13 @@ class TerminalEngine {
         }
 
         // Attempt to restore the saved virtual filesystem
-        const savedFileSystem = localStorage.getItem("FileSystem");
+        const savedFileSystem = localStorage.getItem(STORAGE_KEY_FILESYSTEM);
         let filesystemWasCorrupted = false;
         if (savedFileSystem) {
             const restored = FileSystemAPI.restore(savedFileSystem);
             if (!restored) {
                 // Restore failed (e.g. corrupted/invalid JSON) — fall back to defaults
-                localStorage.removeItem("FileSystem");
+                localStorage.removeItem(STORAGE_KEY_FILESYSTEM);
                 filesystemWasCorrupted = true;
             }
         }
@@ -174,14 +174,14 @@ class TerminalEngine {
         const params = new URLSearchParams(window.location.search);
         await this.write(`Torvos v${this.version}`, {color: "#c707ce"});
         if (settingsWereCorrupted) {
-            await this.write(`[WARN] Saved session settings were corrupted, restored defaults..[FAIL]`, {color: "#ff5555"});
+            await this.write(`[WARN] Saved session settings were corrupted, restored defaults..[FAIL]`, {color: COLOR_WARNING});
         }
         if (filesystemWasCorrupted) {
-            await this.write(`[WARN] Saved filesystem was corrupted, restored defaults..[FAIL]`, {color: "#ff5555"});
+            await this.write(`[WARN] Saved filesystem was corrupted, restored defaults..[FAIL]`, {color: COLOR_WARNING});
         }
         for (const change of seedChanges) {
             const verb = change.action === "added" ? "added" : "updated";
-            await this.write(`[INFO] ${change.path} was ${verb} by the developer.......[ OK ]`, {color: "#ffffff"});
+            await this.write(`[INFO] ${change.path} was ${verb} by the developer.......[ OK ]`, {color: COLOR_STDOUT});
         }
 
         // `?quickboot` query param lets you skip straight to a "resumed session" state
@@ -191,7 +191,7 @@ class TerminalEngine {
 
         if (this.hasbooted === 1){
             // Returning session: skip the animated boot sequence
-            await this.write(`[INFO] Resuming previous session.................[ OK ]`, {color: "#ffffff"});
+            await this.write(`[INFO] Resuming previous session.................[ OK ]`, {color: COLOR_STDOUT});
         } else if (this.hasbooted === 0) {
             // First-ever boot: play the animated "typing" boot sequence
             await this.typeItOut(`Initializing kernel................ [ OK ]`);
@@ -207,15 +207,15 @@ class TerminalEngine {
         createVirtualDev();
 
         // Print the ASCII-art welcome banner
-        await this.write(`+------------------------------------------------------+`, {color: "#ffffff"});
-        await this.write(`| ████████╗ ██████╗ ██████╗ ██╗   ██╗ ██████╗ ███████╗ |`, {color: "#ffffff"});
-        await this.write(`| ╚══██╔══╝██╔═══██╗██╔══██╗██║   ██║██╔═══██╗██╔════╝ |`, {color: "#ffffff"});
-        await this.write(`|    ██║   ██║   ██║██████╔╝██║   ██║██║   ██║███████╗ |`, {color: "#ffffff"});
-        await this.write(`|    ██║   ██║   ██║██╔══██╗╚██╗ ██╔╝██║   ██║╚════██║ |`, {color: "#ffffff"});
-        await this.write(`|    ██║   ╚██████╔╝██║  ██║ ╚████╔╝ ╚██████╔╝███████║ |`, {color: "#ffffff"});
-        await this.write(`|    ╚═╝    ╚═════╝ ╚═╝  ╚═╝  ╚═══╝   ╚═════╝ ╚══════╝ |`, {color: "#ffffff"});
-        await this.write(`|            Welcome type 'help' to begin.             |`, {color: "#ffffff"});
-        await this.write(`+------------------------------------------------------+`, {color: "#ffffff"});
+        await this.write(`+------------------------------------------------------+`, {color: COLOR_STDOUT});
+        await this.write(`| ████████╗ ██████╗ ██████╗ ██╗   ██╗ ██████╗ ███████╗ |`, {color: COLOR_STDOUT});
+        await this.write(`| ╚══██╔══╝██╔═══██╗██╔══██╗██║   ██║██╔═══██╗██╔════╝ |`, {color: COLOR_STDOUT});
+        await this.write(`|    ██║   ██║   ██║██████╔╝██║   ██║██║   ██║███████╗ |`, {color: COLOR_STDOUT});
+        await this.write(`|    ██║   ██║   ██║██╔══██╗╚██╗ ██╔╝██║   ██║╚════██║ |`, {color: COLOR_STDOUT});
+        await this.write(`|    ██║   ╚██████╔╝██║  ██║ ╚████╔╝ ╚██████╔╝███████║ |`, {color: COLOR_STDOUT});
+        await this.write(`|    ╚═╝    ╚═════╝ ╚═╝  ╚═╝  ╚═══╝   ╚═════╝ ╚══════╝ |`, {color: COLOR_STDOUT});
+        await this.write(`|            Welcome type 'help' to begin.             |`, {color: COLOR_STDOUT});
+        await this.write(`+------------------------------------------------------+`, {color: COLOR_STDOUT});
 
         // `?run=<command>` lets a URL auto-type and auto-execute a command on load
         if (params.has("run")) {
@@ -277,9 +277,9 @@ class TerminalEngine {
         // mode, storage disabled, etc.) — catch it so a save failure just
         // means "this session isn't persisted", not "the terminal breaks".
         try {
-            localStorage.setItem("terminalSettings", JSON.stringify(terminalSettings));
+            localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(terminalSettings));
             if (forceFs || this.fsDirty) {
-                localStorage.setItem("FileSystem", FileSystemAPI.serialize());
+                localStorage.setItem(STORAGE_KEY_FILESYSTEM, FileSystemAPI.serialize());
                 this.fsDirty = false;
             }
         } catch (err) {
@@ -288,7 +288,7 @@ class TerminalEngine {
                 this._storageWriteWarned = true;
                 this.write(
                     `[WARN] Unable to save session (storage full or unavailable) - your changes won't persist across reloads.`,
-                    {color: "#ff5555"}
+                    {color: COLOR_WARNING}
                 );
             }
         }
