@@ -32,8 +32,44 @@ registerCommand("find", {
         const namePattern = parsed.options?.name ?? null;
         const typeFilter = parsed.options?.type ?? null;
         const maxDepth = parsed.options?.maxdepth !== undefined ? parseInt(parsed.options.maxdepth, 10) : Infinity;
-        // Convert a simple glob pattern (* and ?) into an anchored regex
-        const regex = namePattern ? new RegExp("^" + namePattern.replace(/\./g, "\\.").replace(/\*/g, ".*").replace(/\?/g, ".") + "$"): null;
+
+        // Converts a simple glob pattern (only "*" and "?" are wildcards,
+        // matching find -name's own semantics) into an anchored regex.
+        // Every OTHER character is escaped if it happens to be a regex
+        // metacharacter (".", "+", "(", ")", "[", "]", "^", "$", "{",
+        // "}", "|", "\\") - a filename containing one of those (e.g.
+        // "file(1).txt" or "a+b.txt") must match itself literally, not
+        // be reinterpreted as regex syntax. Building the regex source
+        // character-by-character like this (rather than a handful of
+        // blind global replaces) is what makes that possible.
+        function globToRegExpSource(pattern) {
+            let source = "";
+            for (const ch of pattern) {
+                if (ch === "*") {
+                    source += ".*";
+                } else if (ch === "?") {
+                    source += ".";
+                } else if (/[.*+?^${}()|[\]\\]/.test(ch)) {
+                    source += "\\" + ch;
+                } else {
+                    source += ch;
+                }
+            }
+            return source;
+        }
+
+        let regex = null;
+        if (namePattern) {
+            try {
+                regex = new RegExp("^" + globToRegExpSource(namePattern) + "$");
+            } catch {
+                return {
+                    stdout: "",
+                    stderr: `find: invalid -name pattern: '${namePattern}'`,
+                    exitCode: EXIT_FAILURE
+                };
+            }
+        }
 
         const target = parsed.args[0] || terminal.cwd;
         const path = terminal.fs.getFullPath(target, terminal.cwd);
