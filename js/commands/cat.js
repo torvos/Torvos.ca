@@ -79,7 +79,10 @@ registerCommand("cat", {
                 };
             }
 
-            content = parts.join("\n");
+            // Real `cat` concatenates files byte-for-byte with nothing
+            // inserted between them - each file's own trailing newline
+            // (or lack of one) is what actually separates them on screen.
+            content = parts.join("");
 
             if (errors.length > 0) {
                 return {
@@ -104,13 +107,23 @@ registerCommand("cat", {
         // numbered continuously across every concatenated file, matching
         // real `cat -n` rather than restarting the count per file.
         function numberContent(text) {
-            let lineNumber = 1;
-            let returnContent = "";
-            for (const line of text.split(/\r?\n/)) {
-                returnContent += `  ${lineNumber}  ${line} \n`;
-                lineNumber++;
+            if (text === "") {
+                return "";
             }
-            return returnContent.replace(/\r?\n$/, "");
+            // split() on content that ends in a newline produces a
+            // trailing empty element (there's nothing after that last
+            // "\n") - drop it rather than numbering it as a phantom
+            // extra blank line; a trailing newline is added back at the
+            // end instead, exactly where it belongs.
+            const endsWithNewline = /\r?\n$/.test(text);
+            const rawLines = text.split(/\r?\n/);
+            if (endsWithNewline) {
+                rawLines.pop();
+            }
+
+            let lineNumber = 1;
+            const numbered = rawLines.map(line => `  ${lineNumber++}  ${line}`);
+            return numbered.join("\n") + (endsWithNewline ? "\n" : "");
         }
     }
 });
