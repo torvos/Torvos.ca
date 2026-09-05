@@ -1,6 +1,7 @@
 /**
  * `history` command.
- * Prints the shell's recorded command history, one entry per line.
+ * Prints the shell's recorded command history, one numbered entry per
+ * line (e.g. "  1  ls"), matching real `history`'s default output.
  */
 registerCommand("history", {
     name: "Display command history",
@@ -20,7 +21,9 @@ registerCommand("history", {
             };                
         }
         return {
-            stdout: terminal.history.join("\n"),
+            stdout: terminal.history
+                .map((cmd, index) => `  ${index + 1}  ${cmd}`)
+                .join("\n"),
             stderr: "",
             exitCode: EXIT_SUCCESS
         };
