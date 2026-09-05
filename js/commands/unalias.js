@@ -33,7 +33,7 @@ registerCommand("unalias", {
             // No alias registered under that name
             return {
                 stdout: "",
-                stderr: "unalias: alias doesn't exsist",
+                stderr: "unalias: alias doesn't exist",
                 exitCode: EXIT_FAILURE
             };        
         }                 
