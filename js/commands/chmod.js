@@ -18,7 +18,9 @@ registerCommand("chmod", {
     examples: [
         "chmod 755 script.sh",
         "chmod 644 notes.txt",
-        "chmod -R 755 /home/guest"
+        "chmod -R 755 /home/guest",
+        "chmod u+x script.sh",
+        "chmod u+rwx,g-w,o= notes.txt"
     ],
     async execute(terminal, args, stdin) {
         // Print usage info and exit early when --help is passed
@@ -29,10 +31,17 @@ registerCommand("chmod", {
                 exitCode: EXIT_SUCCESS
             };                
         }
-        const parsed = terminal.parseFlags(args, { R: false });
-        const recursive = parsed.flags.has("R");
+        // chmod's mode argument can itself start with "-" (e.g. "-w",
+        // "-rwx" to remove permissions), so it can't be run through the
+        // generic terminal.parseFlags() the way most commands' options
+        // are - that would misinterpret the mode as an unknown flag and
+        // swallow it. chmod only has one real flag ("-R"), so it's pulled
+        // out directly instead; everything else is positional regardless
+        // of whether it happens to start with "-".
+        const recursive = args.includes("-R");
+        const positional = args.filter(arg => arg !== "-R");
 
-        if (parsed.args.length < 2) {
+        if (positional.length < 2) {
             return {
                 stdout: "",
                 stderr: "chmod: missing operand",
@@ -40,11 +49,27 @@ registerCommand("chmod", {
             };
         }
 
-        const mode = parsed.args[0];
-        const paths = parsed.args.slice(1);
+        const mode = positional[0];
+        const paths = positional.slice(1);
         let funcStdout = "";
         let funcStderr = "";
         let funcExitCode = EXIT_SUCCESS;
+
+        const isNumericMode = /^[0-7]{3,4}$/.test(mode);
+
+        // Validate the mode string once, up front, against a placeholder
+        // starting mode - rather than after already having (potentially
+        // partially) applied it to real files. Matches real chmod: a bad
+        // mode string is rejected outright with a clear error and touches
+        // nothing, instead of silently doing nothing (or, worse, silently
+        // corrupting a node's mode with the invalid result).
+        if (!isNumericMode && terminal.fs.symbolicToMode("---------", mode) === null) {
+            return {
+                stdout: "",
+                stderr: `chmod: invalid mode: '${mode}'`,
+                exitCode: EXIT_FAILURE
+            };
+        }
 
         // Applies `mode` to a single node, detecting numeric ("755") vs
         // symbolic ("u+x") syntax and delegating to the matching fs helper.
@@ -52,7 +77,7 @@ registerCommand("chmod", {
             if (!node.mode) {
                 node.mode = "---------";
             }
-            if (/^[0-7]{3,4}$/.test(mode)) {
+            if (isNumericMode) {
                 node.mode = terminal.fs.numericToMode(mode);
             }
             else {

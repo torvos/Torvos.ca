@@ -201,64 +201,56 @@
 
     /**
      * Applies a chmod-style symbolic permission change (e.g. "u+x", "go-w",
-     * "a=rw") to an existing 9-character mode string, as used by the
-     * `chmod` command.
+     * "a=rw", "+x", "u+rwx,g-w,o=") to an existing 9-character mode string,
+     * as used by the `chmod` command. Supports everything real chmod's
+     * symbolic mode does except the special s/t/X bits:
+     * - Multiple comma-separated clauses, applied in order (each clause
+     *   sees the result of the ones before it): "u+rwx,g-w,o=".
+     * - Omitting the user-class letters, which defaults to all three
+     *   classes: "+x" behaves like "a+x".
+     * - Omitting the permission letters after "=", which clears all of
+     *   the given class(es)' bits: "o=" removes all of other's permissions.
      * @param {string} current - Existing 9-char symbolic mode string.
-     * @param {string} operation - Symbolic operation, matching /^([ugoa]+)([+-=])([rwx]+)$/.
-     * @returns {string} The updated 9-character mode string (unchanged if
-     *   `operation` doesn't match the expected pattern).
+     * @param {string} operation - One or more comma-separated clauses,
+     *   each matching /^([ugoa]*)([+\-=])([rwx]*)$/.
+     * @returns {string|null} The updated 9-character mode string, or null
+     *   if any clause doesn't match the expected pattern (the caller
+     *   should treat this as an invalid-mode error, not apply it).
      */
     function symbolicToMode(current, operation) {
         let chars = current.split("");
         const groups = {
             u: [0,1,2],
             g: [3,4,5],
-            o: [6,7,8],
-            a: [0,1,2,3,4,5,6,7,8]
+            o: [6,7,8]
         };
-        const match = operation.match(/^([ugoa]+)([+-=])([rwx]+)$/);
-        if (!match) {
-            return current;
-        }
-        const users = match[1];
-        const action = match[2];
-        const permissions = match[3];
-        for (const user of users) {
-            const indexes = groups[user];
-            for (const perm of permissions) {
-                let offset;
-                if (perm === "r") offset = 0;
-                if (perm === "w") offset = 1;
-                if (perm === "x") offset = 2;
-                for (const index of indexes) {
-                    const relative = index % 3;
-                    if (relative === offset) {
-                        if (action === "+") {
-                            chars[index] = perm;
-                        }
-                        else if (action === "-") {
-                            chars[index] = "-";
-                        }
-                        else if (action === "=") {
-                            chars[index] = "-";
-                        }
-                    }
-                }
+        const offsetOf = { r: 0, w: 1, x: 2 };
+
+        for (const clause of operation.split(",")) {
+            const match = clause.match(/^([ugoa]*)([+\-=])([rwx]*)$/);
+            if (!match) {
+                return null;
             }
-            if (action === "=") {
-                for (const index of indexes) {
-                    chars[index] = "-";
+            const usersRaw = match[1];
+            const action = match[2];
+            const permissions = match[3];
+            // No class letters, or an explicit "a", both mean all three -
+            // matches real chmod (umask aside, which this shell doesn't model).
+            const users = (usersRaw === "" || usersRaw.includes("a")) ? "ugo" : usersRaw;
+
+            for (const user of users) {
+                const indexes = groups[user];
+                if (action === "=") {
+                    // Clear this class's bits first, then set only
+                    // whatever was actually requested (which may be
+                    // nothing at all, e.g. "o=" clears without setting).
+                    for (const index of indexes) {
+                        chars[index] = "-";
+                    }
                 }
                 for (const perm of permissions) {
-                    let offset;
-                    if (perm === "r") offset = 0;
-                    if (perm === "w") offset = 1;
-                    if (perm === "x") offset = 2;
-                    for (const index of indexes) {
-                        if (index % 3 === offset) {
-                            chars[index] = perm;
-                        }
-                    }
+                    const index = indexes[offsetOf[perm]];
+                    chars[index] = (action === "-") ? "-" : perm;
                 }
             }
         }
