@@ -71,6 +71,14 @@ registerCommand("ln", {
                     };
                 }
 
+                if (linkNode) {
+                    return {
+                        stdout: "",
+                        stderr: `ln: ${link}: File exists`,
+                        exitCode: EXIT_FAILURE
+                    };
+                }                
+
                 const result = terminal.fs.getParent(linkPath, terminal.cwd);
 
                 if (!result) {
