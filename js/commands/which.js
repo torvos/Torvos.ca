@@ -29,8 +29,10 @@ registerCommand("which", {
         let command = parsed.args[0];
     
         // Allow the command name to come from piped stdin if no arg was given
+        // - trimmed, since piped output (e.g. from echo) normally carries
+        // a trailing newline that isn't part of the actual command name.
         if (stdin !== undefined && stdin !== null && stdin !== "") {
-            command = stdin;
+            command = stdin.trim();
         } else {
             if (parsed.args.length === 0) {
                 return {
