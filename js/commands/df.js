@@ -21,7 +21,7 @@ registerCommand("df", {
         }
         return {
             stdout: "",
-            stderr: "guest users are not permitted view storage information.",
+            stderr: "guest users are not permitted to view storage information.",
             exitCode: EXIT_FAILURE
         };
     }
