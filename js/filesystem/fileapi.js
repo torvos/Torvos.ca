@@ -26,37 +26,23 @@
     let FileSystem = window.__DEFAULT_FILESYSTEM_SEED__;
     delete window.__DEFAULT_FILESYSTEM_SEED__;
 
+    // Same pattern as the seed data above: mode.js/format.js/nodes.js each
+    // load just before this file and expose their functions as a temporary
+    // global, which is pulled into local scope here and immediately deleted -
+    // so, just like before those files existed, nothing beyond
+    // window.FileSystemAPI is left reachable once this module has loaded.
+    // (See the comment at the top of each of those files for why they're
+    // safe to split out: none of them touch the `FileSystem` variable above.)
+    const { numericToMode, symbolicToMode } = window.__FS_MODE_HELPERS__;
+    delete window.__FS_MODE_HELPERS__;
+    const { formatSize, getDirectorySize, getSize, formatDate, getLinkCount, formatLongEntry } = window.__FS_FORMAT_HELPERS__;
+    delete window.__FS_FORMAT_HELPERS__;
+    const { walkSeedNodes, createLink, createFile, createDirectory } = window.__FS_NODE_HELPERS__;
+    delete window.__FS_NODE_HELPERS__;
+
     // Snapshot of the default tree (as JSON) kept around so the filesystem
     // can be restored to factory defaults (via `reset` or a corrupted save).
     const DEFAULT_FILESYSTEM_JSON = JSON.stringify(FileSystem);
-
-    /**
-     * Recursively visits every node in `node`'s subtree that carries a
-     * `seedVersion` field, calling `visit(node, absolutePath)` for each -
-     * used by reconcileSeed() to find the small set of "seed content"
-     * files (currently the starter files under /home/guest) without
-     * needing a hardcoded list of their paths kept in sync by hand.
-     * @param {Object} node
-     * @param {string} path - Absolute path of `node` itself.
-     * @param {(node: Object, path: string) => void} visit
-     */
-    function walkSeedNodes(node, path, visit) {
-        if (!node) {
-            return;
-        }
-        if (Object.prototype.hasOwnProperty.call(node, "seedVersion")) {
-            visit(node, path);
-        }
-        if (node.children) {
-            for (const key of Object.keys(node.children)) {
-                walkSeedNodes(
-                    node.children[key],
-                    path === ROOT ? `${ROOT}${key}` : `${path}${ROOT}${key}`,
-                    visit
-                );
-            }
-        }
-    }
 
     /**
      * Walks an absolute path (already normalized, no "." or "..") down from
@@ -172,232 +158,6 @@
             if (parent.type !== "dir") {return null;}
         }
         return {parent,name};
-    }
-
-    /**
-     * Converts a numeric permission string (e.g. "755") into the symbolic
-     * "rwxr-xr-x" form used for display/storage.
-     * @param {string} value - Numeric mode, e.g. "0755" or "755".
-     * @returns {string} 9-character symbolic permission string.
-     */
-    function numericToMode(value) {
-        value = value.slice(-3); // only the last 3 digits (owner/group/other) matter
-        const map = {
-            0: "---",
-            1: "--x",
-            2: "-w-",
-            3: "-wx",
-            4: "r--",
-            5: "r-x",
-            6: "rw-",
-            7: "rwx"
-        };
-        return (
-            map[value[0]] +
-            map[value[1]] +
-            map[value[2]]
-        );
-    }
-
-    /**
-     * Applies a chmod-style symbolic permission change (e.g. "u+x", "go-w",
-     * "a=rw", "+x", "u+rwx,g-w,o=") to an existing 9-character mode string,
-     * as used by the `chmod` command. Supports everything real chmod's
-     * symbolic mode does except the special s/t/X bits:
-     * - Multiple comma-separated clauses, applied in order (each clause
-     *   sees the result of the ones before it): "u+rwx,g-w,o=".
-     * - Omitting the user-class letters, which defaults to all three
-     *   classes: "+x" behaves like "a+x".
-     * - Omitting the permission letters after "=", which clears all of
-     *   the given class(es)' bits: "o=" removes all of other's permissions.
-     * @param {string} current - Existing 9-char symbolic mode string.
-     * @param {string} operation - One or more comma-separated clauses,
-     *   each matching /^([ugoa]*)([+\-=])([rwx]*)$/.
-     * @returns {string|null} The updated 9-character mode string, or null
-     *   if any clause doesn't match the expected pattern (the caller
-     *   should treat this as an invalid-mode error, not apply it).
-     */
-    function symbolicToMode(current, operation) {
-        let chars = current.split("");
-        const groups = {
-            u: [0,1,2],
-            g: [3,4,5],
-            o: [6,7,8]
-        };
-        const offsetOf = { r: 0, w: 1, x: 2 };
-
-        for (const clause of operation.split(",")) {
-            const match = clause.match(/^([ugoa]*)([+\-=])([rwx]*)$/);
-            if (!match) {
-                return null;
-            }
-            const usersRaw = match[1];
-            const action = match[2];
-            const permissions = match[3];
-            // No class letters, or an explicit "a", both mean all three -
-            // matches real chmod (umask aside, which this shell doesn't model).
-            const users = (usersRaw === "" || usersRaw.includes("a")) ? "ugo" : usersRaw;
-
-            for (const user of users) {
-                const indexes = groups[user];
-                if (action === "=") {
-                    // Clear this class's bits first, then set only
-                    // whatever was actually requested (which may be
-                    // nothing at all, e.g. "o=" clears without setting).
-                    for (const index of indexes) {
-                        chars[index] = "-";
-                    }
-                }
-                for (const perm of permissions) {
-                    const index = indexes[offsetOf[perm]];
-                    chars[index] = (action === "-") ? "-" : perm;
-                }
-            }
-        }
-        return chars.join("");
-    }
-
-    /**
-     * Formats a byte count into a human-readable size string with a
-     * K/M/G/T/P unit suffix (e.g. `ls -h`, `df`, `du`-style output).
-     */
-    function formatSize(bytes) {
-        if (bytes < 1024) {
-            return `${bytes}B`;
-        }
-        const units = ["K", "M", "G", "T"];
-        let size = bytes;
-        for (const unit of units) {
-            size /= 1024;
-            if (size < 1024) {
-                return `${size.toFixed(1)}${unit}`;
-            }
-        }
-        return `${size.toFixed(1)}P`;
-    }
-
-    /**
-     * Recursively computes the total size in bytes of a node: for a file,
-     * its UTF-8 encoded content length; for a directory, the sum of all
-     * descendant files.
-     */
-    function getDirectorySize(node) {
-        if (!node) {
-            return 0;
-        }
-        if (node.type === "file") {
-            return new TextEncoder().encode(node.content || "").length;
-        }
-        let total = 0;
-        for (const child of Object.values(node.children || {})) {
-            total += getDirectorySize(child);
-        }
-        return total;
-    }
-
-    /**
-     * Returns a node's "size" for `ls -l`-style display purposes: byte
-     * length for files, or immediate child count for directories (not
-     * recursive, unlike getDirectorySize).
-     */
-    function getSize(node) {
-        if (node.type === "file") {
-            return new TextEncoder().encode(node.content || "").length;
-        }
-        if (node.type === "dir") {
-            return Object.keys(node.children || {}).length;
-        }
-        return 0;
-    }
-
-    // Formats a timestamp for `ls -l`-style display (e.g. "Jul 01, 10:00").
-    function formatDate(timestamp) {
-        return new Date(timestamp).toLocaleString("en-CA", {
-            month: "short",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false
-        });
-    }
-
-    /**
-     * Computes the "link count" column shown by `ls -l`. Files always
-     * report 1; directories mimic Unix's convention of 2 (for "." and its
-     * own entry in the parent) plus one for each immediate subdirectory
-     * (each of which has a ".." pointing back).
-     */
-    function getLinkCount(node) {
-        if (node.type === "file") {
-            return 1;
-        }
-        const subdirs = Object.values(node.children || {})
-            .filter(child => child.type === "dir")
-            .length;
-        return 2 + subdirs;
-    }
-
-    /**
-     * Formats a single filesystem entry as an `ls -l` long-format line:
-     * type+permissions, link count, owner, group, size, modified date, name
-     * (with a trailing "/" for dirs, or "-> target" for symlinks).
-     */
-    function formatLongEntry(name, node) {
-        const typeChar = node.type === "dir" ? "d" : node.type === "symlink" ? "l" : node.type === "device" ? "c" : "-";
-        const mode = node.mode;
-        const links = getLinkCount(node);
-        const group = node.group;
-        const size = getDirectorySize(node);
-        const modified = formatDate(node.modified);    const owner = node.owner;
-        return `${typeChar}${mode} ${String(links).padStart(2)} ${owner.padEnd(8)} ${group.padEnd(8)} ${String(size).padStart(6)} ${modified} ${name}${node.type === "dir" ? "/" : ""}${node.type === "symlink" ? ` -> ${node.target}` : ""}`;
-    }
-
-    // Creates a new symlink node pointing at `target` (used by `ln -s`).
-    function createLink(target) {
-        const now = Date.now();
-        return {
-            type: "symlink",
-            target: target,
-            mode: "rwxrwxrwx",
-            owner: DEFAULT_USER,
-            group: DEFAULT_USER,
-            created: now,
-            modified: now
-        };
-    }
-
-    // Creates a new empty file node with default owner/permissions
-    // (used by `touch`, redirection, etc).
-    function createFile(hidden = false) {
-        const now = Date.now();
-        return {
-            type: "file",
-            hidden,
-            mode: "rw-r--r--",
-            owner: DEFAULT_USER,
-            group: DEFAULT_USER,
-            created: now,
-            modified: now,
-            accessed: now,
-            content: ""
-        };
-    }
-
-    // Creates a new empty directory node with default owner/permissions
-    // (used by `mkdir`).
-    function createDirectory(hidden = false) {
-        const now = Date.now();
-        return {
-            type: "dir",
-            hidden,
-            mode: "rwxr-xr-x",
-            owner: DEFAULT_USER,
-            group: DEFAULT_USER,
-            created: now,
-            modified: now,
-            accessed: now,
-            children: {}
-        };
     }
 
     /**
