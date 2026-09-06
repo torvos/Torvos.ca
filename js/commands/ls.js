@@ -12,7 +12,7 @@ registerCommand("ls", {
     options: [
         "-l.   long format with file information",
         "-a.   show hidden files and folders",
-        "-R    apply permissions recursively to contents of a folder."
+        "-R    recursively display contents of folders."
     ],
     examples: [
         "ls -R /",
