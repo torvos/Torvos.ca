@@ -1,16 +1,18 @@
 /**
  * `more` command.
- * Prints a file's content line-by-line directly to the terminal (instead
- * of returning it via stdout), pausing with the "--More--" pager
+ * Prints a file's content - or, with no file argument, whatever's piped
+ * in via stdin - line-by-line directly to the terminal (instead of
+ * returning it via stdout), pausing with the "--More--" pager
  * (terminal.pageBreak) whenever a full screen's worth of lines has been shown.
  */
 registerCommand("more", {
-    name: "View a file one page at a time.",
-    synopsis : "more FILE...",
-    description: "is a terminal utility used to view the contents of a text file one screen or page at a time. It prevents long files or heavy command outputs from flooding your terminal window.",
+    name: "View a file (or piped input) one page at a time.",
+    synopsis : "more [FILE]",
+    description: "is a terminal utility used to view the contents of a text file, or piped command output, one screen or page at a time. It prevents long files or heavy command outputs from flooding your terminal window.",
     options: [],
     examples: [
-        "more resume.md"
+        "more resume.md",
+        "ls -la | more"
     ],
     async execute(terminal, args, stdin) {
         // Print usage info and exit early when --help is passed
@@ -22,41 +24,48 @@ registerCommand("more", {
             };                
         }
         const target = args[0];
-        if (!target) {
+        let lines;
+
+        if (target) {
+            const node = terminal.fs.get(target, terminal.cwd);
+
+            if (!node) {
+                return {
+                    stdout: "",
+                    stderr: `more: no such file: ${target}`,
+                    exitCode: EXIT_FAILURE
+                };        
+            }
+
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                return {
+                    stdout: "",
+                    stderr: `more: ${target}: Permission denied`,
+                    exitCode: EXIT_FAILURE
+                };
+            }
+
+            if (terminal.fs.isDirectory(node)) {
+                return {
+                    stdout: "",
+                    stderr: `more: ${target}: is a directory`,
+                    exitCode: EXIT_FAILURE
+                };
+            }
+
+            node.accessed = Date.now();
+            lines = terminal.fs.readContent(node).split(/\r?\n/);
+        } else if (stdin !== undefined && stdin !== null && stdin !== "") {
+            // No file given, but something was piped in (e.g. `ls -la | more`)
+            // - page through that instead, same as real less/more.
+            lines = stdin.split(/\r?\n/);
+        } else {
             return {
                 stdout: "",
                 stderr: "more: missing file operand",
                 exitCode: EXIT_FAILURE
             };        
         }
-        const node = terminal.fs.get(target, terminal.cwd);
-
-        if (!node) {
-            return {
-                stdout: "",
-                stderr: `more: no such file: ${target}`,
-                exitCode: EXIT_FAILURE
-            };        
-        }
-
-        if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
-            return {
-                stdout: "",
-                stderr: `more: ${target}: Permission denied`,
-                exitCode: EXIT_FAILURE
-            };
-        }
-
-        if (terminal.fs.isDirectory(node)) {
-            return {
-                stdout: "",
-                stderr: `more: ${target}: is a directory`,
-                exitCode: EXIT_FAILURE
-            };
-        }
-
-        node.accessed = Date.now();
-        const lines = terminal.fs.readContent(node).split(/\r?\n/);
 
         // If the whole file fits within one page (or paging isn't
         // configured/available - e.g. pageSize is still 0), there's

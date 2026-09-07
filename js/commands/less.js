@@ -1,18 +1,20 @@
 /**
  * `less` command.
- * Prints a file's content line-by-line directly to the terminal (instead
- * of returning it via stdout), pausing with the "--More--" pager
+ * Prints a file's content - or, with no file argument, whatever's piped
+ * in via stdin - line-by-line directly to the terminal (instead of
+ * returning it via stdout), pausing with the "--More--" pager
  * (terminal.pageBreak) whenever a full screen's worth of lines has been
  * shown. Functionally identical to `more` in this terminal - only
  * forward paging is supported (no backward scrolling or search).
  */
 registerCommand("less", {
-    name: "View a file one page at a time.",
-    synopsis : "less FILE...",
-    description: "is a terminal pager used to view the contents of a text file one screen or page at a time, preventing long files or heavy command outputs from flooding your terminal window. In this shell it behaves the same as `more` (forward paging only).",
+    name: "View a file (or piped input) one page at a time.",
+    synopsis : "less [FILE]",
+    description: "is a terminal pager used to view the contents of a text file, or piped command output, one screen or page at a time, preventing long files or heavy command outputs from flooding your terminal window. In this shell it behaves the same as `more` (forward paging only).",
     options: [],
     examples: [
-        "less resume.md"
+        "less resume.md",
+        "ls -la | less"
     ],
     async execute(terminal, args, stdin) {
         // Print usage info and exit early when --help is passed
@@ -24,41 +26,48 @@ registerCommand("less", {
             };                
         }
         const target = args[0];
-        if (!target) {
+        let lines;
+
+        if (target) {
+            const node = terminal.fs.get(target, terminal.cwd);
+
+            if (!node) {
+                return {
+                    stdout: "",
+                    stderr: `less: no such file: ${target}`,
+                    exitCode: EXIT_FAILURE
+                };        
+            }
+
+            if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
+                return {
+                    stdout: "",
+                    stderr: `less: ${target}: Permission denied`,
+                    exitCode: EXIT_FAILURE
+                };
+            }
+
+            if (terminal.fs.isDirectory(node)) {
+                return {
+                    stdout: "",
+                    stderr: `less: ${target}: is a directory`,
+                    exitCode: EXIT_FAILURE
+                };
+            }
+
+            node.accessed = Date.now();
+            lines = terminal.fs.readContent(node).split(/\r?\n/);
+        } else if (stdin !== undefined && stdin !== null && stdin !== "") {
+            // No file given, but something was piped in (e.g. `ls -la | less`)
+            // - page through that instead, same as real less/more.
+            lines = stdin.split(/\r?\n/);
+        } else {
             return {
                 stdout: "",
                 stderr: "less: missing file operand",
                 exitCode: EXIT_FAILURE
             };        
         }
-        const node = terminal.fs.get(target, terminal.cwd);
-
-        if (!node) {
-            return {
-                stdout: "",
-                stderr: `less: no such file: ${target}`,
-                exitCode: EXIT_FAILURE
-            };        
-        }
-
-        if (terminal.fs.isProtected(target, terminal.cwd) && !terminal.fs.isDevice(node)) {
-            return {
-                stdout: "",
-                stderr: `less: ${target}: Permission denied`,
-                exitCode: EXIT_FAILURE
-            };
-        }
-
-        if (terminal.fs.isDirectory(node)) {
-            return {
-                stdout: "",
-                stderr: `less: ${target}: is a directory`,
-                exitCode: EXIT_FAILURE
-            };
-        }
-
-        node.accessed = Date.now();
-        const lines = terminal.fs.readContent(node).split(/\r?\n/);
 
         // If the whole file fits within one page (or paging isn't
         // configured/available - e.g. pageSize is still 0), there's
