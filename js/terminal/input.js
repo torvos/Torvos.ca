@@ -351,8 +351,44 @@ Object.assign(TerminalEngine.prototype, {
      * command in normal mode, or advancing the username/password login
      * prompt flow. Also persists settings and re-focuses input afterward.
      */
+    /**
+     * Expands "!!" (the previous command) and "!N" (history entry N,
+     * 1-indexed to match how `history` displays it) anywhere they appear
+     * in `input`, matching real bash's basic history expansion. Runs
+     * BEFORE the expanded line is recorded into history or echoed to the
+     * screen, so both reflect the actual command that's about to run
+     * rather than the literal "!!"/"!N" text - and so a reference never
+     * points at itself.
+     * @param {string} input - Raw input line, not yet recorded in history.
+     * @returns {{text: string}|{error: string}} The expanded line, or the
+     *   specific "!..." reference that couldn't be resolved.
+     */
+    expandHistoryReferences(input) {
+        let error = null;
+        const text = input.replace(/(^|\s)!(!|\d+)/g, (match, prefix, ref) => {
+            if (error) return match; // a previous reference already failed
+            let historyText;
+            if (ref === "!") {
+                if (this.history.length === 0) {
+                    error = "!!";
+                    return match;
+                }
+                historyText = this.history[this.history.length - 1];
+            } else {
+                const n = parseInt(ref, 10);
+                if (n < 1 || n > this.history.length) {
+                    error = `!${ref}`;
+                    return match;
+                }
+                historyText = this.history[n - 1];
+            }
+            return prefix + historyText;
+        });
+        return error ? { error } : { text };
+    },
+
     async handleEnter() {
-        const input = this.currentInput.trim();
+        let input = this.currentInput.trim();
 
         switch (this.inputMode) {
             case INPUT_NORMAL:
@@ -369,21 +405,39 @@ Object.assign(TerminalEngine.prototype, {
                     location.reload();
                     return;
                 } 
-                // Record the command in history (capped to MAX_HISTORY entries)
-                this.history.push(input);
-                const MAX_HISTORY = 1000;
-                if (this.history.length > MAX_HISTORY) {
-                    this.history.shift();
+
+                // History expansion ("!!", "!N") - resolved before this
+                // line is recorded into history or echoed, so both show
+                // the actual command rather than the literal reference.
+                let historyExpansionFailed = false;
+                if (input.includes("!")) {
+                    const expansion = this.expandHistoryReferences(input);
+                    if (expansion.error) {
+                        historyExpansionFailed = true;
+                        this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$ ${input}`);
+                        this.write(this.formatErrorLine(`${expansion.error}: event not found`));
+                    } else {
+                        input = expansion.text;
+                    }
                 }
-                this.historyIndex = this.history.length;
-                this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$ ${input}`);
-    
-                // Hide the live input line while the command runs, then restore it
-                document.getElementById("input-line").classList.add("hidden");
-                try {
-                    await this.execute(input);
-                } finally {
-                    document.getElementById("input-line").classList.remove("hidden");
+
+                if (!historyExpansionFailed) {
+                    // Record the command in history (capped to MAX_HISTORY entries)
+                    this.history.push(input);
+                    const MAX_HISTORY = 1000;
+                    if (this.history.length > MAX_HISTORY) {
+                        this.history.shift();
+                    }
+                    this.historyIndex = this.history.length;
+                    this.write(`${DEFAULT_USER}@${HOSTNAME}:${this.cwd}$ ${input}`);
+
+                    // Hide the live input line while the command runs, then restore it
+                    document.getElementById("input-line").classList.add("hidden");
+                    try {
+                        await this.execute(input);
+                    } finally {
+                        document.getElementById("input-line").classList.remove("hidden");
+                    }
                 }
                 this.hiddenInput.focus();
                 this.currentInput = "";
