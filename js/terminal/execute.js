@@ -78,304 +78,318 @@ Object.assign(TerminalEngine.prototype, {
                 .filter(Boolean);
 
             for (const rawGroup of commandGroups) {
-                // Expand $VAR, $?, and $((arithmetic)) references first.
-                let group = this.expandArithmetic(this.expandVariables(rawGroup));
-
-                // A lone "NAME=value" is a variable assignment. This must be
-                // detected BEFORE resolving $(...) command substitution and
-                // BEFORE splitting on "|": like real shells, the right-hand
-                // side of an assignment is never word-split, so a substituted
-                // value's own ";"/"|" characters (e.g. `x=$(cat file)` where
-                // the file contains a pipe) must not be reinterpreted here as
-                // pipe/statement separators.
-                const assignMatch = group.match(/^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/);
-
-                if (assignMatch) {
-                    const varName = assignMatch[1];
-                    let varValue = await this.expandCommandSubstitution(assignMatch[2]);
-                    const isAnsiC =
-                        varValue.startsWith("$'") && varValue.endsWith("'") && varValue.length >= 3;
-                    const isQuoted =
-                        (varValue.startsWith('"') && varValue.endsWith('"') && varValue.length >= 2) ||
-                        (varValue.startsWith("'") && varValue.endsWith("'") && varValue.length >= 2);
-                    if (isAnsiC) {
-                        varValue = this.expandAnsiCEscapes(varValue.slice(2, -1));
-                    } else if (isQuoted) {
-                        varValue = varValue.slice(1, -1);
+                for (const segment of this.splitAndOr(rawGroup)) {
+                    // "&&" only runs if the previous segment succeeded;
+                    // "||" only runs if it failed. The very first segment
+                    // (op === null) always runs. Skipping still lets the
+                    // OUTER for-loop reach any later segments - matching
+                    // real bash, e.g. `false && echo a || echo b` runs
+                    // "echo b" even though "echo a" is skipped.
+                    if (segment.op === "&&" && this.lastExitCode !== EXIT_SUCCESS) {
+                        continue;
                     }
-                    this.env[varName] = varValue;
-                    this.lastExitCode = EXIT_SUCCESS;
-                    continue; // nothing further to execute for this group
-                }
+                    if (segment.op === "||" && this.lastExitCode === EXIT_SUCCESS) {
+                        continue;
+                    }
+                    // Expand $VAR, $?, and $((arithmetic)) references first.
+                    let group = this.expandArithmetic(this.expandVariables(segment.text));
 
-                // Not an assignment - resolve $(...) command substitution now.
-                group = await this.expandCommandSubstitution(group);
+                    // A lone "NAME=value" is a variable assignment. This must be
+                    // detected BEFORE resolving $(...) command substitution and
+                    // BEFORE splitting on "|": like real shells, the right-hand
+                    // side of an assignment is never word-split, so a substituted
+                    // value's own ";"/"|" characters (e.g. `x=$(cat file)` where
+                    // the file contains a pipe) must not be reinterpreted here as
+                    // pipe/statement separators.
+                    const assignMatch = group.match(/^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/);
 
-                // Split on unquoted "|" to build the pipeline stages
-                const pipeline = this.splitTopLevel(group, "|")
-                    .map(cmd => cmd.trim())
-                    .filter(Boolean);
-
-                let stdin = ""; // piped input carried between pipeline stages
-
-                for (let index = 0; index < pipeline.length; index++) {
-                    const parsed = this.parseCommand(pipeline[index]);
-                    const cmd = parsed.cmd;
-
-                    // Expand any wildcard args (*, ?) against the filesystem;
-                    // args with no matches are passed through literally, but
-                    // flagged via lastExpansionEmpty if they looked like a glob.
-                    let args = [];
-                    for (const arg of parsed.args) {
-                        const expanded = this.fs.expandWildcards(arg, this.cwd);
-                        if (expanded.length > 0) {
-                            args.push(...expanded);
-                        } else {
-                            if (arg.includes("*") || arg.includes("?")) {
-                                this.lastExpansionEmpty = true;
-                            }
-                            args.push(arg);
+                    if (assignMatch) {
+                        const varName = assignMatch[1];
+                        let varValue = await this.expandCommandSubstitution(assignMatch[2]);
+                        const isAnsiC =
+                            varValue.startsWith("$'") && varValue.endsWith("'") && varValue.length >= 3;
+                        const isQuoted =
+                            (varValue.startsWith('"') && varValue.endsWith('"') && varValue.length >= 2) ||
+                            (varValue.startsWith("'") && varValue.endsWith("'") && varValue.length >= 2);
+                        if (isAnsiC) {
+                            varValue = this.expandAnsiCEscapes(varValue.slice(2, -1));
+                        } else if (isQuoted) {
+                            varValue = varValue.slice(1, -1);
                         }
-                    }                    
-                    const redirects = parsed.redirects;
-
-                    // Input redirection (`< file`) - read the file's content as stdin
-                    if (redirects.operator === "<") {
-                        const node = this.fs.get(redirects.target, this.cwd);
-                        if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
-                            stdin = "";
-                            if (index === pipeline.length - 1) {
-                                emitErrorLineImmediate(`${redirects.target}: No such file`);
-                            }
-                            break;
-                        }
-                        // Reading a protected, non-device file (e.g. /bin/ls)
-                        // is blocked - reading an existing device (e.g.
-                        // /dev/random) is exactly what it's there for.
-                        if (this.fs.isProtected(redirects.target, this.cwd) && !this.fs.isDevice(node)) {
-                            stdin = "";
-                            if (index === pipeline.length - 1) {
-                                emitErrorLineImmediate(`${redirects.target}: Permission denied`);
-                            }
-                            break;
-                        }
-                        stdin = this.fs.readContent(node);
+                        this.env[varName] = varValue;
+                        this.lastExitCode = EXIT_SUCCESS;
+                        continue; // nothing further to execute for this group
                     }
 
-                    let result;
+                    // Not an assignment - resolve $(...) command substitution now.
+                    group = await this.expandCommandSubstitution(group);
 
-                    const command = window.Commands?.[cmd];
+                    // Split on unquoted "|" to build the pipeline stages
+                    const pipeline = this.splitTopLevel(group, "|")
+                        .map(cmd => cmd.trim())
+                        .filter(Boolean);
 
-                    // Tells a command (currently only sh.js pays attention
-                    // to this) whether ANYTHING will actually consume its
-                    // returned stdout/stderr - a later pipe stage, an
-                    // output/error redirect on this stage, or (if this
-                    // whole execute() call is itself running in capture
-                    // mode, e.g. a script statement inside an outer script
-                    // that's being piped/redirected) the caller of THIS
-                    // execute() call. If nothing does, output can be
-                    // written live to the screen as it's produced instead
-                    // of being held until the command fully finishes.
-                    this._pipeOutputConsumed =
-                        capture ||
-                        index < pipeline.length - 1 ||
-                        redirects.operator === ">" || redirects.operator === ">>" ||
-                        redirects.operator === "2>" || redirects.operator === "2>>";
+                    let stdin = ""; // piped input carried between pipeline stages
 
-                    if (command?.execute) {
-                        // Registered built-in command - run its execute() handler
-                        try {
-                            result = await command.execute(
-                                this,
-                                args,
-                                stdin
-                            );
-                        } catch (err) {
+                    for (let index = 0; index < pipeline.length; index++) {
+                        const parsed = this.parseCommand(pipeline[index]);
+                        const cmd = parsed.cmd;
+
+                        // Expand any wildcard args (*, ?) against the filesystem;
+                        // args with no matches are passed through literally, but
+                        // flagged via lastExpansionEmpty if they looked like a glob.
+                        let args = [];
+                        for (const arg of parsed.args) {
+                            const expanded = this.fs.expandWildcards(arg, this.cwd);
+                            if (expanded.length > 0) {
+                                args.push(...expanded);
+                            } else {
+                                if (arg.includes("*") || arg.includes("?")) {
+                                    this.lastExpansionEmpty = true;
+                                }
+                                args.push(arg);
+                            }
+                        }                    
+                        const redirects = parsed.redirects;
+
+                        // Input redirection (`< file`) - read the file's content as stdin
+                        if (redirects.operator === "<") {
+                            const node = this.fs.get(redirects.target, this.cwd);
+                            if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
+                                stdin = "";
+                                if (index === pipeline.length - 1) {
+                                    emitErrorLineImmediate(`${redirects.target}: No such file`);
+                                }
+                                break;
+                            }
+                            // Reading a protected, non-device file (e.g. /bin/ls)
+                            // is blocked - reading an existing device (e.g.
+                            // /dev/random) is exactly what it's there for.
+                            if (this.fs.isProtected(redirects.target, this.cwd) && !this.fs.isDevice(node)) {
+                                stdin = "";
+                                if (index === pipeline.length - 1) {
+                                    emitErrorLineImmediate(`${redirects.target}: Permission denied`);
+                                }
+                                break;
+                            }
+                            stdin = this.fs.readContent(node);
+                        }
+
+                        let result;
+
+                        const command = window.Commands?.[cmd];
+
+                        // Tells a command (currently only sh.js pays attention
+                        // to this) whether ANYTHING will actually consume its
+                        // returned stdout/stderr - a later pipe stage, an
+                        // output/error redirect on this stage, or (if this
+                        // whole execute() call is itself running in capture
+                        // mode, e.g. a script statement inside an outer script
+                        // that's being piped/redirected) the caller of THIS
+                        // execute() call. If nothing does, output can be
+                        // written live to the screen as it's produced instead
+                        // of being held until the command fully finishes.
+                        this._pipeOutputConsumed =
+                            capture ||
+                            index < pipeline.length - 1 ||
+                            redirects.operator === ">" || redirects.operator === ">>" ||
+                            redirects.operator === "2>" || redirects.operator === "2>>";
+
+                        if (command?.execute) {
+                            // Registered built-in command - run its execute() handler
+                            try {
+                                result = await command.execute(
+                                    this,
+                                    args,
+                                    stdin
+                                );
+                            } catch (err) {
+                                result = {
+                                    stdout: "",
+                                    stderr: `${cmd}: ${err.message}`,
+                                    exitCode: EXIT_FAILURE
+                                };
+                            }
+                            // Commands that can write to the virtual filesystem
+                            // (rm, mv, cp, mkdir, ...) declare `mutatesFilesystem: true`
+                            // on their registration - mark the session dirty so
+                            // saveSettings() knows to persist it. Marked regardless
+                            // of exit code: a partially-failed multi-target command
+                            // (e.g. `rm -f a b` where only `a` exists) can still have
+                            // mutated the filesystem before reporting an error.
+                            if (command.mutatesFilesystem) {
+                                this.fsDirty = true;
+                            }
+                        }
+                        else if (cmd.includes("/")) {
+                            // Not a built-in, but looks like a path (e.g. "./script.sh")
+                            // - try to run it as a shell script via the `sh` command
+                            try {
+                                result = await window.Commands.sh.runScript(
+                                    this,
+                                    cmd,
+                                    args,
+                                    { trace: this.env.SCRIPTDEBUG, label: cmd }
+                                );
+                            } catch (err) {
+                                result = {
+                                    stdout: "",
+                                    stderr: `${cmd}: ${err.message}`,
+                                    exitCode: EXIT_FAILURE
+                                };
+                            }
+                        }
+                        else {
+                            // Not a known command and not a path -> classic shell error
                             result = {
-                                stdout: "",
-                                stderr: `${cmd}: ${err.message}`,
-                                exitCode: EXIT_FAILURE
+                                stdout:"",
+                                stderr:`command not found: ${cmd}`,
+                                exitCode: EXIT_COMMAND_NOT_FOUND
                             };
                         }
-                        // Commands that can write to the virtual filesystem
-                        // (rm, mv, cp, mkdir, ...) declare `mutatesFilesystem: true`
-                        // on their registration - mark the session dirty so
-                        // saveSettings() knows to persist it. Marked regardless
-                        // of exit code: a partially-failed multi-target command
-                        // (e.g. `rm -f a b` where only `a` exists) can still have
-                        // mutated the filesystem before reporting an error.
-                        if (command.mutatesFilesystem) {
-                            this.fsDirty = true;
-                        }
-                    }
-                    else if (cmd.includes("/")) {
-                        // Not a built-in, but looks like a path (e.g. "./script.sh")
-                        // - try to run it as a shell script via the `sh` command
-                        try {
-                            result = await window.Commands.sh.runScript(
-                                this,
-                                cmd,
-                                args,
-                                { trace: this.env.SCRIPTDEBUG, label: cmd }
-                            );
-                        } catch (err) {
+
+                        // Normalize a plain string return value into the standard
+                        // {stdout, stderr, exitCode} result shape
+                        if (typeof result === "string") {
                             result = {
-                                stdout: "",
-                                stderr: `${cmd}: ${err.message}`,
-                                exitCode: EXIT_FAILURE
+                                stdout: result,
+                                stderr:"",
+                                exitCode: EXIT_SUCCESS
                             };
                         }
-                    }
-                    else {
-                        // Not a known command and not a path -> classic shell error
-                        result = {
-                            stdout:"",
-                            stderr:`command not found: ${cmd}`,
-                            exitCode: EXIT_COMMAND_NOT_FOUND
-                        };
-                    }
 
-                    // Normalize a plain string return value into the standard
-                    // {stdout, stderr, exitCode} result shape
-                    if (typeof result === "string") {
-                        result = {
-                            stdout: result,
-                            stderr:"",
-                            exitCode: EXIT_SUCCESS
-                        };
-                    }
+                        result.stdout ??= "";
+                        result.stderr ??= "";
+                        result.exitCode ??= 0;
+                        this.lastExitCode = result.exitCode;
+                        let redirectreturn = "";
 
-                    result.stdout ??= "";
-                    result.stderr ??= "";
-                    result.exitCode ??= 0;
-                    this.lastExitCode = result.exitCode;
-                    let redirectreturn = "";
-
-                    // Apply output redirection, if any, writing stdout/stderr to a file instead.
-                    // On success, the redirected stream is cleared from `result` so it isn't
-                    // ALSO printed to the terminal below - real shells never show output on
-                    // screen once it's been redirected to a file. The exit code is untouched
-                    // either way (a command's success/failure isn't affected by where its
-                    // output went); only the failure branch below still surfaces text, since
-                    // that's reporting a NEW error (e.g. an invalid path) about the redirect
-                    // itself, not the original command's output.
-                    switch (redirects.operator) {
-                        case ">":
-                            redirectreturn = this.writeRedirect(
-                                redirects.target,
-                                result.stdout,
-                                false
-                            );
-                            if (typeof redirectreturn === 'string'){
-                                result.stderr = redirectreturn;
-                                result.exitCode = EXIT_FAILURE;
-                            } else {
-                                result.stdout = "";
-                            }
-                            break;
-                        case ">>":
-                            redirectreturn = this.writeRedirect(
-                                redirects.target,
-                                result.stdout,
-                                true
-                            );
-                            if (typeof redirectreturn === 'string'){
-                                result.stderr = redirectreturn;
-                                result.exitCode = EXIT_FAILURE;
-                            } else {
-                                result.stdout = "";
-                            }
-                            break;
-                        case "2>":
-                            redirectreturn = this.writeRedirect(
-                                redirects.target,
-                                result.stderr,
-                                false
-                            );
-                            if (typeof redirectreturn === 'string'){
-                                result.stderr = redirectreturn;
-                                result.exitCode = EXIT_FAILURE;
-                            } else {
-                                result.stderr = "";
-                            }
-                            break;
-                        case "2>>":
-                            redirectreturn = this.writeRedirect(
-                                redirects.target,
-                                result.stderr,
-                                true
-                            );
-                            if (typeof redirectreturn === 'string'){
-                                result.stderr = redirectreturn;
-                                result.exitCode = EXIT_FAILURE;
-                            } else {
-                                result.stderr = "";
-                            }
-                            break;
-                    }
-
-                    this.lastExitCode = result.exitCode;
-
-                    // Only the LAST stage's stdout is actually printed to the
-                    // terminal (earlier stages' output is consumed by the next
-                    // stage in the pipe). This happens regardless of exit code:
-                    // a non-zero exit (e.g. `diff` reporting differences, or
-                    // `grep -c` reporting zero matches) isn't necessarily an
-                    // error - real shells still print stdout in that case, they
-                    // just also surface the exit code via $? and stop further
-                    // `&&` chaining. This must run BEFORE the error handling
-                    // below, or a non-zero exit would swallow stdout entirely.
-                    if (index === pipeline.length - 1 && result.stdout) {
-                        const lines = result.stdout.split(/\r?\n/);
-                        // A command can optionally return `stdoutSegments`
-                        // - an array of colored { text, color } segments
-                        // per line, parallel to `stdout`'s lines - to
-                        // color parts of its output (e.g. ls coloring
-                        // directory names). Only used for display; piping
-                        // and redirection always use the plain `stdout`
-                        // string above, untouched. If a command's
-                        // stdoutSegments doesn't line up 1:1 with its own
-                        // stdout (a bug in that command), ignore it
-                        // entirely and fall back to plain rendering
-                        // rather than risk printing mismatched/missing
-                        // lines.
-                        const validSegments =
-                            Array.isArray(result.stdoutSegments) &&
-                            result.stdoutSegments.length === lines.length;
-                        for (let i = 0; i < lines.length; i++) {
-                            const segments = validSegments
-                                ? result.stdoutSegments[i]
-                                : undefined;
-                            await emit(
-                                segments ?? lines[i],
-                                { color: COLOR_STDOUT }
-                            );
+                        // Apply output redirection, if any, writing stdout/stderr to a file instead.
+                        // On success, the redirected stream is cleared from `result` so it isn't
+                        // ALSO printed to the terminal below - real shells never show output on
+                        // screen once it's been redirected to a file. The exit code is untouched
+                        // either way (a command's success/failure isn't affected by where its
+                        // output went); only the failure branch below still surfaces text, since
+                        // that's reporting a NEW error (e.g. an invalid path) about the redirect
+                        // itself, not the original command's output.
+                        switch (redirects.operator) {
+                            case ">":
+                                redirectreturn = this.writeRedirect(
+                                    redirects.target,
+                                    result.stdout,
+                                    false
+                                );
+                                if (typeof redirectreturn === 'string'){
+                                    result.stderr = redirectreturn;
+                                    result.exitCode = EXIT_FAILURE;
+                                } else {
+                                    result.stdout = "";
+                                }
+                                break;
+                            case ">>":
+                                redirectreturn = this.writeRedirect(
+                                    redirects.target,
+                                    result.stdout,
+                                    true
+                                );
+                                if (typeof redirectreturn === 'string'){
+                                    result.stderr = redirectreturn;
+                                    result.exitCode = EXIT_FAILURE;
+                                } else {
+                                    result.stdout = "";
+                                }
+                                break;
+                            case "2>":
+                                redirectreturn = this.writeRedirect(
+                                    redirects.target,
+                                    result.stderr,
+                                    false
+                                );
+                                if (typeof redirectreturn === 'string'){
+                                    result.stderr = redirectreturn;
+                                    result.exitCode = EXIT_FAILURE;
+                                } else {
+                                    result.stderr = "";
+                                }
+                                break;
+                            case "2>>":
+                                redirectreturn = this.writeRedirect(
+                                    redirects.target,
+                                    result.stderr,
+                                    true
+                                );
+                                if (typeof redirectreturn === 'string'){
+                                    result.stderr = redirectreturn;
+                                    result.exitCode = EXIT_FAILURE;
+                                } else {
+                                    result.stderr = "";
+                                }
+                                break;
                         }
-                    }
 
-                    if (result.exitCode !== 0) {
-                        // Non-zero exit: print stderr (line by line, with a
-                        // small delay for effect). This does NOT stop the
-                        // rest of the pipeline - a real shell pipe runs every
-                        // stage regardless of an earlier stage's exit code
-                        // (only the pipe's overall exit status, via
-                        // this.lastExitCode above, reflects the LAST stage).
-                        // `false | echo hi` must still run `echo hi`, and
-                        // `sh script.sh | grep x` must still run `grep` even
-                        // if the script's last command failed (sh's own exit
-                        // code is that command's, per its execute() below).
-                        if (result.stderr) {
-                            const lines = result.stderr.split(/\r?\n/);
-                            for (const line of lines) {
-                                await emitErrorLine(line);
+                        this.lastExitCode = result.exitCode;
+
+                        // Only the LAST stage's stdout is actually printed to the
+                        // terminal (earlier stages' output is consumed by the next
+                        // stage in the pipe). This happens regardless of exit code:
+                        // a non-zero exit (e.g. `diff` reporting differences, or
+                        // `grep -c` reporting zero matches) isn't necessarily an
+                        // error - real shells still print stdout in that case, they
+                        // just also surface the exit code via $? and stop further
+                        // `&&` chaining. This must run BEFORE the error handling
+                        // below, or a non-zero exit would swallow stdout entirely.
+                        if (index === pipeline.length - 1 && result.stdout) {
+                            const lines = result.stdout.split(/\r?\n/);
+                            // A command can optionally return `stdoutSegments`
+                            // - an array of colored { text, color } segments
+                            // per line, parallel to `stdout`'s lines - to
+                            // color parts of its output (e.g. ls coloring
+                            // directory names). Only used for display; piping
+                            // and redirection always use the plain `stdout`
+                            // string above, untouched. If a command's
+                            // stdoutSegments doesn't line up 1:1 with its own
+                            // stdout (a bug in that command), ignore it
+                            // entirely and fall back to plain rendering
+                            // rather than risk printing mismatched/missing
+                            // lines.
+                            const validSegments =
+                                Array.isArray(result.stdoutSegments) &&
+                                result.stdoutSegments.length === lines.length;
+                            for (let i = 0; i < lines.length; i++) {
+                                const segments = validSegments
+                                    ? result.stdoutSegments[i]
+                                    : undefined;
+                                await emit(
+                                    segments ?? lines[i],
+                                    { color: COLOR_STDOUT }
+                                );
                             }
                         }
-                    }
 
-                    // Stage's stdout (possibly empty, if it failed) becomes
-                    // stdin for the next pipeline stage, same as a real
-                    // shell pipe - regardless of this stage's exit code.
-                    stdin = result.stdout;
+                        if (result.exitCode !== 0) {
+                            // Non-zero exit: print stderr (line by line, with a
+                            // small delay for effect). This does NOT stop the
+                            // rest of the pipeline - a real shell pipe runs every
+                            // stage regardless of an earlier stage's exit code
+                            // (only the pipe's overall exit status, via
+                            // this.lastExitCode above, reflects the LAST stage).
+                            // `false | echo hi` must still run `echo hi`, and
+                            // `sh script.sh | grep x` must still run `grep` even
+                            // if the script's last command failed (sh's own exit
+                            // code is that command's, per its execute() below).
+                            if (result.stderr) {
+                                const lines = result.stderr.split(/\r?\n/);
+                                for (const line of lines) {
+                                    await emitErrorLine(line);
+                                }
+                            }
+                        }
+
+                        // Stage's stdout (possibly empty, if it failed) becomes
+                        // stdin for the next pipeline stage, same as a real
+                        // shell pipe - regardless of this stage's exit code.
+                        stdin = result.stdout;
+                    }
                 }
             }
         }

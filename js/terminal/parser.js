@@ -236,6 +236,73 @@ Object.assign(TerminalEngine.prototype, {
     },
 
     /**
+     * Splits `str` into a list of {op, text} segments on top-level
+     * (unquoted, unescaped) "&&" and "||" operators - the pieces of an
+     * AND-OR list, evaluated left to right with short-circuiting based on
+     * each segment's exit code (see the matching loop in execute.js).
+     * `op` is null for the first segment, and "&&"/"||" for every segment
+     * after that (the operator that PRECEDES it, i.e. the one deciding
+     * whether that segment runs at all). Quote/escape handling mirrors
+     * splitTopLevel() exactly, so e.g. `echo "a && b"` is one segment,
+     * not two.
+     * @param {string} str - Input string, e.g. "cmd1 && cmd2 || cmd3".
+     * @returns {{op: string|null, text: string}[]}
+     */
+    splitAndOr(str) {
+        const parts = [];
+        let current = "";
+        let currentOp = null;
+        let inSingle = false;
+        let inDouble = false;
+
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                const next = str[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    current += ch + next;
+                    i++;
+                    continue;
+                }
+            }
+
+            if (inSingle) {
+                current += ch;
+                if (ch === "'") inSingle = false;
+                continue;
+            }
+            if (inDouble) {
+                current += ch;
+                if (ch === '"') inDouble = false;
+                continue;
+            }
+            if (ch === "'") {
+                inSingle = true;
+                current += ch;
+                continue;
+            }
+            if (ch === '"') {
+                inDouble = true;
+                current += ch;
+                continue;
+            }
+
+            if ((ch === "&" || ch === "|") && str[i + 1] === ch) {
+                parts.push({ op: currentOp, text: current.trim() });
+                currentOp = ch + ch; // "&&" or "||"
+                current = "";
+                i++; // consume the second character of the operator too
+                continue;
+            }
+
+            current += ch;
+        }
+        parts.push({ op: currentOp, text: current.trim() });
+        return parts;
+    },
+
+    /**
      * Replaces every character inside single/double quotes with "x", while
      * leaving quote characters and unquoted text untouched. Used so regexes
      * like the redirect-operator matcher can safely scan for unquoted
