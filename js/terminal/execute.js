@@ -133,21 +133,26 @@ Object.assign(TerminalEngine.prototype, {
 
                     for (let index = 0; index < pipeline.length; index++) {
                         const parsed = this.parseCommand(pipeline[index]);
-                        const cmd = parsed.cmd;
+                        const cmd = this.restoreGlobChars(parsed.cmd);
 
                         // Expand any wildcard args (*, ?) against the filesystem;
                         // args with no matches are passed through literally, but
                         // flagged via lastExpansionEmpty if they looked like a glob.
+                        // A "*"/"?" that came from inside quotes was already swapped
+                        // for an inert placeholder by tokenize() (see the comment
+                        // there), so it doesn't trigger expansion here at all -
+                        // restoreGlobChars() below swaps it back to the real
+                        // character right before the command actually sees it.
                         let args = [];
                         for (const arg of parsed.args) {
                             const expanded = this.fs.expandWildcards(arg, this.cwd);
                             if (expanded.length > 0) {
-                                args.push(...expanded);
+                                args.push(...expanded.map((a) => this.restoreGlobChars(a)));
                             } else {
                                 if (arg.includes("*") || arg.includes("?")) {
                                     this.lastExpansionEmpty = true;
                                 }
-                                args.push(arg);
+                                args.push(this.restoreGlobChars(arg));
                             }
                         }                    
                         const redirects = parsed.redirects;
@@ -420,11 +425,12 @@ Object.assign(TerminalEngine.prototype, {
 
         for (const stage of pipeline) {
             const parsed = this.parseCommand(stage);
-            const cmd = parsed.cmd;
+            const cmd = this.restoreGlobChars(parsed.cmd);
             let args = [];
             for (const arg of parsed.args) {
                 const expandedArg = this.fs.expandWildcards(arg, this.cwd);
-                args.push(...(expandedArg.length > 0 ? expandedArg : [arg]));
+                const pieces = expandedArg.length > 0 ? expandedArg : [arg];
+                args.push(...pieces.map((a) => this.restoreGlobChars(a)));
             }
 
             const command = window.Commands?.[cmd];

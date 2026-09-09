@@ -425,6 +425,24 @@ Object.assign(TerminalEngine.prototype, {
     },
 
     /**
+     * Reverses the placeholder substitution tokenize() applies to a
+     * quoted or backslash-escaped "*"/"?" (see the comment there) - swaps
+     * GLOB_STAR_PLACEHOLDER/GLOB_QUESTION_PLACEHOLDER back to the real
+     * characters. Called on the command name and every argument right
+     * after wildcard expansion has had its chance to run, so a command
+     * actually receives the literal "*"/"?" it was given (e.g. find's
+     * own -name matching, or a filename to create) rather than the
+     * placeholder.
+     * @param {string} str
+     * @returns {string}
+     */
+    restoreGlobChars(str) {
+        return str
+            .replace(new RegExp(GLOB_STAR_PLACEHOLDER, "g"), "*")
+            .replace(new RegExp(GLOB_QUESTION_PLACEHOLDER, "g"), "?");
+    },
+
+    /**
      * Splits a command line into individual argument tokens, honoring
      * single quotes (literal, no escapes at all), double quotes (mostly
      * literal, but "\" still escapes $ ` " \ and newline), bash-style
@@ -448,6 +466,18 @@ Object.assign(TerminalEngine.prototype, {
         let inDouble = false;
         let hasToken = false; // tracks whether `current` holds a token-in-progress (handles "")
 
+        // A "*" or "?" that came from inside quotes or via backslash-
+        // escape is real, literal text - not a wildcard - so it's
+        // substituted with an inert placeholder here and swapped back to
+        // the real character right before a command actually receives
+        // the argument (see restoreGlobChars() in execute.js). Without
+        // this, something like `find . -name "*.txt"` can't tell its
+        // quoted "*" apart from an unquoted one, and ends up having it
+        // expanded against real filenames before find.js ever sees it -
+        // exactly backwards from what quoting a glob pattern is for.
+        const protectGlob = (ch) =>
+            ch === "*" ? GLOB_STAR_PLACEHOLDER : ch === "?" ? GLOB_QUESTION_PLACEHOLDER : ch;
+
         for (let i = 0; i < command.length; i++) {
             const ch = command[i];
 
@@ -455,7 +485,7 @@ Object.assign(TerminalEngine.prototype, {
                 if (ch === "'") {
                     inSingle = false;
                 } else {
-                    current += ch;
+                    current += protectGlob(ch);
                 }
                 continue;
             }
@@ -468,7 +498,7 @@ Object.assign(TerminalEngine.prototype, {
             if (ch === "\\" && i + 1 < command.length) {
                 const next = command[i + 1];
                 if (!inDouble || "$`\"\\\n".includes(next)) {
-                    current += next;
+                    current += protectGlob(next);
                     hasToken = true;
                     i++;
                     continue;
@@ -479,7 +509,7 @@ Object.assign(TerminalEngine.prototype, {
                 if (ch === '"') {
                     inDouble = false;
                 } else {
-                    current += ch;
+                    current += protectGlob(ch);
                 }
                 continue;
             }
@@ -498,7 +528,9 @@ Object.assign(TerminalEngine.prototype, {
                         j++;
                     }
                 }
-                current += this.expandAnsiCEscapes(raw);
+                current += this.expandAnsiCEscapes(raw)
+                    .replace(/\*/g, GLOB_STAR_PLACEHOLDER)
+                    .replace(/\?/g, GLOB_QUESTION_PLACEHOLDER);
                 i = j;
                 continue;
             }

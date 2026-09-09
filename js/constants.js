@@ -49,3 +49,14 @@ const PAGER_SCROLL_DELAY_MS = 20;   // delay between each line when less/more sc
 // drift out of sync with each other.
 const STORAGE_KEY_SETTINGS = "terminalSettings";
 const STORAGE_KEY_FILESYSTEM = "FileSystem";
+
+// Private-Use-Area placeholders the tokenizer substitutes for a literal
+// "*"/"?" that came from inside quotes (or via backslash-escape) - so a
+// quoted glob character can pass all the way through wildcard expansion
+// as inert text instead of being treated as a wildcard, then get
+// swapped back to the real character right before a command sees it.
+// See tokenize() in parser.js and the restoreGlobChars() call sites in
+// execute.js for the two ends of this. Chosen from the Private Use Area
+// specifically because real user input can never contain them.
+const GLOB_STAR_PLACEHOLDER = "\uE000";
+const GLOB_QUESTION_PLACEHOLDER = "\uE001";

@@ -54,12 +54,6 @@ what gets printed, since `run()`'s own capture only wraps `execute()`).
 
 ## Known gaps
 
-- `find.test.js` has a note on two tests that work around a real,
-  separate bug: quoting a wildcard pattern (`find . -name "*.txt"`)
-  doesn't currently protect it from the shell's own glob expansion,
-  because quote information is lost by the time arguments reach that
-  expansion step. Worth fixing on its own - see the comment in that file
-  for a minimal repro (`echo "*.txt"` expands when it shouldn't).
 - Coverage here is a curated set of the highest-value regressions from
   this project's history, not exhaustive - most commands don't have
   tests yet. Good candidates for next additions: `sort`, `uniq`, `diff`,
