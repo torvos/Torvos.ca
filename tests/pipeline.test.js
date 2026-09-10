@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("pipeline: a stage's exit code doesn't abort the rest of the pipe");
 
@@ -31,3 +34,5 @@ test("a failed grep mid-pipe still lets the pipeline continue", async () => {
     const r = await run("echo hi | grep nomatch | echo after");
     assertEqual(r.stdout, "after");
 });
+
+})();

@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual, makeFile } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual, makeFile } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("less/more: can be piped into, not just given a direct file argument");
 
@@ -34,3 +37,5 @@ test("a file argument takes priority over stdin if both are present", async () =
     const r = await run('echo "from stdin" | less a.txt');
     assertEqual(r.stdout, "from the file\n");
 });
+
+})();

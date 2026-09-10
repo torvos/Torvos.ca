@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual, makeFile, makeDir, terminal, FileSystemAPI } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual, makeFile, makeDir, terminal, FileSystemAPI } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("chmod: symbolic mode syntax");
 
@@ -57,3 +60,5 @@ test("-R recursion still works, including with a dash-leading mode", async () =>
     await run("chmod -R -w adir");
     assertEqual(FileSystemAPI.get("adir/inner.txt", terminal.cwd).mode, "r-xr-xr-x");
 });
+
+})();

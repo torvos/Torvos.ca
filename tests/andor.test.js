@@ -1,4 +1,7 @@
-const { describe, test, run, assertEqual, makeFile } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assertEqual, makeFile } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("&& / || conditional chaining");
 
@@ -62,3 +65,5 @@ test("&& works inside a script too", async () => {
     const r = await run("sh andor.sh");
     assertEqual(r.stdout, "from-script");
 });
+
+})();

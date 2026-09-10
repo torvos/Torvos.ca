@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual, makeFile, terminal, FileSystemAPI } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual, makeFile, terminal, FileSystemAPI } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("quoting a wildcard pattern protects it from shell-level glob expansion");
 
@@ -64,3 +67,5 @@ test("a quoted glob that matches no real files stays literal (no expansion-empty
     const r = await run('echo "nomatch*.xyz"');
     assertEqual(r.stdout, "nomatch*.xyz");
 });
+
+})();

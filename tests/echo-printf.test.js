@@ -1,4 +1,7 @@
-const { describe, test, run, assertEqual } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assertEqual } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 // Character codes, not escaped-string literals, so there's no ambiguity
 // about how many backslashes are actually meant (this exact class of
@@ -46,3 +49,5 @@ test("printf: same double-backslash handling as echo -e", async () => {
     const r = await run(`printf '${arg}'`);
     assertEqual(JSON.stringify(codes(r.stdout)), JSON.stringify([92, 110]));
 });
+
+})();

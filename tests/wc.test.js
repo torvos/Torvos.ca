@@ -1,4 +1,7 @@
-const { describe, test, run, assertEqual, makeFile } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assertEqual, makeFile } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("wc: line counting matches real `wc -l` semantics (counts newlines, not split segments)");
 
@@ -40,3 +43,5 @@ test("multi-file total line is the sum of each file's count", async () => {
     const r = await run("wc -l a.txt b.txt");
     assertEqual(r.stdout, "2 a.txt\n1 b.txt\n3 total");
 });
+
+})();

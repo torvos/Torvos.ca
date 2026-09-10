@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual, makeFile } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual, makeFile } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 function matchedFiles(stdout) {
     return stdout.split("\n").filter(Boolean);
@@ -46,3 +49,5 @@ test("? wildcard still works", async () => {
     assertEqual(matches.length, 1);
     assert(matches[0].endsWith("file1.txt"));
 });
+
+})();

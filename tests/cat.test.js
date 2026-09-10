@@ -1,4 +1,7 @@
-const { describe, test, run, assertEqual, makeFile } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assertEqual, makeFile } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("cat: multi-file concatenation and -n numbering");
 
@@ -46,3 +49,5 @@ test("an empty file produces empty output, with or without -n", async () => {
     assertEqual((await run("cat empty.txt")).stdout, "");
     assertEqual((await run("cat -n empty.txt")).stdout, "");
 });
+
+})();

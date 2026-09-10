@@ -1,4 +1,7 @@
-const { describe, test, terminal, assert, assertEqual, assertIncludes } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, terminal, assert, assertEqual, assertIncludes } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 // !!/!N recall lives in handleEnter() (input.js), not execute() - so
 // these tests go through handleEnter() directly (simulating "type a
@@ -76,3 +79,5 @@ test("a plain command with no ! at all is unaffected", async () => {
     const output = await typeAndEnter("pwd");
     assertEqual(terminal.history[0], "pwd");
 });
+
+})();

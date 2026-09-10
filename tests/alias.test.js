@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual, assertIncludes, terminal } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual, assertIncludes, terminal } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("alias: bare NAME shows that one alias's definition");
 
@@ -31,3 +34,5 @@ test("mixing a lookup and an assignment in one call", async () => {
     assertEqual(terminal.aliases.foo, "bar");
     assertEqual(r.stdout, "alias ll='ls -la'");
 });
+
+})();

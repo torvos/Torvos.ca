@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Torvos - Test Suite</title>
+    <style>
+        body {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            background: #0d0d0d;
+            color: #ddd;
+            margin: 0;
+            padding: 24px;
+        }
+        #test-page {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.1em;
+            color: #66ff99;
+            margin-bottom: 4px;
+        }
+        #test-page > p {
+            color: #888;
+            margin-top: 0;
+            font-size: 0.9em;
+        }
+        #test-output {
+            white-space: pre-wrap;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .test-file-header {
+            color: #66ccff;
+            font-weight: bold;
+            margin-top: 1.2em;
+        }
+        .test-ok {
+            color: #66ff99;
+        }
+        .test-fail {
+            color: #ff6060;
+        }
+        .test-fail-detail {
+            color: #ff9c9c;
+            margin-left: 2em;
+        }
+        #test-summary {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 1.5em;
+            padding-top: 0.5em;
+            border-top: 1px solid #333;
+        }
+        /* Real terminal DOM, present so TerminalEngine can bind to real
+           elements instead of needing stubs - just kept off-screen. */
+        #terminal-fixture {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+<div id="test-page">
+    <h1>Torvos - Test Suite</h1>
+    <p>Boots the real app in this tab (an isolated session - your saved terminal session elsewhere is untouched) and runs every test in tests/*.test.js against it.</p>
+    <div id="test-output">Booting&hellip;</div>
+</div>
+
+<div id="terminal-fixture" aria-hidden="true">
+    <div id="terminal-container">
+        <main id="terminal">
+            <div id="output"></div>
+            <div id="input-line">
+                <span id="prompt"></span>
+                <span id="command"></span>
+            </div>
+            <div id="editor-container">
+                <div id="editor-header"></div>
+                <textarea id="editor"></textarea>
+            </div>
+            <div id="scroll-anchor"></div>
+        </main>
+    </div>
+    <div id="mobile-toolbar">
+        <button type="button" id="mobile-tab-btn">Tab</button>
+        <button type="button" id="mobile-esc-btn">Esc</button>
+    </div>
+    <input
+        id="hidden-input"
+        type="text"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+    />
+</div>
+
+<!-- Isolates localStorage before anything else can touch it - see the
+     comment in the file itself for why this has to load first. -->
+<script src="tests/isolate-storage.js"></script>
+
+<!-- Same app scripts as index.html, in the same order, minus app.js -
+     app.js auto-boots a terminal bound to the real page on
+     DOMContentLoaded, which would race with (and duplicate) the
+     instance browser-harness.js constructs below. -->
+<script src="js/constants.js"></script>
+<script src="js/filesystem/seed.js"></script>
+<script src="js/filesystem/mode.js"></script>
+<script src="js/filesystem/format.js"></script>
+<script src="js/filesystem/nodes.js"></script>
+<script src="js/filesystem/fileapi.js"></script>
+<script src="js/filesystem/devices.js"></script>
+<script src="js/commands.js"></script>
+<script src="js/commands/alias.js"></script>
+<script src="js/commands/base64.js"></script>
+<script src="js/commands/cat.js"></script>
+<script src="js/commands/cd.js"></script>
+<script src="js/commands/chmod.js"></script>
+<script src="js/commands/clear.js"></script>
+<script src="js/commands/cowsay.js"></script>
+<script src="js/commands/cp.js"></script>
+<script src="js/commands/curl.js"></script>
+<script src="js/commands/date.js"></script>
+<script src="js/commands/df.js"></script>
+<script src="js/commands/diff.js"></script>
+<script src="js/commands/dig.js"></script>
+<script src="js/commands/echo.js"></script>
+<script src="js/commands/edit.js"></script>
+<script src="js/commands/env.js"></script>
+<script src="js/commands/export.js"></script>
+<script src="js/commands/false.js"></script>
+<script src="js/commands/find.js"></script>
+<script src="js/commands/finger.js"></script>
+<script src="js/commands/fortune.js"></script>
+<script src="js/commands/free.js"></script>
+<script src="js/commands/grep.js"></script>
+<script src="js/commands/head.js"></script>
+<script src="js/commands/help.js"></script>
+<script src="js/commands/history.js"></script>
+<script src="js/commands/hostname.js"></script>
+<script src="js/commands/id.js"></script>
+<script src="js/commands/kill.js"></script>
+<script src="js/commands/less.js"></script>
+<script src="js/commands/ln.js"></script>
+<script src="js/commands/login.js"></script>
+<script src="js/commands/ls.js"></script>
+<script src="js/commands/man.js"></script>
+<script src="js/commands/md5sum.js"></script>
+<script src="js/commands/mkdir.js"></script>
+<script src="js/commands/more.js"></script>
+<script src="js/commands/mv.js"></script>
+<script src="js/commands/neofetch.js"></script>
+<script src="js/commands/nmap.js"></script>
+<script src="js/commands/nslookup.js"></script>
+<script src="js/commands/ping.js"></script>
+<script src="js/commands/printenv.js"></script>
+<script src="js/commands/printf.js"></script>
+<script src="js/commands/ps.js"></script>
+<script src="js/commands/pwd.js"></script>
+<script src="js/commands/reset.js"></script>
+<script src="js/commands/rm.js"></script>
+<script src="js/commands/rmdir.js"></script>
+<script src="js/commands/sed.js"></script>
+<script src="js/commands/sh.js"></script>
+<script src="js/commands/sha256sum.js"></script>
+<script src="js/commands/sl.js"></script>
+<script src="js/commands/sort.js"></script>
+<script src="js/commands/stat.js"></script>
+<script src="js/commands/sudo.js"></script>
+<script src="js/commands/tail.js"></script>
+<script src="js/commands/touch.js"></script>
+<script src="js/commands/tr.js"></script>
+<script src="js/commands/tree.js"></script>
+<script src="js/commands/true.js"></script>
+<script src="js/commands/unalias.js"></script>
+<script src="js/commands/uname.js"></script>
+<script src="js/commands/uniq.js"></script>
+<script src="js/commands/unset.js"></script>
+<script src="js/commands/uptime.js"></script>
+<script src="js/commands/wc.js"></script>
+<script src="js/commands/wget.js"></script>
+<script src="js/commands/which.js"></script>
+<script src="js/commands/whoami.js"></script>
+<script src="js/commands/whois.js"></script>
+<script src="js/terminal/core.js"></script>
+<script src="js/terminal/parser.js"></script>
+<script src="js/terminal/arithmetic.js"></script>
+<script src="js/terminal/render.js"></script>
+<script src="js/terminal/input.js"></script>
+<script src="js/terminal/execute.js"></script>
+<script src="js/terminal/editor.js"></script>
+<script src="js/terminal/bootstrap.js"></script>
+
+<!-- Test harness (constructs the one terminal instance tests run
+     against - see the file for why it must load here, after every app
+     script but before any *.test.js file) and every test file. -->
+<script src="tests/browser-harness.js"></script>
+<script src="tests/alias.test.js"></script>
+<script src="tests/andor.test.js"></script>
+<script src="tests/cat.test.js"></script>
+<script src="tests/chmod.test.js"></script>
+<script src="tests/echo-printf.test.js"></script>
+<script src="tests/find.test.js"></script>
+<script src="tests/glob-quoting.test.js"></script>
+<script src="tests/history.test.js"></script>
+<script src="tests/mv.test.js"></script>
+<script src="tests/pager.test.js"></script>
+<script src="tests/pipeline.test.js"></script>
+<script src="tests/sh.test.js"></script>
+<script src="tests/wc.test.js"></script>
+<script src="tests/which.test.js"></script>
+
+<script>
+    TestHarness.runAll();
+</script>
+
+</body>
+</html>

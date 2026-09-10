@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual, assertIncludes, makeDir, terminal, FileSystemAPI } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual, assertIncludes, makeDir, terminal, FileSystemAPI } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("mv: refuses to move a directory into its own subtree");
 
@@ -35,3 +38,5 @@ test("moving a directory into an unrelated directory still works", async () => {
     assertEqual(r.exitCode, 0);
     assert(!!FileSystemAPI.get("dirA/sub/dirC", terminal.cwd));
 });
+
+})();

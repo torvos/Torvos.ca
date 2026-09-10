@@ -1,4 +1,7 @@
-const { describe, test, run, assertEqual } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assertEqual } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("which: finds commands via piped stdin (trailing newline must not break the lookup)");
 
@@ -16,3 +19,5 @@ test("which via piped stdin for a nonexistent command still fails cleanly", asyn
     const r = await run("echo notarealcommand | which");
     assertEqual(r.exitCode, 1);
 });
+
+})();

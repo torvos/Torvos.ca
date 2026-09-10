@@ -1,4 +1,7 @@
-const { describe, test, run, assert, assertEqual, assertIncludes, makeFile, makeDir, terminal, FileSystemAPI } = require("./harness");
+(function () {
+"use strict";
+
+const { describe, test, run, assert, assertEqual, assertIncludes, makeFile, makeDir, terminal, FileSystemAPI } = typeof module !== "undefined" ? require("./harness") : window.TestHarness;
 
 describe("sh: script output is live when standalone, captured when piped/redirected");
 
@@ -82,3 +85,5 @@ test("running sh on a non-executable file fails with exit code 126", async () =>
     const r = await run("sh notexec.sh");
     assertEqual(r.exitCode, 126);
 });
+
+})();
