@@ -90,8 +90,11 @@ registerCommand("wc", {
         }
 
         if (targets.length === 0) {
-            // No file given - fall back to piped stdin
-            if (!stdin) {
+            // No file given - fall back to piped stdin. `stdin == null` means
+            // nothing was piped at all - distinct from stdin being an empty
+            // string, which means an empty input WAS piped (e.g. `printf '' | wc`)
+            // and should count as 0 lines/words/bytes rather than error.
+            if (stdin == null) {
                 return {
                     stdout: "",
                     stderr: "wc: missing operand",

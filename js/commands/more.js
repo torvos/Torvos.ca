@@ -55,9 +55,11 @@ registerCommand("more", {
 
             node.accessed = Date.now();
             lines = terminal.fs.readContent(node).split(/\r?\n/);
-        } else if (stdin !== undefined && stdin !== null && stdin !== "") {
+        } else if (stdin !== undefined && stdin !== null) {
             // No file given, but something was piped in (e.g. `ls -la | more`)
-            // - page through that instead, same as real less/more.
+            // - page through that instead, same as real less/more. This
+            // still catches an empty pipe (e.g. `printf '' | more`), which
+            // should just show an empty page, not the "missing operand" error.
             lines = stdin.split(/\r?\n/);
         } else {
             return {

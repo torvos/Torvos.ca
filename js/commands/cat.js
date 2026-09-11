@@ -30,8 +30,11 @@ registerCommand("cat", {
         let content = "";
 
         if (targets.length === 0) {
-            // No file given - fall back to piped stdin
-            if (!stdin) {
+            // No file given - fall back to piped stdin. `stdin == null` means
+            // nothing was piped at all - distinct from stdin being an empty
+            // string, which means an empty input WAS piped (e.g. `printf '' | cat`)
+            // and should just print nothing rather than error.
+            if (stdin == null) {
                 return {
                     stdout: "",
                     stderr: "cat: missing file operand",

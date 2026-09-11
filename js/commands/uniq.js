@@ -34,7 +34,11 @@ registerCommand("uniq", {
         const uniqueOnly = parsed.flags.has("u");
 
         let text = "";
-        if (stdin !== undefined && stdin !== null && stdin !== "") {
+        // `stdin == null` means nothing was piped at all - distinct from
+        // stdin being an empty string, which means an empty input WAS piped
+        // (e.g. `printf '' | uniq`) and should just produce zero lines rather
+        // than fall through to requiring a file operand.
+        if (stdin != null) {
             text = stdin;
         } else {
             if (parsed.args.length === 0) {

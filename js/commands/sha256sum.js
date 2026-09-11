@@ -34,7 +34,10 @@ registerCommand("sha256sum", {
         const targets = args.filter(a => a !== "--help");
 
         if (targets.length === 0) {
-            if (!stdin) {
+            // `stdin == null` means nothing was piped at all - distinct from
+            // stdin being an empty string, which means an empty input WAS
+            // piped (e.g. `printf '' | sha256sum`) and should be hashed as such.
+            if (stdin == null) {
                 return {
                     stdout: "",
                     stderr: "sha256sum: missing operand",

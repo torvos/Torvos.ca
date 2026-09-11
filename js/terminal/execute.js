@@ -129,7 +129,14 @@ Object.assign(TerminalEngine.prototype, {
                         .map(cmd => cmd.trim())
                         .filter(Boolean);
 
-                    let stdin = ""; // piped input carried between pipeline stages
+                    // piped input carried between pipeline stages - `null` means
+                    // "nothing is feeding this stage" (no earlier pipe stage, no
+                    // `<` redirect), which is NOT the same as a stage that WAS fed
+                    // input but that input happened to be empty (e.g.
+                    // `printf '' | cat`, or `< empty.txt cat`). Commands that read
+                    // stdin need to tell those two cases apart, so this only ever
+                    // becomes "" once something has actually supplied it below.
+                    let stdin = null;
 
                     for (let index = 0; index < pipeline.length; index++) {
                         const parsed = this.parseCommand(pipeline[index]);
@@ -420,7 +427,9 @@ Object.assign(TerminalEngine.prototype, {
             .map(cmd => cmd.trim())
             .filter(Boolean);
 
-        let stdin = "";
+        // See the matching comment in the main dispatch loop above - `null`
+        // means "no stdin was piped in", distinct from an empty string.
+        let stdin = null;
         let result = { stdout: "", stderr: "", exitCode: EXIT_SUCCESS };
 
         for (const stage of pipeline) {

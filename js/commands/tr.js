@@ -43,7 +43,10 @@ registerCommand("tr", {
         if (!deleteMode && !squeeze && !set2raw) {
             return { stdout: "", stderr: "tr: missing operand after SET1 (SET2 is required for translation)", exitCode: EXIT_FAILURE };
         }
-        if (!stdin) {
+        // `stdin == null` means nothing was piped at all - distinct from
+        // stdin being an empty string, which means an empty input WAS piped
+        // (e.g. `printf '' | tr a-z A-Z`) and should just produce empty output.
+        if (stdin == null) {
             return { stdout: "", stderr: "tr: missing input (pipe text into tr)", exitCode: EXIT_FAILURE };
         }
 

@@ -30,8 +30,11 @@ registerCommand("head", {
         const targets = parsed.args;
 
         if (targets.length === 0) {
-            // No file given - fall back to piped stdin
-            if (!stdin) {
+            // No file given - fall back to piped stdin. `stdin == null` means
+            // nothing was piped at all - distinct from stdin being an empty
+            // string, which means an empty input WAS piped (e.g. `printf '' | head`)
+            // and should just print nothing rather than error.
+            if (stdin == null) {
                 return {
                     stdout: "",
                     stderr: "head: missing file operand",

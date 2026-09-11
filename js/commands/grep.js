@@ -60,8 +60,12 @@ registerCommand("grep", {
         // Prefer piped stdin; otherwise read every named file argument -
         // like real grep, one bad/missing file doesn't stop the rest from
         // being searched, and matches from multiple files get a
-        // "filename:" prefix so they stay distinguishable.
-        if (stdin.length !== 0) {
+        // "filename:" prefix so they stay distinguishable. `stdin == null`
+        // means nothing was piped at all - distinct from stdin being an
+        // empty string, which means an empty input WAS piped (e.g.
+        // `printf '' | grep x`) and should just search zero lines (no
+        // matches, but not an error) rather than fall through to reading files.
+        if (stdin != null) {
             const lines = stdin.split(/\r?\n/);
             const matches = lines.filter(line => line.includes(pattern));
             return {

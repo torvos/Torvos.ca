@@ -34,8 +34,11 @@ registerCommand("base64", {
         let content = "";
 
         if (!target) {
-            // No file given - fall back to piped stdin
-            if (!stdin) {
+            // No file given - fall back to piped stdin. `stdin == null` means
+            // nothing was piped at all - distinct from stdin being an empty
+            // string, which means an empty input WAS piped (e.g. `printf '' | base64`)
+            // and should just encode/decode to nothing rather than error.
+            if (stdin == null) {
                 return {
                     stdout: "",
                     stderr: "base64: missing operand",

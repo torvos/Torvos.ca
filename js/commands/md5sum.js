@@ -86,7 +86,10 @@ registerCommand("md5sum", {
         const targets = args.filter(a => a !== "--help");
 
         if (targets.length === 0) {
-            if (!stdin) {
+            // `stdin == null` means nothing was piped at all - distinct from
+            // stdin being an empty string, which means an empty input WAS
+            // piped (e.g. `printf '' | md5sum`) and should be hashed as such.
+            if (stdin == null) {
                 return {
                     stdout: "",
                     stderr: "md5sum: missing operand",

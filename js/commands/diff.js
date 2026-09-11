@@ -35,7 +35,11 @@ registerCommand("diff", {
 
         function readOperand(target) {
             if (target === "-") {
-                if (!stdin) {
+                // `stdin == null` means nothing was piped in at all - distinct
+                // from an empty string, which means an empty input WAS piped
+                // (e.g. `printf '' | diff old.txt -`) and should diff against
+                // an empty file rather than error.
+                if (stdin == null) {
                     return { error: "diff: -: no piped input" };
                 }
                 return { content: stdin };
