@@ -410,7 +410,7 @@
 
             node.content = options.append
                 ? ((node.content ?? "")
-                    ? node.content + "\n" + (data ?? "")
+                    ? node.content + (data ?? "")
                     : (data ?? ""))
                 : (data ?? "");
             node.modified = Date.now();
