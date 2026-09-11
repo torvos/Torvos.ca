@@ -635,26 +635,89 @@ Object.assign(TerminalEngine.prototype, {
      * starting at index `from`, correctly matching nested parentheses.
      * Distinguishes `$((...))` arithmetic expansion (skipped, not a command
      * substitution) from a genuine `$(...)` command substitution.
+     *
+     * Quote/escape-aware, matching real bash: a `$(` inside single quotes
+     * is never a substitution (single quotes suppress ALL expansion, e.g.
+     * `echo '$(echo PWN)'` prints the literal text), a `$(` inside double
+     * quotes still IS a substitution (double quotes only suppress word
+     * splitting/globbing, not substitution), and a backslash-escaped `\$(`
+     * (outside single quotes) is left alone entirely, same as `\$` is for
+     * plain variable expansion.
      * @returns {{start:number, end:number, inner:string}|null} Position info
      *   and the inner command text, or null if none/unbalanced.
      */
     findCommandSubstitution(str, from = 0) {
-        const idx = str.indexOf("$(", from);
-        if (idx === -1) return null;
-        if (str[idx + 2] === "(") {
-            // "$((" - arithmetic expansion, not command substitution. Skip past
-            // it and keep looking (expandArithmetic should normally have already
-            // removed these by the time this runs, but this guards stray cases).
-            return this.findCommandSubstitution(str, idx + 1);
+        let inSingle = false;
+        let inDouble = false;
+
+        for (let i = from; i < str.length; i++) {
+            const ch = str[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                const next = str[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    i++; // an escaped "$" can't start a substitution
+                    continue;
+                }
+            }
+
+            if (ch === "'" && !inDouble) { inSingle = !inSingle; continue; }
+            if (ch === '"' && !inSingle) { inDouble = !inDouble; continue; }
+
+            if (inSingle) continue; // single quotes suppress substitution entirely
+
+            if (ch === "$" && str[i + 1] === "(") {
+                if (str[i + 2] === "(") {
+                    // "$((" - arithmetic expansion, not command substitution.
+                    // Skip past it and keep looking (expandArithmetic should
+                    // normally have already removed these by the time this
+                    // runs, but this guards stray cases).
+                    continue;
+                }
+                const end = this.matchSubstitutionClose(str, i + 2);
+                if (end === null) return null; // unbalanced - leave as-is
+                return { start: i, end, inner: str.slice(i + 2, end - 1) };
+            }
         }
+
+        return null;
+    },
+
+    /**
+     * Given the index right after a `$(`'s opening paren, scans forward to
+     * find the index just past its matching closing paren - counting depth
+     * for nested parens, but (quote-aware, like findCommandSubstitution
+     * itself) ignoring parens and escapes that fall inside a nested quoted
+     * section, so e.g. `$(echo "(hi)")` isn't miscounted as unbalanced.
+     * @returns {number|null} Index just past the matching ")", or null if
+     *   the parens never balance out.
+     */
+    matchSubstitutionClose(str, start) {
         let depth = 1;
-        let i = idx + 2;
+        let inSingle = false;
+        let inDouble = false;
+        let i = start;
+
         for (; i < str.length && depth > 0; i++) {
-            if (str[i] === "(") depth++;
-            else if (str[i] === ")") depth--;
+            const ch = str[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                const next = str[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    i++;
+                    continue;
+                }
+            }
+
+            if (ch === "'" && !inDouble) { inSingle = !inSingle; continue; }
+            if (ch === '"' && !inSingle) { inDouble = !inDouble; continue; }
+            if (inSingle || inDouble) continue;
+
+            if (ch === "(") depth++;
+            else if (ch === ")") depth--;
         }
-        if (depth !== 0) return null; // unbalanced - leave as-is
-        return { start: idx, end: i, inner: str.slice(idx + 2, i - 1) };
+
+        return depth === 0 ? i : null;
     },
 
     /**
