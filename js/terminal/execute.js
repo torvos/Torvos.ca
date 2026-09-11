@@ -54,16 +54,6 @@ Object.assign(TerminalEngine.prototype, {
                 await this.sleep(LINE_PRINT_DELAY_MS);
             }
         };
-        // Same as emitErrorLine, but for one-off messages that (even when
-        // not capturing) were never animated with a delay to begin with.
-        const emitErrorLineImmediate = (line) => {
-            if (capture) {
-                capturedErr.push(line);
-            } else {
-                this.write(this.formatErrorLine(line));
-            }
-        };
-
         this.lastExpansionEmpty = false;
 
         // Expand aliases (e.g. "ll" -> "ls -la") and brace patterns
@@ -164,27 +154,34 @@ Object.assign(TerminalEngine.prototype, {
                         }                    
                         const redirects = parsed.redirects;
 
-                        // Input redirection (`< file`) - read the file's content as stdin
+                        // Input redirection (`< file`) - read the file's content as
+                        // stdin. On failure (missing file, permission denied), the
+                        // command itself never runs - `redirectInputError` records
+                        // that as this stage's own failure result instead of a bare
+                        // `break`, so it flows through the SAME result-handling
+                        // machinery as any other command below: its exit code is
+                        // recorded (so `&&`/`||` sequencing sees the failure), its
+                        // error is always printed (not just when this happens to be
+                        // the last pipeline stage), and its (empty) stdout still
+                        // becomes the next stage's stdin - a real shell pipe still
+                        // runs every later stage even when an earlier one failed to
+                        // open its input file, e.g. `cat < /nope | wc -l` prints
+                        // both the error AND `0` from `wc -l` reading an empty pipe.
+                        let redirectInputError = null;
                         if (redirects.operator === "<") {
                             const node = this.fs.get(redirects.target, this.cwd);
                             if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
-                                stdin = "";
-                                if (index === pipeline.length - 1) {
-                                    emitErrorLineImmediate(`${redirects.target}: No such file`);
-                                }
-                                break;
+                                redirectInputError = `${redirects.target}: No such file`;
+                            } else if (
+                                // Reading a protected, non-device file (e.g. /bin/ls)
+                                // is blocked - reading an existing device (e.g.
+                                // /dev/random) is exactly what it's there for.
+                                this.fs.isProtected(redirects.target, this.cwd) && !this.fs.isDevice(node)
+                            ) {
+                                redirectInputError = `${redirects.target}: Permission denied`;
+                            } else {
+                                stdin = this.fs.readContent(node);
                             }
-                            // Reading a protected, non-device file (e.g. /bin/ls)
-                            // is blocked - reading an existing device (e.g.
-                            // /dev/random) is exactly what it's there for.
-                            if (this.fs.isProtected(redirects.target, this.cwd) && !this.fs.isDevice(node)) {
-                                stdin = "";
-                                if (index === pipeline.length - 1) {
-                                    emitErrorLineImmediate(`${redirects.target}: Permission denied`);
-                                }
-                                break;
-                            }
-                            stdin = this.fs.readContent(node);
                         }
 
                         let result;
@@ -207,7 +204,18 @@ Object.assign(TerminalEngine.prototype, {
                             redirects.operator === ">" || redirects.operator === ">>" ||
                             redirects.operator === "2>" || redirects.operator === "2>>";
 
-                        if (command?.execute) {
+                        if (redirectInputError) {
+                            // `<` failed above - the command never runs at all
+                            // (real shells don't run a command whose input
+                            // redirect couldn't be opened), but its failure
+                            // still needs to flow through as this stage's result.
+                            result = {
+                                stdout: "",
+                                stderr: redirectInputError,
+                                exitCode: EXIT_FAILURE
+                            };
+                        }
+                        else if (command?.execute) {
                             // Registered built-in command - run its execute() handler
                             try {
                                 result = await command.execute(
