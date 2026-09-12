@@ -154,34 +154,58 @@ Object.assign(TerminalEngine.prototype, {
                         }                    
                         const redirects = parsed.redirects;
 
-                        // Input redirection (`< file`) - read the file's content as
-                        // stdin. On failure (missing file, permission denied), the
-                        // command itself never runs - `redirectInputError` records
-                        // that as this stage's own failure result instead of a bare
-                        // `break`, so it flows through the SAME result-handling
-                        // machinery as any other command below: its exit code is
-                        // recorded (so `&&`/`||` sequencing sees the failure), its
-                        // error is always printed (not just when this happens to be
-                        // the last pipeline stage), and its (empty) stdout still
-                        // becomes the next stage's stdin - a real shell pipe still
-                        // runs every later stage even when an earlier one failed to
-                        // open its input file, e.g. `cat < /nope | wc -l` prints
-                        // both the error AND `0` from `wc -l` reading an empty pipe.
-                        let redirectInputError = null;
-                        if (redirects.operator === "<") {
-                            const node = this.fs.get(redirects.target, this.cwd);
-                            if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
-                                redirectInputError = `${redirects.target}: No such file`;
-                            } else if (
-                                // Reading a protected, non-device file (e.g. /bin/ls)
-                                // is blocked - reading an existing device (e.g.
-                                // /dev/random) is exactly what it's there for.
-                                this.fs.isProtected(redirects.target, this.cwd) && !this.fs.isDevice(node)
-                            ) {
-                                redirectInputError = `${redirects.target}: Permission denied`;
+                        // Set up every redirect in the order they were written,
+                        // exactly like a real shell opens each file descriptor
+                        // in sequence before the command ever runs:
+                        //  - `<` reads its target immediately; the LAST `<`
+                        //    (if there's more than one) is what the command
+                        //    actually receives as stdin.
+                        //  - `>`/`>>`/`2>`/`2>>` truncate (`>`) or touch
+                        //    (`>>`, which never truncates - only creates the
+                        //    file if it's missing) their target immediately
+                        //    too, the same way opening an fd for writing
+                        //    does - which is why an earlier, later-overridden
+                        //    target (the `a` in `echo hi > a > b`) still ends
+                        //    up created-and-empty rather than untouched. Only
+                        //    the LAST redirect for a given stream (stdout or
+                        //    stderr) is remembered to actually receive the
+                        //    command's real output once it's run, below.
+                        // On the first redirect that fails to open at all
+                        // (missing/unreadable input file, unwritable output
+                        // path), setup stops right there, matching real shells:
+                        // the command never runs, and any redirect that failed
+                        // to even fully set up doesn't affect this stage's
+                        // stdin/stdout/stderr.
+                        let redirectSetupError = null;
+                        let stdoutRedirect = null;
+                        let stderrRedirect = null;
+                        for (const redirect of redirects) {
+                            if (redirect.operator === "<") {
+                                const node = this.fs.get(redirect.target, this.cwd);
+                                if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
+                                    redirectSetupError = `${redirect.target}: No such file`;
+                                } else if (
+                                    // Reading a protected, non-device file (e.g. /bin/ls)
+                                    // is blocked - reading an existing device (e.g.
+                                    // /dev/random) is exactly what it's there for.
+                                    this.fs.isProtected(redirect.target, this.cwd) && !this.fs.isDevice(node)
+                                ) {
+                                    redirectSetupError = `${redirect.target}: Permission denied`;
+                                } else {
+                                    stdin = this.fs.readContent(node);
+                                }
                             } else {
-                                stdin = this.fs.readContent(node);
+                                const isAppend = redirect.operator === ">>" || redirect.operator === "2>>";
+                                const setupResult = this.writeRedirect(redirect.target, "", isAppend);
+                                if (typeof setupResult === "string") {
+                                    redirectSetupError = setupResult;
+                                } else if (redirect.operator === ">" || redirect.operator === ">>") {
+                                    stdoutRedirect = redirect;
+                                } else {
+                                    stderrRedirect = redirect;
+                                }
                             }
+                            if (redirectSetupError) break;
                         }
 
                         let result;
@@ -201,17 +225,17 @@ Object.assign(TerminalEngine.prototype, {
                         this._pipeOutputConsumed =
                             capture ||
                             index < pipeline.length - 1 ||
-                            redirects.operator === ">" || redirects.operator === ">>" ||
-                            redirects.operator === "2>" || redirects.operator === "2>>";
+                            !!stdoutRedirect ||
+                            !!stderrRedirect;
 
-                        if (redirectInputError) {
-                            // `<` failed above - the command never runs at all
-                            // (real shells don't run a command whose input
-                            // redirect couldn't be opened), but its failure
-                            // still needs to flow through as this stage's result.
+                        if (redirectSetupError) {
+                            // A redirect failed above - the command never runs at all
+                            // (real shells don't run a command whose redirects
+                            // couldn't be set up), but its failure still needs to
+                            // flow through as this stage's result.
                             result = {
                                 stdout: "",
-                                stderr: redirectInputError,
+                                stderr: redirectSetupError,
                                 exitCode: EXIT_FAILURE
                             };
                         }
@@ -284,67 +308,46 @@ Object.assign(TerminalEngine.prototype, {
                         this.lastExitCode = result.exitCode;
                         let redirectreturn = "";
 
-                        // Apply output redirection, if any, writing stdout/stderr to a file instead.
-                        // On success, the redirected stream is cleared from `result` so it isn't
-                        // ALSO printed to the terminal below - real shells never show output on
-                        // screen once it's been redirected to a file. The exit code is untouched
-                        // either way (a command's success/failure isn't affected by where its
-                        // output went); only the failure branch below still surfaces text, since
-                        // that's reporting a NEW error (e.g. an invalid path) about the redirect
+                        // Apply output redirection, if any, writing stdout/stderr to
+                        // a file instead - `stdoutRedirect`/`stderrRedirect` are
+                        // already resolved to whichever redirect for that stream was
+                        // LAST in the command (see the setup loop above for why: an
+                        // earlier same-stream redirect was already truncated/touched
+                        // there and receives nothing further, matching a real shell
+                        // reassigning the fd). On success, the redirected stream is
+                        // cleared from `result` so it isn't ALSO printed to the
+                        // terminal below - real shells never show output on screen
+                        // once it's been redirected to a file. The exit code is
+                        // untouched either way (a command's success/failure isn't
+                        // affected by where its output went); only the failure
+                        // branch below still surfaces text, since that's reporting a
+                        // NEW error (e.g. an invalid path) about the redirect
                         // itself, not the original command's output.
-                        switch (redirects.operator) {
-                            case ">":
-                                redirectreturn = this.writeRedirect(
-                                    redirects.target,
-                                    result.stdout,
-                                    false
-                                );
-                                if (typeof redirectreturn === 'string'){
-                                    result.stderr = redirectreturn;
-                                    result.exitCode = EXIT_FAILURE;
-                                } else {
-                                    result.stdout = "";
-                                }
-                                break;
-                            case ">>":
-                                redirectreturn = this.writeRedirect(
-                                    redirects.target,
-                                    result.stdout,
-                                    true
-                                );
-                                if (typeof redirectreturn === 'string'){
-                                    result.stderr = redirectreturn;
-                                    result.exitCode = EXIT_FAILURE;
-                                } else {
-                                    result.stdout = "";
-                                }
-                                break;
-                            case "2>":
-                                redirectreturn = this.writeRedirect(
-                                    redirects.target,
-                                    result.stderr,
-                                    false
-                                );
-                                if (typeof redirectreturn === 'string'){
-                                    result.stderr = redirectreturn;
-                                    result.exitCode = EXIT_FAILURE;
-                                } else {
-                                    result.stderr = "";
-                                }
-                                break;
-                            case "2>>":
-                                redirectreturn = this.writeRedirect(
-                                    redirects.target,
-                                    result.stderr,
-                                    true
-                                );
-                                if (typeof redirectreturn === 'string'){
-                                    result.stderr = redirectreturn;
-                                    result.exitCode = EXIT_FAILURE;
-                                } else {
-                                    result.stderr = "";
-                                }
-                                break;
+                        if (stdoutRedirect) {
+                            redirectreturn = this.writeRedirect(
+                                stdoutRedirect.target,
+                                result.stdout,
+                                stdoutRedirect.operator === ">>"
+                            );
+                            if (typeof redirectreturn === 'string') {
+                                result.stderr = redirectreturn;
+                                result.exitCode = EXIT_FAILURE;
+                            } else {
+                                result.stdout = "";
+                            }
+                        }
+                        if (stderrRedirect) {
+                            redirectreturn = this.writeRedirect(
+                                stderrRedirect.target,
+                                result.stderr,
+                                stderrRedirect.operator === "2>>"
+                            );
+                            if (typeof redirectreturn === 'string') {
+                                result.stderr = redirectreturn;
+                                result.exitCode = EXIT_FAILURE;
+                            } else {
+                                result.stderr = "";
+                            }
                         }
 
                         this.lastExitCode = result.exitCode;

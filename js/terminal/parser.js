@@ -375,24 +375,34 @@ Object.assign(TerminalEngine.prototype, {
 
     /**
      * Parses a single command string into its command name, arguments, and
-     * any trailing I/O redirection (>, >>, 2>, 2>>, <). Redirection is
-     * detected via maskQuotes so operators inside quotes aren't mistaken
-     * for real redirects.
+     * any trailing I/O redirections (>, >>, 2>, 2>>, <) - a command can have
+     * more than one, e.g. `echo hi > a > b` or `cat < in.txt > out.txt`, so
+     * every trailing redirect is peeled off (one at a time, from the end)
+     * rather than just the last. `redirects` is returned as an array in the
+     * same left-to-right order they were written in, since that order
+     * matters: real shells set up each redirect in sequence, so when two
+     * redirects target the same stream (like the `> a > b` above), the
+     * later one is the one that actually ends up receiving the output -
+     * see execute.js for how that's applied. Redirection is detected via
+     * maskQuotes so operators inside quotes aren't mistaken for real redirects.
      * @param {string} command - Raw command text (aliases/vars already expanded).
-     * @returns {{cmd: string, args: string[], redirects: Object}}
+     * @returns {{cmd: string, args: string[], redirects: Array<{operator: string, target: string}>}}
      */
     parseCommand(command) {
         const redirectRegex = /\s*(2>>|2>|>>|>|<)\s*([^\s]+)\s*$/;
-        const match = this.maskQuotes(command).match(redirectRegex);
-        let redirects = {};
-        if (match) {
-            redirects = {
+        const redirects = [];
+        while (true) {
+            const match = this.maskQuotes(command).match(redirectRegex);
+            if (!match) break;
+            // Found from the end inward, so each one is unshifted to build
+            // the array back up in the original left-to-right order.
+            redirects.unshift({
                 operator: match[1],
                 target: this.stripMatchingQuotes(
                     command.slice(match.index + match[0].indexOf(match[1]) + match[1].length, match.index + match[0].length).trim()
                 )
-            };
-            // Strip the redirect portion off before tokenizing the rest as args
+            });
+            // Strip this redirect off before looking for another one before it
             command = command.slice(0, match.index).trim();
         }
         const parts = this.tokenize(command);
