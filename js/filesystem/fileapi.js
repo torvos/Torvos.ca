@@ -44,6 +44,104 @@
     // can be restored to factory defaults (via `reset` or a corrupted save).
     const DEFAULT_FILESYSTEM_JSON = JSON.stringify(FileSystem);
 
+    // ---------------------------------------------------------------------
+    // Structural validation for a restored (JSON.parse()'d) filesystem
+    // tree - see restore() below, which is the only place these are used.
+    // A tree can be syntactically valid JSON yet not something the rest of
+    // this module can safely walk (hand-edited localStorage, a partial/
+    // truncated write, a future save format this version doesn't
+    // understand, ...) - letting that through would just crash later, in
+    // a far more confusing place (resolvePath, ls, ...) than right here at
+    // load time.
+    // ---------------------------------------------------------------------
+
+    const VALID_NODE_TYPES = new Set(["dir", "file", "symlink", "device"]);
+    // 9-character symbolic mode, e.g. "rwxr-xr-x" - each of the 9
+    // positions is either a dash or the one specific letter valid there.
+    const MODE_PATTERN = /^[-r][-w][-x][-r][-w][-x][-r][-w][-x]$/;
+    // Property names that could shadow/pollute the object prototype chain
+    // if let through as a child (file/directory) name from untrusted saved
+    // data - JSON.parse itself produces safe own-properties even for a key
+    // literally named "__proto__", but nothing downstream should have to
+    // rely on that; reject them as invalid data instead.
+    const UNSAFE_CHILD_NAMES = new Set(["__proto__", "constructor", "prototype"]);
+    // Sanity cap on how deeply nested the tree is allowed to be while
+    // validating it - not a realistic limit for any real filesystem, just
+    // a guard against a maliciously/corruptly deep JSON payload blowing
+    // the stack while isValidNode() walks it recursively.
+    const MAX_TREE_DEPTH = 200;
+
+    function isPlainObject(value) {
+        return typeof value === "object" && value !== null && !Array.isArray(value);
+    }
+
+    /**
+     * Recursively validates that `node` (and, for a directory, everything
+     * beneath it) is a structurally sound filesystem node: a real object
+     * with a recognized `type`, well-formed standard metadata (mode/
+     * owner/group/created/modified), and whatever shape that particular
+     * `type` requires - a directory needs a `children` object of further
+     * valid nodes, a file/device needs string `content`, a symlink needs a
+     * non-empty string `target`. This is a STRUCTURAL check only - it
+     * doesn't, for example, verify a symlink's target actually resolves to
+     * something (dangling symlinks are perfectly legitimate), only that
+     * the node has the shape the rest of this module assumes it does.
+     * @param {*} node
+     * @param {number} [depth=0] - Current recursion depth (see MAX_TREE_DEPTH).
+     * @returns {boolean}
+     */
+    function isValidNode(node, depth = 0) {
+        if (depth > MAX_TREE_DEPTH) return false;
+        if (!isPlainObject(node)) return false;
+        if (!VALID_NODE_TYPES.has(node.type)) return false;
+        if (typeof node.mode !== "string" || !MODE_PATTERN.test(node.mode)) return false;
+        if (typeof node.owner !== "string" || node.owner === "") return false;
+        if (typeof node.group !== "string" || node.group === "") return false;
+        if (!Number.isFinite(node.created)) return false;
+        if (!Number.isFinite(node.modified)) return false;
+        // A handful of fields are present on most, but not all, node kinds
+        // (e.g. the symlinks createLink() makes have no `accessed`/`hidden`
+        // field at all) - only check the shape of ones that are actually there.
+        if ("accessed" in node && !Number.isFinite(node.accessed)) return false;
+        if ("hidden" in node && typeof node.hidden !== "boolean") return false;
+        if ("protected" in node && typeof node.protected !== "boolean") return false;
+        if ("seedVersion" in node && !Number.isFinite(node.seedVersion)) return false;
+
+        switch (node.type) {
+            case "dir":
+                if (!isPlainObject(node.children)) return false;
+                for (const [name, child] of Object.entries(node.children)) {
+                    if (UNSAFE_CHILD_NAMES.has(name)) return false;
+                    if (!isValidNode(child, depth + 1)) return false;
+                }
+                return true;
+            case "file":
+            case "device":
+                return typeof node.content === "string";
+            case "symlink":
+                return typeof node.target === "string" && node.target !== "";
+            default:
+                return false; // unreachable - VALID_NODE_TYPES already checked above
+        }
+    }
+
+    /**
+     * Validates an entire parsed filesystem tree (the shape produced by
+     * JSON.parse()-ing serialize()'s output): a plain object with a root
+     * entry under ROOT ("/") that's itself a valid directory node, and
+     * every node beneath it structurally sound - see isValidNode(). Used
+     * by restore() to reject a saved tree that's valid JSON but not
+     * actually a usable filesystem.
+     * @param {*} tree
+     * @returns {boolean}
+     */
+    function isValidFileSystemTree(tree) {
+        if (!isPlainObject(tree)) return false;
+        const root = tree[ROOT];
+        if (!isPlainObject(root) || root.type !== "dir") return false;
+        return isValidNode(root, 0);
+    }
+
     /**
      * Walks an absolute path (already normalized, no "." or "..") down from
      * root, resolving through any symlinks encountered along the way.
@@ -509,13 +607,24 @@
         /**
          * Replaces the in-memory filesystem with the parsed contents of
          * `json` (a previously-serialized tree). Falls back to the default
-         * filesystem if parsing fails.
+         * filesystem if parsing fails OR the parsed data doesn't pass
+         * isValidFileSystemTree() - syntactically valid JSON that isn't a
+         * structurally sound tree (hand-edited localStorage, a partial/
+         * truncated write, a save from some future/incompatible format,
+         * ...) is treated exactly like invalid JSON: rejected up front here
+         * rather than accepted and left to crash something later, in a far
+         * more confusing place, the first time e.g. a directory with no
+         * `children` gets walked.
          * @returns {boolean} true if restore succeeded, false if the JSON
-         *   was invalid and defaults were used instead.
+         *   was invalid (or structurally unsound) and defaults were used instead.
          */
         restore(json) {
             try {
-                FileSystem = JSON.parse(json);
+                const parsed = JSON.parse(json);
+                if (!isValidFileSystemTree(parsed)) {
+                    throw new Error("saved filesystem failed structural validation");
+                }
+                FileSystem = parsed;
                 return true;
             } catch (e) {
                 FileSystem = JSON.parse(DEFAULT_FILESYSTEM_JSON);
