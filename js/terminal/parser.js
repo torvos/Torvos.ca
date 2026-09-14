@@ -181,6 +181,46 @@ Object.assign(TerminalEngine.prototype, {
      * @param {string} delimiter - Single character to split on.
      * @returns {string[]} The split parts, quotes left intact.
      */
+    /**
+     * Checks whether `str` has a `'` or `"` that never finds a matching
+     * close before the end of the string - e.g. `echo "hello` or
+     * `echo 'hello`. Used to reject a whole command line up front as a
+     * syntax error, since every quote-aware scanner elsewhere in this file
+     * (tokenize, splitTopLevel, expandVariables, findCommandSubstitution,
+     * ...) has no other way to notice this: they just run off the end of
+     * the string with their quote flag still set, and silently treat
+     * whatever was accumulated as if the closing quote had been there all
+     * along - a real shell instead either waits for more input (PS2) or,
+     * for a one-shot command line like this terminal only ever runs,
+     * refuses to run any of it. Escape handling mirrors every other
+     * scanner here: a backslash escapes the very next character outside
+     * single quotes, and inside double quotes only escapes $ ` " \ and
+     * newline.
+     * @param {string} str
+     * @returns {boolean} true if there's an unterminated quote.
+     */
+    hasUnterminatedQuotes(str) {
+        let inSingle = false;
+        let inDouble = false;
+
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                const next = str[i + 1];
+                if (!inDouble || "$`\"\\\n".includes(next)) {
+                    i++;
+                    continue;
+                }
+            }
+
+            if (ch === "'" && !inDouble) { inSingle = !inSingle; continue; }
+            if (ch === '"' && !inSingle) { inDouble = !inDouble; continue; }
+        }
+
+        return inSingle || inDouble;
+    },
+
     splitTopLevel(str, delimiter) {
         const parts = [];
         let current = "";

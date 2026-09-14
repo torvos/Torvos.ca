@@ -56,6 +56,26 @@ Object.assign(TerminalEngine.prototype, {
         };
         this.lastExpansionEmpty = false;
 
+        // A quote that never finds its matching close (`echo "hello` or
+        // `echo 'hello`) is a genuine syntax error in a real shell - one
+        // that's interactive would just show a continuation prompt (PS2)
+        // and wait for more input rather than running anything; a
+        // one-shot invocation (like every command this terminal runs)
+        // instead refuses to run any of it. This terminal has no
+        // multi-line continuation, so rejecting the line outright here -
+        // instead of silently treating "the rest of the line" as though
+        // the quote had been closed, which is what everything below would
+        // otherwise do on its own - is the closest faithful match.
+        if (this.hasUnterminatedQuotes(input)) {
+            const line = "syntax error: unexpected end of file (unterminated quote)";
+            this.lastExitCode = EXIT_SYNTAX_ERROR;
+            if (capture) {
+                return { stdout: "", stderr: line, exitCode: EXIT_SYNTAX_ERROR };
+            }
+            await emitErrorLine(line);
+            return;
+        }
+
         // Expand aliases (e.g. "ll" -> "ls -la") and brace patterns
         // (e.g. "echo {a,b}" -> two commands to run: "echo a", "echo b")
         input = this.expandAlias(input);
@@ -433,6 +453,18 @@ Object.assign(TerminalEngine.prototype, {
     async runCaptured(input) {
         let expanded = this.expandArithmetic(this.expandVariables(input));
         expanded = await this.expandCommandSubstitution(expanded);
+
+        // Same check as the top of execute() - a variable's value could
+        // itself splice in a stray quote character that only becomes
+        // unbalanced once expanded in here, even if the original typed
+        // line looked fine.
+        if (this.hasUnterminatedQuotes(expanded)) {
+            return {
+                stdout: "",
+                stderr: "syntax error: unexpected end of file (unterminated quote)",
+                exitCode: EXIT_SYNTAX_ERROR
+            };
+        }
 
         const pipeline = this.splitTopLevel(expanded, "|")
             .map(cmd => cmd.trim())
