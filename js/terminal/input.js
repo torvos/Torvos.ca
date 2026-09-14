@@ -359,32 +359,69 @@ Object.assign(TerminalEngine.prototype, {
      * screen, so both reflect the actual command that's about to run
      * rather than the literal "!!"/"!N" text - and so a reference never
      * points at itself.
+     *
+     * Deliberately QUOTE-BLIND, matching real bash: history expansion
+     * happens at the readline layer before the shell has any concept of
+     * quoting, so `echo '!!'` and `echo "!!"` both still expand in a real
+     * interactive bash - this is the well-known gotcha behind e.g.
+     * `git commit -m "fix the bug!"` failing with `bash: !": event not
+     * found`. The ONLY thing that suppresses expansion, in bash or here,
+     * is a backslash immediately before the "!" - which this consumes
+     * (removes) as part of expansion, same as bash does, regardless of
+     * whether that backslash sits inside quotes or not (history expansion
+     * can't see quotes to begin with, so it can't treat a backslash
+     * inside them any differently).
      * @param {string} input - Raw input line, not yet recorded in history.
      * @returns {{text: string}|{error: string}} The expanded line, or the
      *   specific "!..." reference that couldn't be resolved.
      */
     expandHistoryReferences(input) {
         let error = null;
-        const text = input.replace(/(^|\s)!(!|\d+)/g, (match, prefix, ref) => {
-            if (error) return match; // a previous reference already failed
-            let historyText;
-            if (ref === "!") {
-                if (this.history.length === 0) {
-                    error = "!!";
-                    return match;
-                }
-                historyText = this.history[this.history.length - 1];
-            } else {
-                const n = parseInt(ref, 10);
-                if (n < 1 || n > this.history.length) {
-                    error = `!${ref}`;
-                    return match;
-                }
-                historyText = this.history[n - 1];
+        let result = "";
+
+        for (let i = 0; i < input.length; i++) {
+            const ch = input[i];
+
+            if (ch === "\\" && input[i + 1] === "!") {
+                // Backslash-escaped "!" - not a history reference at all;
+                // consume the backslash (bash does too) and keep the "!" literal.
+                result += "!";
+                i++;
+                continue;
             }
-            return prefix + historyText;
-        });
-        return error ? { error } : { text };
+
+            if (!error && ch === "!") {
+                const rest = input.slice(i + 1);
+                const numMatch = rest.match(/^\d+/);
+
+                if (rest[0] === "!") {
+                    if (this.history.length === 0) {
+                        error = "!!";
+                        result += ch;
+                        continue;
+                    }
+                    result += this.history[this.history.length - 1];
+                    i += 1; // also consumed the second "!"
+                    continue;
+                }
+
+                if (numMatch) {
+                    const n = parseInt(numMatch[0], 10);
+                    if (n < 1 || n > this.history.length) {
+                        error = `!${numMatch[0]}`;
+                        result += ch;
+                        continue;
+                    }
+                    result += this.history[n - 1];
+                    i += numMatch[0].length;
+                    continue;
+                }
+            }
+
+            result += ch;
+        }
+
+        return error ? { error } : { text: result };
     },
 
     async handleEnter() {

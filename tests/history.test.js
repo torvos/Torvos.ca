@@ -80,4 +80,39 @@ test("a plain command with no ! at all is unaffected", async () => {
     assertEqual(terminal.history[0], "pwd");
 });
 
+describe("history expansion is quote-blind, matching real bash (quotes never protect \"!\")");
+
+test("!! still expands even glued directly to a quote character", async () => {
+    await typeAndEnter("echo hello");
+    const output = await typeAndEnter("echo '!!'");
+    assertEqual(terminal.history[terminal.history.length - 1], "echo 'echo hello'");
+    assertIncludes(output, "echo hello");
+});
+
+test("!! still expands inside single quotes when whitespace-separated", async () => {
+    await typeAndEnter("echo hello");
+    await typeAndEnter("echo 'hi !! there'");
+    assertEqual(terminal.history[terminal.history.length - 1], "echo 'hi echo hello there'");
+});
+
+test("!! still expands inside double quotes", async () => {
+    await typeAndEnter("echo hello");
+    await typeAndEnter('echo "!!"');
+    assertEqual(terminal.history[terminal.history.length - 1], 'echo "echo hello"');
+});
+
+test("a backslash immediately before \"!\" protects it, and is itself consumed", async () => {
+    await typeAndEnter("echo hello");
+    const output = await typeAndEnter("echo \\!!");
+    assertEqual(terminal.history[terminal.history.length - 1], "echo !!");
+    assertIncludes(output, "!!");
+});
+
+test("the backslash protection applies even inside single quotes (history expansion can't see quotes at all)", async () => {
+    await typeAndEnter("echo hello");
+    const output = await typeAndEnter("echo '\\!!'");
+    assertEqual(terminal.history[terminal.history.length - 1], "echo '!!'");
+    assertIncludes(output, "!!");
+});
+
 })();
