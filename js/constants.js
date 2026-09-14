@@ -32,6 +32,7 @@ const COLOR_WARNING = "#ff5555";    // boot-time warning messages (corrupted sav
 //Exit codes
 const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
+const EXIT_SYNTAX_ERROR = 2;       // shell-level syntax error (e.g. an unterminated quote)
 const EXIT_COMMAND_NOT_FOUND = 127;
 const EXIT_NOT_EXECUTABLE = 126;    // found but not runnable (a directory, non-regular file, or missing the execute bit)
 

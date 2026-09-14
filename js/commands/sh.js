@@ -655,7 +655,7 @@
                 return {
                     stdout: "",
                     stderr: `${label}: ${target}: ${err.message}`,
-                    exitCode: 2
+                    exitCode: EXIT_SYNTAX_ERROR
                 };
             }
 
