@@ -115,6 +115,16 @@ Object.assign(TerminalEngine.prototype, {
 
                     if (assignMatch) {
                         const varName = assignMatch[1];
+                        // A plain assignment ("x=5") always succeeds, but if the
+                        // value contains command substitution(s) ("x=$(false)"),
+                        // real bash reports $? as the exit status of the LAST
+                        // substitution run - not unconditional success. Default
+                        // to success here; expandCommandSubstitution's calls to
+                        // runCaptured() below will overwrite this.lastExitCode
+                        // with the real exit code as a side effect if (and only
+                        // if) a substitution actually ran, so it's left alone
+                        // after that rather than being reset to EXIT_SUCCESS.
+                        this.lastExitCode = EXIT_SUCCESS;
                         let varValue = await this.expandCommandSubstitution(assignMatch[2]);
                         const isAnsiC =
                             varValue.startsWith("$'") && varValue.endsWith("'") && varValue.length >= 3;
@@ -127,7 +137,6 @@ Object.assign(TerminalEngine.prototype, {
                             varValue = varValue.slice(1, -1);
                         }
                         this.env[varName] = varValue;
-                        this.lastExitCode = EXIT_SUCCESS;
                         continue; // nothing further to execute for this group
                     }
 
