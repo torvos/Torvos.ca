@@ -38,12 +38,42 @@ const testFiles = fs
     .filter((f) => f.endsWith(".test.js"))
     .sort();
 
+// test.html can't auto-discover test files the way this Node runner does
+// (a browser has no directory listing) - it loads a hardcoded <script>
+// per file instead, so it's easy to add a new *.test.js here and forget
+// to also wire it into test.html, silently leaving it never run in a
+// real browser. Catch that here, as part of the normal Node run, rather
+// than relying on remembering to check test.html by hand every time.
+function checkTestHtmlIsInSync() {
+    const testHtmlPath = path.join(testDir, "..", "test.html");
+    const html = fs.readFileSync(testHtmlPath, "utf8");
+    const referenced = new Set(
+        Array.from(html.matchAll(/tests\/([a-zA-Z0-9_-]+\.test\.js)/g), (m) => m[1])
+    );
+
+    const missing = testFiles.filter((f) => !referenced.has(f));
+    // The reverse case too - a <script> tag left pointing at a file that
+    // was since renamed/deleted (404s harmlessly in the browser, but is
+    // just as much drift worth flagging).
+    const stale = [...referenced].filter((f) => !testFiles.includes(f)).sort();
+
+    if (missing.length || stale.length) {
+        console.log("test.html is out of sync with tests/*.test.js:");
+        for (const f of missing) console.log(`  missing from test.html: ${f}`);
+        for (const f of stale) console.log(`  test.html references a file that no longer exists: ${f}`);
+        console.log("");
+        return false;
+    }
+    return true;
+}
+
 for (const file of testFiles) {
     require(path.join(testDir, file));
 }
 
 const { runAll } = require("./harness");
 
-runAll().then((ok) => {
-    process.exit(ok ? 0 : 1);
+runAll().then((testsOk) => {
+    const htmlOk = checkTestHtmlIsInSync();
+    process.exit(testsOk && htmlOk ? 0 : 1);
 });

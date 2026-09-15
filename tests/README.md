@@ -55,8 +55,16 @@ test("a specific, descriptive behavior", async () => {
 })();
 ```
 
-It's picked up automatically next run (in both Node and `test.html`) -
-nothing else to register. Two things worth keeping when copying this
+It's picked up automatically next run in Node - nothing else to
+register there. **In `test.html` it's not automatic** - a browser can't
+list a directory to discover files the way Node's `fs.readdirSync`
+does, so `test.html` loads one `<script src="tests/whatever.test.js">`
+tag per file instead, and a new file needs a matching tag added there
+too. Forgetting is easy and silent (the file just never runs in a real
+browser), so `node tests/run-tests.js` also checks, every run, that
+every `*.test.js` file on disk has a matching `<script>` tag in
+`test.html` (and vice versa) - it fails if they've drifted apart, so
+this can't go unnoticed for long. Two things worth keeping when copying this
 template:
 
 - **The dual-mode first line.** `require("./harness")` only exists in

@@ -575,8 +575,17 @@ Object.assign(TerminalEngine.prototype, {
 
         node.accessed = Date.now();
 
+        // Just mark the session dirty - saving here directly would mean a
+        // single command with several redirects (`echo hi > a > b > c`,
+        // now that multiple redirects on one command are supported) pays
+        // for a full filesystem re-serialization once per redirect,
+        // instead of once for the whole command. handleEnter() already
+        // calls saveSettings() exactly once after every command finishes
+        // (same as every other filesystem-mutating command does via the
+        // `mutatesFilesystem` flag above) - that single call picks up
+        // this flag and persists everything that changed, however many
+        // redirects were involved.
         this.fsDirty = true;
-        this.saveSettings();
 
         return true;
     },
