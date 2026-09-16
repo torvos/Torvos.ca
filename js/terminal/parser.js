@@ -398,19 +398,119 @@ Object.assign(TerminalEngine.prototype, {
     },
 
     /**
-     * Removes a single pair of surrounding matching quotes (either both
-     * single or both double), if present. Leaves the string unchanged if
-     * it isn't fully wrapped in matching quotes.
+     * Finds the end of the shell "word" starting at index `start` in `str`
+     * - the same unit tokenize() would treat as one token, EXCEPT this
+     * additionally treats a `$(...)` command substitution as atomic (its
+     * un-expanded inner text can contain whitespace without ending the
+     * word early), via findCommandSubstitution's own paren/quote-aware
+     * matching. That extra step is specifically what lets
+     * splitLeadingAssignments() below tell where a `NAME=$(cmd a b)`
+     * prefix assignment's value actually ends, without prematurely
+     * running the substitution itself (real bash doesn't word-split the
+     * right-hand side of an assignment, so the substitution's own eventual
+     * output isn't relevant to finding this boundary - only literal,
+     * unquoted whitespace in the WRITTEN command text is).
+     * @param {string} str
+     * @param {number} start
+     * @returns {number} Index just past the word (str.length at the end of input).
      */
-    stripMatchingQuotes(str) {
-        if (
-            str.length >= 2 &&
-            ((str.startsWith('"') && str.endsWith('"')) ||
-                (str.startsWith("'") && str.endsWith("'")))
-        ) {
-            return str.slice(1, -1);
+    wordEnd(str, start) {
+        let i = start;
+        let inSingle = false;
+        let inDouble = false;
+
+        while (i < str.length) {
+            const ch = str[i];
+
+            if (!inSingle && ch === "\\" && i + 1 < str.length) {
+                i += 2;
+                continue;
+            }
+            if (ch === "'" && !inDouble) {
+                inSingle = !inSingle;
+                i++;
+                continue;
+            }
+            if (ch === '"' && !inSingle) {
+                inDouble = !inDouble;
+                i++;
+                continue;
+            }
+            if (!inSingle && ch === "$" && str[i + 1] === "(" && str[i + 2] !== "(") {
+                const sub = this.findCommandSubstitution(str, i);
+                if (sub && sub.start === i) {
+                    i = sub.end;
+                    continue;
+                }
+            }
+            if (!inSingle && !inDouble && /\s/.test(ch)) break;
+            i++;
         }
-        return str;
+
+        return i;
+    },
+
+    /**
+     * Splits any number of leading "NAME=value" prefix assignment words off
+     * the front of `str` - e.g. for `FOO=hello BAR=world echo hi`, returns
+     * `{ assignments: [{name:"FOO",rawValue:"hello"},
+     * {name:"BAR",rawValue:"world"}], rest: "echo hi" }`. Word boundaries
+     * are found with wordEnd() above, so a value can itself contain quoted
+     * whitespace or a `$(...)` substitution without being mistaken for the
+     * end of the assignment. Stops at the first word that ISN'T of the
+     * form NAME=..., which becomes (the start of) `rest`; `rest` is
+     * untouched/unexpanded, exactly as it appeared in `str` (including any
+     * whitespace before it) - it's the caller's job to decide what to do
+     * with it (run it as a command, or treat a fully-consumed `str` with
+     * an empty `rest` as a plain, persistent variable assignment).
+     * @param {string} str
+     * @returns {{assignments: Array<{name:string, rawValue:string}>, rest: string}}
+     */
+    splitLeadingAssignments(str) {
+        const assignments = [];
+        let i = 0;
+
+        while (true) {
+            let wordStart = i;
+            while (wordStart < str.length && /\s/.test(str[wordStart])) wordStart++;
+            if (wordStart >= str.length) {
+                i = wordStart;
+                break;
+            }
+            const end = this.wordEnd(str, wordStart);
+            const word = str.slice(wordStart, end);
+            const match = word.match(/^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/);
+            if (!match) break; // not an assignment word - `rest` starts here (i unchanged)
+            assignments.push({ name: match[1], rawValue: match[2] });
+            i = end;
+        }
+
+        return { assignments, rest: str.slice(i) };
+    },
+
+    /**
+     * Strips the quoting wrapper off an already command-substituted
+     * assignment value - either a full pair of matching quotes (`"a b"` or
+     * `'a b'`) or a `$'...'` ANSI-C-quoted string (which also has its
+     * backslash escapes like `\n`/`\t` expanded). Shared by every place
+     * that resolves an assignment's right-hand side (a plain `x=...`, and
+     * each prefix assignment before a command) so they treat quoting
+     * identically.
+     * @param {string} value - Already through expandCommandSubstitution().
+     * @returns {string}
+     */
+    dequoteAssignmentValue(value) {
+        const isAnsiC = value.startsWith("$'") && value.endsWith("'") && value.length >= 3;
+        const isQuoted =
+            (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
+            (value.startsWith("'") && value.endsWith("'") && value.length >= 2);
+        if (isAnsiC) {
+            return this.expandAnsiCEscapes(value.slice(2, -1));
+        }
+        if (isQuoted) {
+            return value.slice(1, -1);
+        }
+        return value;
     },
 
     /**
