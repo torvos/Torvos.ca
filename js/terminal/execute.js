@@ -10,6 +10,121 @@
 Object.assign(TerminalEngine.prototype, {
 
     /**
+     * Sets up every redirect for one command stage, in the order they were
+     * written, exactly like a real shell opens each file descriptor in
+     * sequence before the command ever runs:
+     *  - `<` reads its target immediately; the LAST `<` (if there's more
+     *    than one) is what the command actually receives as stdin.
+     *  - `>`/`>>`/`2>`/`2>>` truncate (`>`) or touch (`>>`, which never
+     *    truncates - only creates the file if it's missing) their target
+     *    immediately too, the same way opening an fd for writing does -
+     *    which is why an earlier, later-overridden target (the `a` in
+     *    `echo hi > a > b`) still ends up created-and-empty rather than
+     *    untouched. Only the LAST redirect for a given stream (stdout or
+     *    stderr) is remembered to actually receive the command's real
+     *    output once it's run - see applyOutputRedirects() below.
+     * On the first redirect that fails to open at all (missing/unreadable
+     * input file, unwritable output path), setup stops right there,
+     * matching real shells: the command never runs, and any redirect that
+     * failed to even fully set up doesn't affect this stage's stdin.
+     * Shared between the main pipeline dispatch and runCaptured() (used
+     * by `$(...)` command substitution), so both honor redirects the
+     * exact same way.
+     * @param {Array<{operator: string, target: string}>} redirects
+     * @param {string|null} initialStdin - Stdin as it stood before this
+     *   stage's own `<` redirects (if any) are applied - e.g. piped in
+     *   from an earlier pipeline stage.
+     * @returns {{error: string|null, stdin: string|null, stdoutRedirect: Object|null, stderrRedirect: Object|null}}
+     */
+    setupRedirects(redirects, initialStdin = null) {
+        let stdin = initialStdin;
+        let stdoutRedirect = null;
+        let stderrRedirect = null;
+        let error = null;
+
+        for (const redirect of redirects) {
+            if (redirect.operator === "<") {
+                const node = this.fs.get(redirect.target, this.cwd);
+                if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
+                    error = `${redirect.target}: No such file`;
+                } else if (
+                    // Reading a protected, non-device file (e.g. /bin/ls)
+                    // is blocked - reading an existing device (e.g.
+                    // /dev/random) is exactly what it's there for.
+                    this.fs.isProtected(redirect.target, this.cwd) && !this.fs.isDevice(node)
+                ) {
+                    error = `${redirect.target}: Permission denied`;
+                } else {
+                    stdin = this.fs.readContent(node);
+                }
+            } else {
+                const isAppend = redirect.operator === ">>" || redirect.operator === "2>>";
+                const setupResult = this.writeRedirect(redirect.target, "", isAppend);
+                if (typeof setupResult === "string") {
+                    error = setupResult;
+                } else if (redirect.operator === ">" || redirect.operator === ">>") {
+                    stdoutRedirect = redirect;
+                } else {
+                    stderrRedirect = redirect;
+                }
+            }
+            if (error) break;
+        }
+
+        return { error, stdin, stdoutRedirect, stderrRedirect };
+    },
+
+    /**
+     * Applies output redirection (if any) to an already-produced command
+     * result, writing stdout/stderr to a file instead of leaving them in
+     * `result` - `stdoutRedirect`/`stderrRedirect` are already resolved
+     * (by setupRedirects() above) to whichever redirect for that stream
+     * was LAST in the command: an earlier same-stream redirect was already
+     * truncated/touched during setup and receives nothing further,
+     * matching a real shell reassigning the fd. On success, the redirected
+     * stream is cleared from `result` so it isn't ALSO printed to the
+     * terminal (or substituted by `$(...)`) - real shells never show
+     * output once it's been redirected to a file. The exit code is
+     * untouched either way (a command's success/failure isn't affected by
+     * where its output went); only the failure branch here still surfaces
+     * text, since that's reporting a NEW error (e.g. an invalid path)
+     * about the redirect itself, not the original command's output.
+     * @param {{stdout: string, stderr: string, exitCode: number}} result
+     * @param {Object|null} stdoutRedirect
+     * @param {Object|null} stderrRedirect
+     * @returns {{stdout: string, stderr: string, exitCode: number}} `result`, mutated in place.
+     */
+    applyOutputRedirects(result, stdoutRedirect, stderrRedirect) {
+        if (stdoutRedirect) {
+            const redirectReturn = this.writeRedirect(
+                stdoutRedirect.target,
+                result.stdout,
+                stdoutRedirect.operator === ">>"
+            );
+            if (typeof redirectReturn === "string") {
+                result.stderr = redirectReturn;
+                result.exitCode = EXIT_FAILURE;
+            } else {
+                result.stdout = "";
+            }
+        }
+        if (stderrRedirect) {
+            const redirectReturn = this.writeRedirect(
+                stderrRedirect.target,
+                result.stderr,
+                stderrRedirect.operator === "2>>"
+            );
+            if (typeof redirectReturn === "string") {
+                result.stderr = redirectReturn;
+                result.exitCode = EXIT_FAILURE;
+            } else {
+                result.stderr = "";
+            }
+        }
+        return result;
+    },
+
+    /**
      * Top-level entry point: takes a raw line of shell input and expands +
      * executes it (writing output/errors directly to the terminal as it
      * goes, by default).
@@ -183,59 +298,14 @@ Object.assign(TerminalEngine.prototype, {
                         }                    
                         const redirects = parsed.redirects;
 
-                        // Set up every redirect in the order they were written,
-                        // exactly like a real shell opens each file descriptor
-                        // in sequence before the command ever runs:
-                        //  - `<` reads its target immediately; the LAST `<`
-                        //    (if there's more than one) is what the command
-                        //    actually receives as stdin.
-                        //  - `>`/`>>`/`2>`/`2>>` truncate (`>`) or touch
-                        //    (`>>`, which never truncates - only creates the
-                        //    file if it's missing) their target immediately
-                        //    too, the same way opening an fd for writing
-                        //    does - which is why an earlier, later-overridden
-                        //    target (the `a` in `echo hi > a > b`) still ends
-                        //    up created-and-empty rather than untouched. Only
-                        //    the LAST redirect for a given stream (stdout or
-                        //    stderr) is remembered to actually receive the
-                        //    command's real output once it's run, below.
-                        // On the first redirect that fails to open at all
-                        // (missing/unreadable input file, unwritable output
-                        // path), setup stops right there, matching real shells:
-                        // the command never runs, and any redirect that failed
-                        // to even fully set up doesn't affect this stage's
-                        // stdin/stdout/stderr.
-                        let redirectSetupError = null;
-                        let stdoutRedirect = null;
-                        let stderrRedirect = null;
-                        for (const redirect of redirects) {
-                            if (redirect.operator === "<") {
-                                const node = this.fs.get(redirect.target, this.cwd);
-                                if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
-                                    redirectSetupError = `${redirect.target}: No such file`;
-                                } else if (
-                                    // Reading a protected, non-device file (e.g. /bin/ls)
-                                    // is blocked - reading an existing device (e.g.
-                                    // /dev/random) is exactly what it's there for.
-                                    this.fs.isProtected(redirect.target, this.cwd) && !this.fs.isDevice(node)
-                                ) {
-                                    redirectSetupError = `${redirect.target}: Permission denied`;
-                                } else {
-                                    stdin = this.fs.readContent(node);
-                                }
-                            } else {
-                                const isAppend = redirect.operator === ">>" || redirect.operator === "2>>";
-                                const setupResult = this.writeRedirect(redirect.target, "", isAppend);
-                                if (typeof setupResult === "string") {
-                                    redirectSetupError = setupResult;
-                                } else if (redirect.operator === ">" || redirect.operator === ">>") {
-                                    stdoutRedirect = redirect;
-                                } else {
-                                    stderrRedirect = redirect;
-                                }
-                            }
-                            if (redirectSetupError) break;
-                        }
+                        // Set up every redirect (see setupRedirects() below for the
+                        // full rules); shared with runCaptured() so $(...) command
+                        // substitution honors redirects the exact same way.
+                        const setup = this.setupRedirects(redirects, stdin);
+                        const redirectSetupError = setup.error;
+                        stdin = setup.stdin;
+                        const stdoutRedirect = setup.stdoutRedirect;
+                        const stderrRedirect = setup.stderrRedirect;
 
                         let result;
 
@@ -335,49 +405,12 @@ Object.assign(TerminalEngine.prototype, {
                         result.stderr ??= "";
                         result.exitCode ??= 0;
                         this.lastExitCode = result.exitCode;
-                        let redirectreturn = "";
 
-                        // Apply output redirection, if any, writing stdout/stderr to
-                        // a file instead - `stdoutRedirect`/`stderrRedirect` are
-                        // already resolved to whichever redirect for that stream was
-                        // LAST in the command (see the setup loop above for why: an
-                        // earlier same-stream redirect was already truncated/touched
-                        // there and receives nothing further, matching a real shell
-                        // reassigning the fd). On success, the redirected stream is
-                        // cleared from `result` so it isn't ALSO printed to the
-                        // terminal below - real shells never show output on screen
-                        // once it's been redirected to a file. The exit code is
-                        // untouched either way (a command's success/failure isn't
-                        // affected by where its output went); only the failure
-                        // branch below still surfaces text, since that's reporting a
-                        // NEW error (e.g. an invalid path) about the redirect
-                        // itself, not the original command's output.
-                        if (stdoutRedirect) {
-                            redirectreturn = this.writeRedirect(
-                                stdoutRedirect.target,
-                                result.stdout,
-                                stdoutRedirect.operator === ">>"
-                            );
-                            if (typeof redirectreturn === 'string') {
-                                result.stderr = redirectreturn;
-                                result.exitCode = EXIT_FAILURE;
-                            } else {
-                                result.stdout = "";
-                            }
-                        }
-                        if (stderrRedirect) {
-                            redirectreturn = this.writeRedirect(
-                                stderrRedirect.target,
-                                result.stderr,
-                                stderrRedirect.operator === "2>>"
-                            );
-                            if (typeof redirectreturn === 'string') {
-                                result.stderr = redirectreturn;
-                                result.exitCode = EXIT_FAILURE;
-                            } else {
-                                result.stderr = "";
-                            }
-                        }
+                        // Apply output redirection, if any (see
+                        // applyOutputRedirects() below for the full rules;
+                        // shared with runCaptured() for the same reason as
+                        // setupRedirects() above).
+                        result = this.applyOutputRedirects(result, stdoutRedirect, stderrRedirect);
 
                         this.lastExitCode = result.exitCode;
 
@@ -494,6 +527,14 @@ Object.assign(TerminalEngine.prototype, {
                 args.push(...pieces.map((a) => this.restoreGlobChars(a)));
             }
 
+            // Set up any redirects on this stage (>, >>, 2>, 2>>, <) the
+            // same way the main dispatch loop does - previously this was
+            // skipped entirely inside $(...) substitution, so something
+            // like `$(echo hi > file)` silently threw the redirect away
+            // instead of writing to `file`.
+            const setup = this.setupRedirects(parsed.redirects, stdin);
+            stdin = setup.stdin;
+
             const command = window.Commands?.[cmd];
             // Everything run inside $(...) has its output fully consumed
             // programmatically (never printed live) - see the matching
@@ -501,7 +542,11 @@ Object.assign(TerminalEngine.prototype, {
             // above; sh.js checks this to decide whether to capture a
             // script's output instead of writing it straight to the screen.
             this._pipeOutputConsumed = true;
-            if (command?.execute) {
+            if (setup.error) {
+                // A redirect failed above - the command never runs at all,
+                // same as the main dispatch loop.
+                result = { stdout: "", stderr: setup.error, exitCode: EXIT_FAILURE };
+            } else if (command?.execute) {
                 try {
                     result = await command.execute(this, args, stdin);
                 } catch (err) {
@@ -529,6 +574,10 @@ Object.assign(TerminalEngine.prototype, {
             result.stdout ??= "";
             result.stderr ??= "";
             result.exitCode ??= 0;
+
+            if (!setup.error) {
+                result = this.applyOutputRedirects(result, setup.stdoutRedirect, setup.stderrRedirect);
+            }
 
             stdin = result.stdout;
         }

@@ -415,41 +415,66 @@ Object.assign(TerminalEngine.prototype, {
 
     /**
      * Parses a single command string into its command name, arguments, and
-     * any trailing I/O redirections (>, >>, 2>, 2>>, <) - a command can have
-     * more than one, e.g. `echo hi > a > b` or `cat < in.txt > out.txt`, so
-     * every trailing redirect is peeled off (one at a time, from the end)
-     * rather than just the last. `redirects` is returned as an array in the
-     * same left-to-right order they were written in, since that order
-     * matters: real shells set up each redirect in sequence, so when two
-     * redirects target the same stream (like the `> a > b` above), the
-     * later one is the one that actually ends up receiving the output -
-     * see execute.js for how that's applied. Redirection is detected via
-     * maskQuotes so operators inside quotes aren't mistaken for real redirects.
+     * every I/O redirection it contains (>, >>, 2>, 2>>, <) - a command can
+     * have more than one, and (unlike a real shell's fd model, which this
+     * doesn't fully replicate) they can appear ANYWHERE in the command, not
+     * just trailing it, e.g. `echo hi > a > b`, `echo > a hi`, and
+     * `cat < in.txt > out.txt` are all recognized. `redirects` is returned
+     * as an array in the same left-to-right order they were written in,
+     * since that order matters: real shells set up each redirect in
+     * sequence, so when two redirects target the same stream (like the
+     * `> a > b` above), the later one is the one that actually ends up
+     * receiving the output - see execute.js for how that's applied.
+     * Redirection is detected via maskQuotes so operators inside quotes
+     * aren't mistaken for real redirects, and the operator/target text is
+     * pulled out via tokenize() so a quoted target (`> "my file"`) comes
+     * through already dequoted, exactly like any other argument would.
      * @param {string} command - Raw command text (aliases/vars already expanded).
      * @returns {{cmd: string, args: string[], redirects: Array<{operator: string, target: string}>}}
      */
     parseCommand(command) {
-        const redirectRegex = /\s*(2>>|2>|>>|>|<)\s*([^\s]+)\s*$/;
-        const redirects = [];
-        while (true) {
-            const match = this.maskQuotes(command).match(redirectRegex);
-            if (!match) break;
-            // Found from the end inward, so each one is unshifted to build
-            // the array back up in the original left-to-right order.
-            redirects.unshift({
-                operator: match[1],
-                target: this.stripMatchingQuotes(
-                    command.slice(match.index + match[0].indexOf(match[1]) + match[1].length, match.index + match[0].length).trim()
-                )
-            });
-            // Strip this redirect off before looking for another one before it
-            command = command.slice(0, match.index).trim();
+        // Longest-operator-first, so "2>>"/"2>" aren't mistaken for a
+        // trailing ">"/">>" starting one character later.
+        const OPERATORS = ["2>>", "2>", ">>", ">", "<"];
+        const masked = this.maskQuotes(command);
+
+        // Walk the string once, copying it through unchanged EXCEPT that
+        // every unquoted/unescaped redirect operator (per `masked`) gets
+        // padded with a space on each side. This turns an operator that's
+        // jammed up against neighboring text (e.g. "hi>out" or ">a") into
+        // its own whitespace-delimited word, so the tokenizer below - which
+        // otherwise has no idea "<"/">" are special - naturally splits it
+        // out as a separate token wherever it appears in the command, not
+        // just at the very end.
+        let spaced = "";
+        for (let i = 0; i < command.length; ) {
+            const op = OPERATORS.find(candidate => masked.startsWith(candidate, i));
+            if (op) {
+                spaced += ` ${op} `;
+                i += op.length;
+            } else {
+                spaced += command[i];
+                i++;
+            }
         }
-        const parts = this.tokenize(command);
+
+        const tokens = this.tokenize(spaced);
+        const redirects = [];
+        const remaining = [];
+
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
+            if (OPERATORS.includes(token) && tokens[i + 1] !== undefined) {
+                redirects.push({ operator: token, target: tokens[i + 1] });
+                i++; // consume the target too, it's not a plain argument
+                continue;
+            }
+            remaining.push(token);
+        }
 
         return {
-            cmd: parts[0],
-            args: parts.slice(1),
+            cmd: remaining[0],
+            args: remaining.slice(1),
             redirects
         };
     },
