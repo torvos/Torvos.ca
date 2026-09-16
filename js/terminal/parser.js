@@ -221,6 +221,40 @@ Object.assign(TerminalEngine.prototype, {
         return inSingle || inDouble;
     },
 
+    /**
+     * Checks whether `text` contains a "|" pipe with a missing command on
+     * either side - a leading pipe ("| cmd"), a trailing one ("cmd |"), or
+     * two with nothing meaningful between them ("cmd | | cmd2"). All of
+     * these are a genuine syntax error in a real shell ("syntax error near
+     * unexpected token `|'"), which refuses to run anything on the line -
+     * not something that should silently drop the empty stage and run
+     * whatever commands DID appear, which is what naively filtering out
+     * blank entries after splitting on "|" would otherwise do.
+     *
+     * Used to reject a whole (post-alias/brace-expansion, but still
+     * PRE-variable-expansion and PRE-$(...) substitution) command line up
+     * front, the same way hasUnterminatedQuotes() above is: real shells
+     * determine a command's structure - where its pipes and statement
+     * separators are - while parsing, entirely before any expansion
+     * happens, so this must too. Checking post-expansion text instead
+     * would risk a "|" that only exists because some unrelated $(...)
+     * substitution's OUTPUT happened to contain one being flagged as if
+     * the user had typed it.
+     * @param {string} text
+     * @returns {boolean} true if a malformed pipe was found anywhere in `text`.
+     */
+    hasMalformedPipeline(text) {
+        for (const statement of this.splitTopLevel(text, ";")) {
+            for (const segment of this.splitAndOr(statement)) {
+                const stages = this.splitTopLevel(segment.text, "|");
+                if (stages.length > 1 && stages.some(stage => stage.trim() === "")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    },
+
     splitTopLevel(str, delimiter) {
         const parts = [];
         let current = "";

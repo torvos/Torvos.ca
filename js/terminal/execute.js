@@ -196,6 +196,24 @@ Object.assign(TerminalEngine.prototype, {
         input = this.expandAlias(input);
         const expandedCommands = this.expandBraces(input);
 
+        // A pipe with a missing command on one side ("| cmd", "cmd |",
+        // "cmd | | cmd2") is a syntax error, same as an unterminated quote
+        // above - checked across every brace-expanded variant BEFORE any
+        // of them run, so (matching real shells, which refuse to run
+        // anything on a line with a syntax error anywhere in it) an error
+        // later in the line can't let something earlier on it run first.
+        for (const expandedInput of expandedCommands) {
+            if (this.hasMalformedPipeline(expandedInput)) {
+                const line = "syntax error near unexpected token `|'";
+                this.lastExitCode = EXIT_SYNTAX_ERROR;
+                if (capture) {
+                    return { stdout: "", stderr: line, exitCode: EXIT_SYNTAX_ERROR };
+                }
+                await emitErrorLine(line);
+                return;
+            }
+        }
+
         for (const expandedInput of expandedCommands) {
             // Split on unquoted ";" to get each sequential command/group
             const commandGroups = this.splitTopLevel(expandedInput, ";")
@@ -554,6 +572,21 @@ Object.assign(TerminalEngine.prototype, {
     // substitution. Supports variables/arithmetic/nested substitution and
     // pipes, but not ; sequencing or redirects (same as real shells' $(...)).
     async runCaptured(input) {
+        // Same reasoning as the check in execute() - a pipe's validity is
+        // part of the command's STRUCTURE, which is determined by the
+        // literal text as typed, before any expansion; checking only
+        // AFTER expanding (like the quote check just below does, for its
+        // own good reason) would risk a "|" that only exists because some
+        // unrelated substitution's OUTPUT happened to contain one being
+        // flagged as if it had actually been typed as a pipe.
+        if (this.hasMalformedPipeline(input)) {
+            return {
+                stdout: "",
+                stderr: "syntax error near unexpected token `|'",
+                exitCode: EXIT_SYNTAX_ERROR
+            };
+        }
+
         let expanded = this.expandArithmetic(this.expandVariables(input));
         expanded = await this.expandCommandSubstitution(expanded);
 
