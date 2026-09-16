@@ -775,6 +775,13 @@ Object.assign(TerminalEngine.prototype, {
      * with the captured stdout of actually running the inner command
      * (via runCaptured, defined in execute.js). Trailing newlines are
      * stripped from the captured output to match bash's behavior.
+     *
+     * Only stdout is substituted into the string - stderr from the inner
+     * command is NEVER part of `$(...)`'s value, in bash or here. Real
+     * bash still lets that stderr reach the terminal directly (e.g.
+     * `echo $(cmd 2>&1 1>/dev/null)` captures nothing but still prints
+     * cmd's stderr to the screen), so it's written out immediately as
+     * each substitution runs, rather than being silently dropped.
      * @param {string} str - Input string possibly containing $(...) patterns.
      * @returns {Promise<string>} The string with all substitutions resolved.
      * @throws {Error} If substitutions appear to nest more than 50 deep
@@ -790,6 +797,13 @@ Object.assign(TerminalEngine.prototype, {
                 throw new Error("too many nested command substitutions");
             }
             const captured = await this.runCaptured(found.inner);
+            if (captured.stderr) {
+                for (const line of captured.stderr.split(/\r?\n/)) {
+                    if (line) {
+                        this.write(this.formatErrorLine(line));
+                    }
+                }
+            }
             // bash strips trailing newlines from $(...) output, but keeps
             // internal newlines intact
             const text = (captured.stdout ?? "").replace(/\r?\n+$/, "");
