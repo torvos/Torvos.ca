@@ -196,15 +196,17 @@ Object.assign(TerminalEngine.prototype, {
         input = this.expandAlias(input);
         const expandedCommands = this.expandBraces(input);
 
-        // A pipe with a missing command on one side ("| cmd", "cmd |",
-        // "cmd | | cmd2") is a syntax error, same as an unterminated quote
-        // above - checked across every brace-expanded variant BEFORE any
-        // of them run, so (matching real shells, which refuse to run
-        // anything on a line with a syntax error anywhere in it) an error
-        // later in the line can't let something earlier on it run first.
+        // A pipe or and-or operator ("|", "&&", "||") with a missing
+        // command on one side ("| cmd", "cmd |", "cmd | | cmd2", "cmd &&",
+        // ...) is a syntax error, same as an unterminated quote above -
+        // checked across every brace-expanded variant BEFORE any of them
+        // run, so (matching real shells, which refuse to run anything on a
+        // line with a syntax error anywhere in it) an error later in the
+        // line can't let something earlier on it run first.
         for (const expandedInput of expandedCommands) {
-            if (this.hasMalformedPipeline(expandedInput)) {
-                const line = "syntax error near unexpected token `|'";
+            const badToken = this.findMalformedShellSyntax(expandedInput);
+            if (badToken) {
+                const line = `syntax error near unexpected token \`${badToken}'`;
                 this.lastExitCode = EXIT_SYNTAX_ERROR;
                 if (capture) {
                     return { stdout: "", stderr: line, exitCode: EXIT_SYNTAX_ERROR };
@@ -579,10 +581,11 @@ Object.assign(TerminalEngine.prototype, {
         // own good reason) would risk a "|" that only exists because some
         // unrelated substitution's OUTPUT happened to contain one being
         // flagged as if it had actually been typed as a pipe.
-        if (this.hasMalformedPipeline(input)) {
+        const badToken = this.findMalformedShellSyntax(input);
+        if (badToken) {
             return {
                 stdout: "",
-                stderr: "syntax error near unexpected token `|'",
+                stderr: `syntax error near unexpected token \`${badToken}'`,
                 exitCode: EXIT_SYNTAX_ERROR
             };
         }

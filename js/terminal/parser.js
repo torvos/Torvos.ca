@@ -222,37 +222,53 @@ Object.assign(TerminalEngine.prototype, {
     },
 
     /**
-     * Checks whether `text` contains a "|" pipe with a missing command on
-     * either side - a leading pipe ("| cmd"), a trailing one ("cmd |"), or
-     * two with nothing meaningful between them ("cmd | | cmd2"). All of
-     * these are a genuine syntax error in a real shell ("syntax error near
-     * unexpected token `|'"), which refuses to run anything on the line -
-     * not something that should silently drop the empty stage and run
+     * Checks whether `text` has a "|", "&&", or "||" operator with a
+     * missing command on either side - a leading one ("| cmd", "&& cmd"),
+     * a trailing one ("cmd |", "cmd &&"), or two with nothing meaningful
+     * between them ("cmd | | cmd2", "cmd && && cmd2"). All of these are a
+     * genuine syntax error in a real shell ("syntax error near unexpected
+     * token `|'"/`&&'`), which refuses to run anything on the line - not
+     * something that should silently drop the empty stage and run
      * whatever commands DID appear, which is what naively filtering out
-     * blank entries after splitting on "|" would otherwise do.
+     * blank entries after splitting on these operators would otherwise do.
+     * (An empty STATEMENT with no operator involved, like the no-op
+     * between the two ";" in `true;;true`, is a different, legitimate
+     * case and is deliberately not flagged here - only a stage/segment
+     * that's empty because it sits next to an actual "|"/"&&"/"||" is.)
      *
      * Used to reject a whole (post-alias/brace-expansion, but still
      * PRE-variable-expansion and PRE-$(...) substitution) command line up
      * front, the same way hasUnterminatedQuotes() above is: real shells
-     * determine a command's structure - where its pipes and statement
-     * separators are - while parsing, entirely before any expansion
-     * happens, so this must too. Checking post-expansion text instead
-     * would risk a "|" that only exists because some unrelated $(...)
-     * substitution's OUTPUT happened to contain one being flagged as if
-     * the user had typed it.
+     * determine a command's structure - where its pipes, and-ors, and
+     * statement separators are - while parsing, entirely before any
+     * expansion happens, so this must too. Checking post-expansion text
+     * instead would risk an operator character that only exists because
+     * some unrelated $(...) substitution's OUTPUT happened to contain one
+     * being flagged as if the user had typed it.
      * @param {string} text
-     * @returns {boolean} true if a malformed pipe was found anywhere in `text`.
+     * @returns {string|null} The offending operator ("|", "&&", or "||")
+     *   found malformed, or null if the syntax is fine.
      */
-    hasMalformedPipeline(text) {
+    findMalformedShellSyntax(text) {
         for (const statement of this.splitTopLevel(text, ";")) {
-            for (const segment of this.splitAndOr(statement)) {
+            const segments = this.splitAndOr(statement);
+            const badAndOr = segments.find(seg => seg.text === "");
+            if (segments.length > 1 && badAndOr) {
+                // The empty segment's OWN op is null for a leading operator
+                // (nothing before it), so in that case the next segment's
+                // op - the operator immediately after the empty gap - is
+                // the one actually at fault ("&& cmd" flags on the "&&").
+                const index = segments.indexOf(badAndOr);
+                return badAndOr.op ?? segments[index + 1]?.op ?? "&&";
+            }
+            for (const segment of segments) {
                 const stages = this.splitTopLevel(segment.text, "|");
                 if (stages.length > 1 && stages.some(stage => stage.trim() === "")) {
-                    return true;
+                    return "|";
                 }
             }
         }
-        return false;
+        return null;
     },
 
     splitTopLevel(str, delimiter) {
