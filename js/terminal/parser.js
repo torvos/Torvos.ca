@@ -500,15 +500,15 @@ Object.assign(TerminalEngine.prototype, {
     /**
      * Finds the end of the shell "word" starting at index `start` in `str`
      * - the same unit tokenize() would treat as one token, EXCEPT this
-     * additionally treats a `$(...)` command substitution as atomic (its
+     * additionally treats a `$(...)`/`$((...))` construct as atomic (its
      * un-expanded inner text can contain whitespace without ending the
-     * word early), via findCommandSubstitution's own paren/quote-aware
-     * matching. That extra step is specifically what lets
-     * splitLeadingAssignments() below tell where a `NAME=$(cmd a b)`
-     * prefix assignment's value actually ends, without prematurely
-     * running the substitution itself (real bash doesn't word-split the
-     * right-hand side of an assignment, so the substitution's own eventual
-     * output isn't relevant to finding this boundary - only literal,
+     * word early), via skipDollarParen()'s own paren/quote-aware matching.
+     * That extra step is specifically what lets splitLeadingAssignments()
+     * below tell where a `NAME=$(cmd a b)` or `NAME=$((a + b))` prefix
+     * assignment's value actually ends, without prematurely running the
+     * substitution/evaluating the expression itself (real bash doesn't
+     * word-split the right-hand side of an assignment, so the eventual
+     * result isn't relevant to finding this boundary - only literal,
      * unquoted whitespace in the WRITTEN command text is).
      * @param {string} str
      * @param {number} start
@@ -536,10 +536,10 @@ Object.assign(TerminalEngine.prototype, {
                 i++;
                 continue;
             }
-            if (!inSingle && ch === "$" && str[i + 1] === "(" && str[i + 2] !== "(") {
-                const sub = this.findCommandSubstitution(str, i);
-                if (sub && sub.start === i) {
-                    i = sub.end;
+            if (!inSingle && ch === "$") {
+                const end = this.skipDollarParen(str, i);
+                if (end !== null) {
+                    i = end;
                     continue;
                 }
             }

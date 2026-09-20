@@ -506,11 +506,30 @@
                 return ok;
             }
 
-            node.content = options.append
-                ? ((node.content ?? "")
-                    ? node.content + (data ?? "")
-                    : (data ?? ""))
-                : (data ?? "");
+            if (options.append) {
+                // A real shell's `>>` writes a command's ACTUAL stdout bytes
+                // - trailing newline included, since that's just part of
+                // what the command printed (e.g. echo always ends its own
+                // output with "\n"). This codebase's captured stdout
+                // doesn't carry that trailing newline itself (multi-line
+                // output within one command is instead reconstructed by
+                // joining separate write() calls with "\n" - see
+                // execute()'s capturedOut), so appending it here as raw
+                // text would otherwise run straight into whatever was
+                // already in the file with no separator at all, turning
+                // two `echo ... >> file` calls into one run-on line
+                // instead of two. Insert the newline a real append would
+                // have carried along, whenever there's existing content
+                // that doesn't already end with one and something new is
+                // actually being added.
+                const existing = node.content ?? "";
+                const addition = data ?? "";
+                node.content = existing && addition && !existing.endsWith("\n")
+                    ? existing + "\n" + addition
+                    : existing + addition;
+            } else {
+                node.content = data ?? "";
+            }
             node.modified = Date.now();
             return true;
         },

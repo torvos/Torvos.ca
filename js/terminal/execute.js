@@ -294,7 +294,21 @@ Object.assign(TerminalEngine.prototype, {
                     }
                     const resolvedAssignments = [];
                     for (const { name, rawValue } of assignments) {
-                        const varValue = this.dequoteAssignmentValue(await this.expandAll(rawValue));
+                        // restoreGlobChars() undoes expandAll()'s protection
+                        // of any quote/operator character that came from a
+                        // substituted value (see the comment on expandAll()
+                        // for why that protection exists) - needed here,
+                        // same as for a command's own args, because a shell
+                        // VARIABLE's value is another final destination:
+                        // once it's stored, nothing downstream should still
+                        // be treating its characters as inert placeholders.
+                        // Skipping this would mean e.g. `x=$(printf 'a|b')`
+                        // permanently storing a placeholder in place of the
+                        // real "|" character, forever - since nothing else
+                        // would ever restore it after this point.
+                        const varValue = this.restoreGlobChars(
+                            this.dequoteAssignmentValue(await this.expandAll(rawValue))
+                        );
                         resolvedAssignments.push({ name, varValue });
                     }
 

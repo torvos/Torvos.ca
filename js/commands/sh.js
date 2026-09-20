@@ -332,9 +332,18 @@
         return false;
     }
 
-    // Tokenizes and evaluates the text found between [ and ] in a test expression.
+    // Tokenizes and evaluates the text found between [ and ] in a test
+    // expression. Each token is passed through restoreGlobChars() - same
+    // as a command's own args are, right before use - since a token built
+    // from a $VAR/$(...) substitution (via evaluateCondition's expandAll()
+    // call below) still has any quote/operator character it contained
+    // protected as an inert placeholder at this point; comparing it
+    // against a LITERAL token the script typed directly (which was never
+    // protected, so has the real character already) would otherwise never
+    // match even when the two are logically identical text.
     function evaluateTest(terminal, exprText) {
-        return evaluateTestTokens(terminal, terminal.tokenize(exprText));
+        const tokens = terminal.tokenize(exprText).map((t) => terminal.restoreGlobChars(t));
+        return evaluateTestTokens(terminal, tokens);
     }
 
     /**
