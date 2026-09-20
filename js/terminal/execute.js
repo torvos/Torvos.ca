@@ -43,23 +43,37 @@ Object.assign(TerminalEngine.prototype, {
         let error = null;
 
         for (const redirect of redirects) {
+            // The target came straight out of tokenize(), which may have
+            // protected a quoted/escaped glob character in it (see
+            // restoreGlobChars() for the full list of what this restores,
+            // including - now - a value spliced in from $VAR/$(...) that
+            // happened to contain a quote/operator character of its own,
+            // e.g. `echo hi > $(echo "weird*file")`). Every other
+            // command/argument gets this same restoration right before
+            // use; a redirect's own target needs it for exactly the same
+            // reason, or a file gets created with placeholder characters
+            // literally in its name instead of the real ones.
+            const target = this.restoreGlobChars(redirect.target);
+            redirect.target = target; // so applyOutputRedirects() below (which re-reads
+                                       // stdoutRedirect.target/stderrRedirect.target from
+                                       // this SAME object) also gets the restored value
             if (redirect.operator === "<") {
-                const node = this.fs.get(redirect.target, this.cwd);
+                const node = this.fs.get(target, this.cwd);
                 if (!node || (!this.fs.isFile(node) && !this.fs.isDevice(node))) {
-                    error = `${redirect.target}: No such file`;
+                    error = `${target}: No such file`;
                 } else if (
                     // Reading a protected, non-device file (e.g. /bin/ls)
                     // is blocked - reading an existing device (e.g.
                     // /dev/random) is exactly what it's there for.
-                    this.fs.isProtected(redirect.target, this.cwd) && !this.fs.isDevice(node)
+                    this.fs.isProtected(target, this.cwd) && !this.fs.isDevice(node)
                 ) {
-                    error = `${redirect.target}: Permission denied`;
+                    error = `${target}: Permission denied`;
                 } else {
                     stdin = this.fs.readContent(node);
                 }
             } else {
                 const isAppend = redirect.operator === ">>" || redirect.operator === "2>>";
-                const setupResult = this.writeRedirect(redirect.target, "", isAppend);
+                const setupResult = this.writeRedirect(target, "", isAppend);
                 if (typeof setupResult === "string") {
                     error = setupResult;
                 } else if (redirect.operator === ">" || redirect.operator === ">>") {
@@ -236,65 +250,86 @@ Object.assign(TerminalEngine.prototype, {
                     if (segment.op === "||" && this.lastExitCode === EXIT_SUCCESS) {
                         continue;
                     }
-                    // Expand $VAR, $?, and $((arithmetic)) references first.
-                    // Note this uses the environment as it stood BEFORE any
-                    // assignment(s) below - real bash resolves the words of
-                    // a simple command using the shell's existing variable
-                    // table, and a prefix assignment on that SAME command
-                    // only ever updates the environment the command's own
-                    // process actually runs in, never the parent shell's
-                    // variable-substitution text (that's already been
-                    // resolved to plain text by now). This is why, in real
-                    // bash, `FOO=hello echo $FOO` prints whatever $FOO
-                    // already was - NOT "hello" - even though `echo` itself
-                    // does see FOO=hello in ITS OWN environment (e.g.
-                    // `FOO=hello printenv FOO` DOES print "hello", since
-                    // printenv reads its process's environment directly
-                    // rather than via shell substitution).
-                    let group = this.expandArithmetic(this.expandVariables(segment.text));
+                    // Peel off any number of leading "NAME=value" words
+                    // FIRST, from the still-completely-raw text - before
+                    // ANY expansion happens. This must come before
+                    // resolving $VAR/$(...)/$((...)) and before splitting
+                    // on "|": like real shells, the right-hand side of an
+                    // assignment is never word-split, so a substituted
+                    // value's own ";"/"|" characters (e.g. `x=$(cat file)`
+                    // where the file contains a pipe) must not be
+                    // reinterpreted as pipe/statement separators.
+                    // splitLeadingAssignments() finds each assignment
+                    // word's boundary without resolving anything inside it,
+                    // for the same reason.
+                    const { assignments, rest } = this.splitLeadingAssignments(segment.text);
 
-                    // Peel off any number of leading "NAME=value" words.
-                    // This must happen BEFORE resolving $(...) command
-                    // substitution and BEFORE splitting on "|": like real
-                    // shells, the right-hand side of an assignment is never
-                    // word-split, so a substituted value's own ";"/"|"
-                    // characters (e.g. `x=$(cat file)` where the file
-                    // contains a pipe) must not be reinterpreted here as
-                    // pipe/statement separators. splitLeadingAssignments()
-                    // finds each assignment word's boundary without
-                    // resolving any $(...) it contains, for the same reason.
-                    const { assignments, rest } = this.splitLeadingAssignments(group);
+                    // Resolve every assignment's VALUE (still using
+                    // whatever expandAll/runCaptured need - $VAR, $(...),
+                    // $((...)), all of it) BEFORE applying ANY of them to
+                    // this.env, and using the SAME pre-assignment
+                    // environment for every one of them - real bash
+                    // resolves every word of a simple command (including
+                    // each of ITS OWN prefix assignments' values) against
+                    // the shell's existing variable table as it stood
+                    // before the command runs, not against each other's
+                    // newly-assigned values as they're applied one at a
+                    // time (e.g. in `A=1 B=$A`, $A in B's value is
+                    // whatever A already was - NOT the "1" being assigned
+                    // to it on this same line).
+                    //
+                    // A plain assignment ("x=5") always succeeds, but if a
+                    // value contains command substitution(s) ("x=$(false)"),
+                    // real bash reports $? as the exit status of the LAST
+                    // substitution run anywhere on the line - not
+                    // unconditional success. Default to success here,
+                    // BEFORE resolving anything: expandAll's own calls to
+                    // runCaptured() below will overwrite this.lastExitCode
+                    // with the real exit code as a side effect if (and only
+                    // if) a substitution actually runs while resolving a
+                    // value, so it's deliberately left alone after that
+                    // rather than being reset back to EXIT_SUCCESS.
+                    if (assignments.length > 0) {
+                        this.lastExitCode = EXIT_SUCCESS;
+                    }
+                    const resolvedAssignments = [];
+                    for (const { name, rawValue } of assignments) {
+                        const varValue = this.dequoteAssignmentValue(await this.expandAll(rawValue));
+                        resolvedAssignments.push({ name, varValue });
+                    }
 
                     if (assignments.length > 0 && rest.trim() === "") {
                         // One or more assignments with nothing after them
                         // (e.g. "x=5" or "x=5 y=6") - a real, PERSISTENT
                         // shell variable assignment, not a temporary
                         // override for some command.
-                        //
-                        // A plain assignment ("x=5") always succeeds, but if
-                        // a value contains command substitution(s)
-                        // ("x=$(false)"), real bash reports $? as the exit
-                        // status of the LAST substitution run anywhere in
-                        // this line - not unconditional success. Default to
-                        // success here; expandCommandSubstitution's calls to
-                        // runCaptured() below will overwrite this.lastExitCode
-                        // with the real exit code as a side effect if (and
-                        // only if) a substitution actually ran, so it's left
-                        // alone after that rather than being reset to
-                        // EXIT_SUCCESS.
-                        this.lastExitCode = EXIT_SUCCESS;
-                        for (const { name, rawValue } of assignments) {
-                            const varValue = this.dequoteAssignmentValue(
-                                await this.expandCommandSubstitution(rawValue)
-                            );
+                        for (const { name, varValue } of resolvedAssignments) {
                             this.env[name] = varValue;
                         }
                         continue; // nothing further to execute for this group
                     }
 
-                    // Any assignments followed by an actual command (e.g.
-                    // "FOO=hello echo $FOO", "FOO=a BAR=b some-cmd") are a
-                    // TEMPORARY override of that command's environment only
+                    // Expand $VAR, $?, and $((arithmetic)) references in the
+                    // COMMAND part next - still using the environment as it
+                    // stood BEFORE any assignment(s) above, same reasoning
+                    // as resolving the assignment values themselves did:
+                    // real bash resolves every word of a simple command
+                    // against the shell's EXISTING variable table, and a
+                    // prefix assignment on that SAME command only ever
+                    // updates the environment the command's own process
+                    // actually runs in, never the parent shell's
+                    // variable-substitution text. This is why, in real
+                    // bash, `FOO=hello echo $FOO` prints whatever $FOO
+                    // already was - NOT "hello" - even though `echo` itself
+                    // does see FOO=hello in ITS OWN environment (e.g.
+                    // `FOO=hello printenv FOO` DOES print "hello", since
+                    // printenv reads its process's environment directly
+                    // rather than via shell substitution).
+                    let group = await this.expandAll(assignments.length > 0 ? rest : segment.text);
+
+                    // NOW apply any prefix assignments (e.g.
+                    // "FOO=hello echo $FOO", "FOO=a BAR=b some-cmd") as a
+                    // TEMPORARY override of the command's environment only
                     // - set for the duration of running it, then restored
                     // right afterward so they never leak into the shell's
                     // own variables, exactly like the persistent-assignment
@@ -302,10 +337,7 @@ Object.assign(TerminalEngine.prototype, {
                     let restoreEnv = null;
                     if (assignments.length > 0) {
                         restoreEnv = [];
-                        for (const { name, rawValue } of assignments) {
-                            const varValue = this.dequoteAssignmentValue(
-                                await this.expandCommandSubstitution(rawValue)
-                            );
+                        for (const { name, varValue } of resolvedAssignments) {
                             restoreEnv.push({
                                 name,
                                 hadValue: Object.prototype.hasOwnProperty.call(this.env, name),
@@ -313,12 +345,7 @@ Object.assign(TerminalEngine.prototype, {
                             });
                             this.env[name] = varValue;
                         }
-                        group = rest;
                     }
-
-                    // Not a (pure) assignment - resolve $(...) command substitution now.
-                    group = await this.expandCommandSubstitution(group);
-
 
                     // Split on unquoted "|" to build the pipeline stages
                     const pipeline = this.splitTopLevel(group, "|")
@@ -569,118 +596,31 @@ Object.assign(TerminalEngine.prototype, {
         }
     },
 
-    // Runs a command (or pipeline) and returns its {stdout, stderr, exitCode}
-    // WITHOUT writing anything to the terminal. Used by $(...) command
-    // substitution. Supports variables/arithmetic/nested substitution and
-    // pipes, but not ; sequencing or redirects (same as real shells' $(...)).
+    /**
+     * Runs a command line and returns its {stdout, stderr, exitCode}
+     * WITHOUT writing anything to the terminal - used for `$(...)` command
+     * substitution (see expandAll() in parser.js) and by sh.js for
+     * evaluating a script's condition/for-loop-item text. Just delegates
+     * straight to execute() itself with capture mode on, rather than
+     * maintaining a second, simplified reimplementation of command
+     * dispatch here: that SEPARATE implementation used to be missing
+     * things the main path has (at one point, redirects; now, ";"
+     * sequencing, "&&"/"||", and prefix assignments), and every time it
+     * fell behind it was its own new bug rather than something already
+     * fixed once in execute() and automatically inherited everywhere.
+     * `input` is raw, unexpanded text - execute() does its own full
+     * alias/brace/variable/arithmetic/substitution expansion on it, in
+     * exactly the same way as if the person had typed it directly, so
+     * `$(cmd1; cmd2)`, `$(FOO=1 cmd)`, `$(cmd1 && cmd2)`, and
+     * `$(cmd > file)` all now behave the same as their top-level
+     * equivalents (previously, only a single pipeline of one or more
+     * piped commands - no ";", "&&"/"||", or prefix-assignment support -
+     * was possible in here).
+     * @param {string} input
+     * @returns {Promise<{stdout: string, stderr: string, exitCode: number}>}
+     */
     async runCaptured(input) {
-        // Same reasoning as the check in execute() - a pipe's validity is
-        // part of the command's STRUCTURE, which is determined by the
-        // literal text as typed, before any expansion; checking only
-        // AFTER expanding (like the quote check just below does, for its
-        // own good reason) would risk a "|" that only exists because some
-        // unrelated substitution's OUTPUT happened to contain one being
-        // flagged as if it had actually been typed as a pipe.
-        const badToken = this.findMalformedShellSyntax(input);
-        if (badToken) {
-            return {
-                stdout: "",
-                stderr: `syntax error near unexpected token \`${badToken}'`,
-                exitCode: EXIT_SYNTAX_ERROR
-            };
-        }
-
-        let expanded = this.expandArithmetic(this.expandVariables(input));
-        expanded = await this.expandCommandSubstitution(expanded);
-
-        // Same check as the top of execute() - a variable's value could
-        // itself splice in a stray quote character that only becomes
-        // unbalanced once expanded in here, even if the original typed
-        // line looked fine.
-        if (this.hasUnterminatedQuotes(expanded)) {
-            return {
-                stdout: "",
-                stderr: "syntax error: unexpected end of file (unterminated quote)",
-                exitCode: EXIT_SYNTAX_ERROR
-            };
-        }
-
-        const pipeline = this.splitTopLevel(expanded, "|")
-            .map(cmd => cmd.trim())
-            .filter(Boolean);
-
-        // See the matching comment in the main dispatch loop above - `null`
-        // means "no stdin was piped in", distinct from an empty string.
-        let stdin = null;
-        let result = { stdout: "", stderr: "", exitCode: EXIT_SUCCESS };
-
-        for (const stage of pipeline) {
-            const parsed = this.parseCommand(stage);
-            const cmd = this.restoreGlobChars(parsed.cmd);
-            let args = [];
-            for (const arg of parsed.args) {
-                const expandedArg = this.fs.expandWildcards(arg, this.cwd);
-                const pieces = expandedArg.length > 0 ? expandedArg : [arg];
-                args.push(...pieces.map((a) => this.restoreGlobChars(a)));
-            }
-
-            // Set up any redirects on this stage (>, >>, 2>, 2>>, <) the
-            // same way the main dispatch loop does - previously this was
-            // skipped entirely inside $(...) substitution, so something
-            // like `$(echo hi > file)` silently threw the redirect away
-            // instead of writing to `file`.
-            const setup = this.setupRedirects(parsed.redirects, stdin);
-            stdin = setup.stdin;
-
-            const command = window.Commands?.[cmd];
-            // Everything run inside $(...) has its output fully consumed
-            // programmatically (never printed live) - see the matching
-            // comment on this._pipeOutputConsumed in the main dispatch loop
-            // above; sh.js checks this to decide whether to capture a
-            // script's output instead of writing it straight to the screen.
-            this._pipeOutputConsumed = true;
-            if (setup.error) {
-                // A redirect failed above - the command never runs at all,
-                // same as the main dispatch loop.
-                result = { stdout: "", stderr: setup.error, exitCode: EXIT_FAILURE };
-            } else if (command?.execute) {
-                try {
-                    result = await command.execute(this, args, stdin);
-                } catch (err) {
-                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: EXIT_FAILURE };
-                }
-                // See the matching comment in the main dispatch loop above -
-                // a mutating command run inside $(...) still needs to mark
-                // the session dirty.
-                if (command.mutatesFilesystem) {
-                    this.fsDirty = true;
-                }
-            } else if (cmd && cmd.includes("/")) {
-                try {
-                    result = await window.Commands.sh.runScript(this, cmd, args, { label: cmd });
-                } catch (err) {
-                    result = { stdout: "", stderr: `${cmd}: ${err.message}`, exitCode: EXIT_FAILURE };
-                }
-            } else {
-                result = { stdout: "", stderr: `command not found: ${cmd}`, exitCode: EXIT_COMMAND_NOT_FOUND };
-            }
-
-            if (typeof result === "string") {
-                result = { stdout: result, stderr: "", exitCode: EXIT_SUCCESS };
-            }
-            result.stdout ??= "";
-            result.stderr ??= "";
-            result.exitCode ??= 0;
-
-            if (!setup.error) {
-                result = this.applyOutputRedirects(result, setup.stdoutRedirect, setup.stderrRedirect);
-            }
-
-            stdin = result.stdout;
-        }
-
-        this.lastExitCode = result.exitCode;
-        return result;
+        return await this.execute(input, { capture: true });
     },
 
     /**

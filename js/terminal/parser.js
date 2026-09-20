@@ -1,15 +1,16 @@
 /**
  * Shell-parsing utilities for TerminalEngine: brace expansion, quote-aware
- * tokenizing/splitting, I/O redirection parsing, variable expansion,
- * command substitution ($(...)), and alias expansion. These are used by
- * execute.js to turn a raw typed command line into something that can
- * actually be run.
+ * tokenizing/splitting, I/O redirection parsing, and alias expansion, plus
+ * expandAll() - the single unified pass that resolves every `$`-expansion
+ * ($?, $((arithmetic)), $(command substitution), $VAR/${VAR}) in a raw
+ * command-line string. These are used by execute.js to turn a raw typed
+ * command line into something that can actually be run.
  *
- * `$((...))` arithmetic expansion itself lives in js/terminal/arithmetic.js -
- * it's a self-contained tokenizer/evaluator with no dependency on the
- * quote-tracking state shared by everything else in this file. This file
- * still calls into it (expandArithmetic(), from execute.js's expansion
- * pipeline) the same way it always has.
+ * `$((...))`'s actual evaluator (parsing/computing the arithmetic itself,
+ * once expandAll() below has already resolved any nested `$`-expansions
+ * inside it) lives in js/terminal/arithmetic.js - it's a self-contained
+ * tokenizer/evaluator with no dependency on the quote-tracking state
+ * shared by everything else in this file.
  */
 Object.assign(TerminalEngine.prototype, {
 
@@ -186,7 +187,7 @@ Object.assign(TerminalEngine.prototype, {
      * close before the end of the string - e.g. `echo "hello` or
      * `echo 'hello`. Used to reject a whole command line up front as a
      * syntax error, since every quote-aware scanner elsewhere in this file
-     * (tokenize, splitTopLevel, expandVariables, findCommandSubstitution,
+     * (tokenize, splitTopLevel, expandAll, findCommandSubstitution,
      * ...) has no other way to notice this: they just run off the end of
      * the string with their quote flag still set, and silently treat
      * whatever was accumulated as if the closing quote had been there all
@@ -271,6 +272,38 @@ Object.assign(TerminalEngine.prototype, {
         return null;
     },
 
+    /**
+     * If a `$(...)` or `$((...))` construct starts at `str[i]` (the "$"),
+     * returns the index just past its matching close - so a caller that
+     * needs to treat the WHOLE span as one atomic, non-splittable unit
+     * (the same way a quoted string already is to splitTopLevel/
+     * splitAndOr below) can jump straight over it, rather than walking
+     * into it character by character and mistaking something inside -
+     * a ";", "|", "&&" - for a real top-level operator. That distinction
+     * matters because a command's structure (where its statement
+     * separators, pipes, and and-ors are) is determined by a real shell
+     * BEFORE any expansion happens, and a "$(...)"'s contents are exactly
+     * as opaque to that determination as a quoted string's are: whatever
+     * ends up inside is that substitution's OWN business, resolved
+     * separately (recursively re-parsed in full, structure included, when
+     * the substitution itself runs) - never the enclosing line's.
+     * Returns null if `str[i]` doesn't start one of these constructs, or
+     * if it does but its parens never balance - in which case the caller
+     * should just fall through to treating `str[i]` as an ordinary
+     * character, the same as an unmatched quote is left as literal text
+     * elsewhere in this file.
+     * @param {string} str
+     * @param {number} i - Index of the "$".
+     * @returns {number|null}
+     */
+    skipDollarParen(str, i) {
+        if (str[i] !== "$" || str[i + 1] !== "(") return null;
+        if (str[i + 2] === "(") {
+            return this.matchArithmeticClose(str, i + 3);
+        }
+        return this.matchSubstitutionClose(str, i + 2);
+    },
+
     splitTopLevel(str, delimiter) {
         const parts = [];
         let current = "";
@@ -314,6 +347,14 @@ Object.assign(TerminalEngine.prototype, {
                 current += ch;
                 continue;
             }
+            if (ch === "$") {
+                const end = this.skipDollarParen(str, i);
+                if (end !== null) {
+                    current += str.slice(i, end);
+                    i = end - 1; // the for-loop's i++ lands exactly on `end`
+                    continue;
+                }
+            }
             if (ch === delimiter) {
                 parts.push(current);
                 current = "";
@@ -334,7 +375,8 @@ Object.assign(TerminalEngine.prototype, {
      * after that (the operator that PRECEDES it, i.e. the one deciding
      * whether that segment runs at all). Quote/escape handling mirrors
      * splitTopLevel() exactly, so e.g. `echo "a && b"` is one segment,
-     * not two.
+     * not two - and so is `echo $(a && b)`, via the same skipDollarParen()
+     * atomic-span handling.
      * @param {string} str - Input string, e.g. "cmd1 && cmd2 || cmd3".
      * @returns {{op: string|null, text: string}[]}
      */
@@ -376,6 +418,14 @@ Object.assign(TerminalEngine.prototype, {
                 inDouble = true;
                 current += ch;
                 continue;
+            }
+            if (ch === "$") {
+                const end = this.skipDollarParen(str, i);
+                if (end !== null) {
+                    current += str.slice(i, end);
+                    i = end - 1;
+                    continue;
+                }
             }
 
             if ((ch === "&" || ch === "|") && str[i + 1] === ch) {
@@ -546,7 +596,7 @@ Object.assign(TerminalEngine.prototype, {
      * that resolves an assignment's right-hand side (a plain `x=...`, and
      * each prefix assignment before a command) so they treat quoting
      * identically.
-     * @param {string} value - Already through expandCommandSubstitution().
+     * @param {string} value - Already through expandAll().
      * @returns {string}
      */
     dequoteAssignmentValue(value) {
@@ -650,22 +700,36 @@ Object.assign(TerminalEngine.prototype, {
     },
 
     /**
-     * Reverses the placeholder substitution tokenize() applies to a
-     * quoted or backslash-escaped "*"/"?" (see the comment there) - swaps
-     * GLOB_STAR_PLACEHOLDER/GLOB_QUESTION_PLACEHOLDER back to the real
-     * characters. Called on the command name and every argument right
-     * after wildcard expansion has had its chance to run, so a command
-     * actually receives the literal "*"/"?" it was given (e.g. find's
-     * own -name matching, or a filename to create) rather than the
-     * placeholder.
+     * Reverses two separate placeholder substitutions, both swapped back
+     * to their real characters at the same point: a quoted or
+     * backslash-escaped "*"/"?" that tokenize() protected from wildcard
+     * expansion (see the comment there), and every character
+     * protectExpansionChars() protected within an expanded value (see the
+     * comment on expandAll() above) so it couldn't be mistaken for real
+     * syntax by tokenize()/splitTopLevel()/splitAndOr()/parseCommand() in
+     * between. Called on the command name and every argument right after
+     * wildcard expansion has had its chance to run, so a command actually
+     * receives the literal characters it was given (e.g. find's own
+     * -name matching, a filename to create, or a value that happens to
+     * contain a quote or pipe character) rather than any placeholder.
      * @param {string} str
      * @returns {string}
      */
     restoreGlobChars(str) {
         return str
             .replace(new RegExp(GLOB_STAR_PLACEHOLDER, "g"), "*")
-            .replace(new RegExp(GLOB_QUESTION_PLACEHOLDER, "g"), "?");
+            .replace(new RegExp(GLOB_QUESTION_PLACEHOLDER, "g"), "?")
+            .replace(new RegExp(OPAQUE_DQUOTE_PLACEHOLDER, "g"), '"')
+            .replace(new RegExp(OPAQUE_SQUOTE_PLACEHOLDER, "g"), "'")
+            .replace(new RegExp(OPAQUE_BACKSLASH_PLACEHOLDER, "g"), "\\")
+            .replace(new RegExp(OPAQUE_DOLLAR_PLACEHOLDER, "g"), "$")
+            .replace(new RegExp(OPAQUE_SEMICOLON_PLACEHOLDER, "g"), ";")
+            .replace(new RegExp(OPAQUE_PIPE_PLACEHOLDER, "g"), "|")
+            .replace(new RegExp(OPAQUE_AMP_PLACEHOLDER, "g"), "&")
+            .replace(new RegExp(OPAQUE_GT_PLACEHOLDER, "g"), ">")
+            .replace(new RegExp(OPAQUE_LT_PLACEHOLDER, "g"), "<");
     },
+
 
     /**
      * Splits a command line into individual argument tokens, honoring
@@ -788,20 +852,87 @@ Object.assign(TerminalEngine.prototype, {
     },
 
     /**
-     * Expands `$?` (last exit code) and `$VARNAME` references against the
-     * shell's environment variables. Unknown variables expand to "".
-     *
-     * Skips expansion entirely inside single-quoted regions - matching
-     * real bash, where single quotes suppress ALL expansion, so
-     * `echo '$HOME'` must print the literal text `$HOME` rather than the
-     * actual value (which is exactly what double quotes, or no quotes at
-     * all, DO allow: `echo "$HOME"` and `echo $HOME` both still expand).
-     * A backslash-escaped `$` (outside single quotes) is also left alone,
-     * matching bash's `\$` escape.
-     * @param {string} input
+     * Swaps every character in `str` that's syntactically significant to
+     * something downstream of expansion (see the block comment on the
+     * OPAQUE_*_PLACEHOLDER constants in constants.js for the full list and
+     * why) for its inert placeholder. Used by expandAll() below on every
+     * value it splices in - a variable's stored value, or a command
+     * substitution's captured stdout - so none of THOSE characters can
+     * ever be mistaken for real, user-typed syntax by tokenize(),
+     * splitTopLevel()/splitAndOr(), or parseCommand()'s redirect-operator
+     * detection.
+     * @param {string} str
      * @returns {string}
      */
-    expandVariables(input) {
+    protectExpansionChars(str) {
+        let result = "";
+        for (const ch of str) {
+            switch (ch) {
+                case '"': result += OPAQUE_DQUOTE_PLACEHOLDER; break;
+                case "'": result += OPAQUE_SQUOTE_PLACEHOLDER; break;
+                case "\\": result += OPAQUE_BACKSLASH_PLACEHOLDER; break;
+                case "$": result += OPAQUE_DOLLAR_PLACEHOLDER; break;
+                case ";": result += OPAQUE_SEMICOLON_PLACEHOLDER; break;
+                case "|": result += OPAQUE_PIPE_PLACEHOLDER; break;
+                case "&": result += OPAQUE_AMP_PLACEHOLDER; break;
+                case ">": result += OPAQUE_GT_PLACEHOLDER; break;
+                case "<": result += OPAQUE_LT_PLACEHOLDER; break;
+                default: result += ch;
+            }
+        }
+        return result;
+    },
+
+    /**
+     * The single, unified pass that resolves every `$`-expansion in a raw
+     * command-line string - `$?`, `$((arithmetic))`, `$(command
+     * substitution)`, and `$VAR`/`${VAR}` - by walking `input` exactly
+     * ONCE. This replaces what used to be three separate sequential
+     * text-substitution passes (expandVariables(), expandArithmetic(),
+     * expandCommandSubstitution()), each scanning the PREVIOUS pass's
+     * OUTPUT - which mattered, because that meant a stored value that
+     * happened to contain shell-syntax-looking characters got treated as
+     * REAL, live syntax the second time around: effectively an
+     * unintentional "eval" of arbitrary stored data. For example
+     * `x='$(rm -rf /)'; echo $x` would ACTUALLY RUN `rm -rf /`, because
+     * expandVariables (pass 1) spliced the literal text "$(rm -rf /)"
+     * into the line as plain text, and expandCommandSubstitution (pass 2,
+     * scanning that ALREADY-substituted text with no way to tell where it
+     * came from) found what looked like an ordinary, freshly-typed
+     * command substitution. The same flaw let a stray quote character in
+     * a value corrupt later tokenizing, and let a stray `|`/`>` in a
+     * value get mistaken for a real pipe/redirect.
+     *
+     * Scanning the ORIGINAL text exactly once fixes the root cause: this
+     * loop only ever advances over ORIGINAL input positions, so whatever
+     * it splices into `result` for a resolved construct is never
+     * revisited by the loop itself. But every OTHER stage downstream of
+     * this function (tokenize(), splitTopLevel()/splitAndOr(),
+     * parseCommand()'s redirect-operator detection) still walks the
+     * fully-expanded RESULT text independently - so a value's characters
+     * are protected (see protectExpansionChars() above) before being
+     * spliced in, specifically so those later stages see only inert
+     * placeholder text where a value's quotes/operators would otherwise
+     * have been. restoreGlobChars() - already called on every command
+     * name/argument right before a command actually runs, alongside its
+     * existing job of un-protecting quoted glob characters - swaps the
+     * real characters back in at the very end. A LITERAL quote/pipe/etc.
+     * the user actually typed, by contrast, never passes through
+     * protectExpansionChars() at all, so it's completely unaffected.
+     *
+     * Quote handling matches the three replaced functions exactly: single
+     * quotes suppress ALL expansion (`echo '$HOME'` -> literal "$HOME"),
+     * double quotes still allow expansion (`echo "$HOME"` -> the value),
+     * and a backslash-escaped `$` (outside single quotes) is left alone.
+     * `$((...))`'s inner expression, and a `$(...)`'s inner command text,
+     * are each recursively run back through this SAME function before
+     * being evaluated/executed - so nested expansions inside either one
+     * (`$(( $(echo 3) + 1 ))`, `$(echo $HOME)`) now resolve correctly too,
+     * rather than only being resolvable at the top level.
+     * @param {string} input
+     * @returns {Promise<string>}
+     */
+    async expandAll(input) {
         let result = "";
         let inSingle = false;
         let inDouble = false;
@@ -840,10 +971,82 @@ Object.assign(TerminalEngine.prototype, {
                 i++; // skip the "?"
                 continue;
             }
+
+            if (ch === "$" && input[i + 1] === "(") {
+                if (input[i + 2] === "(") {
+                    // $((...)) arithmetic expansion.
+                    const end = this.matchArithmeticClose(input, i + 3);
+                    if (end !== null) {
+                        const innerRaw = input.slice(i + 3, end - 2);
+                        const innerExpanded = await this.expandAll(innerRaw);
+                        let value;
+                        try {
+                            value = this.evaluateArithmetic(innerExpanded);
+                        } catch {
+                            value = 0;
+                        }
+                        result += String(value); // a number - never needs protecting
+                        i = end - 1;
+                        continue;
+                    }
+                    // Unbalanced - bash commits to arithmetic syntax as soon
+                    // as it sees "$((" and would report this as a syntax
+                    // error rather than falling back to command
+                    // substitution; closest tolerable behavior here is to
+                    // just leave the "$" (and everything else) as literal
+                    // text, same as an unmatched quote is left as literal
+                    // text elsewhere in this file.
+                } else {
+                    // $(...) command substitution.
+                    const end = this.matchSubstitutionClose(input, i + 2);
+                    if (end !== null) {
+                        const innerRaw = input.slice(i + 2, end - 1);
+                        const captured = await this.runCaptured(innerRaw);
+                        // Only stdout is substituted into the string -
+                        // stderr from the inner command is NEVER part of
+                        // $(...)'s value, in bash or here. Real bash still
+                        // lets that stderr reach the terminal directly
+                        // (e.g. `echo $(cmd 2>&1 1>/dev/null)` captures
+                        // nothing but still prints cmd's stderr to the
+                        // screen), so it's written out immediately as each
+                        // substitution runs, rather than being silently
+                        // dropped.
+                        if (captured.stderr) {
+                            for (const line of captured.stderr.split(/\r?\n/)) {
+                                if (line) this.write(this.formatErrorLine(line));
+                            }
+                        }
+                        // bash strips trailing newlines from $(...) output,
+                        // but keeps internal newlines intact
+                        const text = (captured.stdout ?? "").replace(/\r?\n+$/, "");
+                        result += this.protectExpansionChars(text);
+                        i = end - 1;
+                        continue;
+                    }
+                    // Unbalanced - leave as literal, same reasoning.
+                }
+            }
+
+            if (ch === "$" && input[i + 1] === "{") {
+                const closeIndex = input.indexOf("}", i + 2);
+                if (closeIndex !== -1) {
+                    const name = input.slice(i + 2, closeIndex);
+                    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+                        result += this.protectExpansionChars(this.env[name] ?? "");
+                        i = closeIndex;
+                        continue;
+                    }
+                }
+                // Not a simple "${NAME}" (empty, malformed, or one of the
+                // fancier forms like "${NAME:-default}" this toy shell
+                // doesn't support) - fall through and leave it as literal
+                // text, same as an unrecognized construct anywhere else.
+            }
+
             if (ch === "$") {
                 const nameMatch = /^[A-Za-z_][A-Za-z0-9_]*/.exec(input.slice(i + 1));
                 if (nameMatch) {
-                    result += this.env[nameMatch[0]] ?? "";
+                    result += this.protectExpansionChars(this.env[nameMatch[0]] ?? "");
                     i += nameMatch[0].length; // the leading "$" itself is consumed by the loop's own i++
                     continue;
                 }
@@ -894,9 +1097,12 @@ Object.assign(TerminalEngine.prototype, {
             if (ch === "$" && str[i + 1] === "(") {
                 if (str[i + 2] === "(") {
                     // "$((" - arithmetic expansion, not command substitution.
-                    // Skip past it and keep looking (expandArithmetic should
-                    // normally have already removed these by the time this
-                    // runs, but this guards stray cases).
+                    // Skip past it and keep looking (this function only
+                    // ever runs on still-RAW, unexpanded text - via
+                    // wordEnd() above, for finding a prefix assignment's
+                    // word boundary before anything has been resolved yet -
+                    // so a "$((" here is genuinely arithmetic syntax, not a
+                    // stray case to guard against).
                     continue;
                 }
                 const end = this.matchSubstitutionClose(str, i + 2);
@@ -943,48 +1149,6 @@ Object.assign(TerminalEngine.prototype, {
         }
 
         return depth === 0 ? i : null;
-    },
-
-    /**
-     * Repeatedly finds and replaces `$(...)` command substitutions in `str`
-     * with the captured stdout of actually running the inner command
-     * (via runCaptured, defined in execute.js). Trailing newlines are
-     * stripped from the captured output to match bash's behavior.
-     *
-     * Only stdout is substituted into the string - stderr from the inner
-     * command is NEVER part of `$(...)`'s value, in bash or here. Real
-     * bash still lets that stderr reach the terminal directly (e.g.
-     * `echo $(cmd 2>&1 1>/dev/null)` captures nothing but still prints
-     * cmd's stderr to the screen), so it's written out immediately as
-     * each substitution runs, rather than being silently dropped.
-     * @param {string} str - Input string possibly containing $(...) patterns.
-     * @returns {Promise<string>} The string with all substitutions resolved.
-     * @throws {Error} If substitutions appear to nest more than 50 deep
-     *   (guards against pathological/infinite input).
-     */
-    async expandCommandSubstitution(str) {
-        let result = str;
-        let guard = 0;
-        while (true) {
-            const found = this.findCommandSubstitution(result);
-            if (!found) break;
-            if (++guard > 50) {
-                throw new Error("too many nested command substitutions");
-            }
-            const captured = await this.runCaptured(found.inner);
-            if (captured.stderr) {
-                for (const line of captured.stderr.split(/\r?\n/)) {
-                    if (line) {
-                        this.write(this.formatErrorLine(line));
-                    }
-                }
-            }
-            // bash strips trailing newlines from $(...) output, but keeps
-            // internal newlines intact
-            const text = (captured.stdout ?? "").replace(/\r?\n+$/, "");
-            result = result.slice(0, found.start) + text + result.slice(found.end);
-        }
-        return result;
     },
 
     /**

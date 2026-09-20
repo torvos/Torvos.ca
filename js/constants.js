@@ -61,3 +61,28 @@ const STORAGE_KEY_FILESYSTEM = "FileSystem";
 // specifically because real user input can never contain them.
 const GLOB_STAR_PLACEHOLDER = "\uE000";
 const GLOB_QUESTION_PLACEHOLDER = "\uE001";
+
+// Private-Use-Area placeholders for characters that are syntactically
+// significant to something DOWNSTREAM of expansion (tokenize(),
+// splitTopLevel()/splitAndOr()'s statement/pipe/and-or splitting,
+// parseCommand()'s redirect-operator detection) - used the exact same way
+// as the two above, just for a different purpose: protecting the
+// characters of an EXPANDED VALUE (a variable's stored value, or a
+// command substitution's captured output) from being mistaken for real,
+// user-typed syntax by any of those later stages. A value can contain
+// ANY character - a quote, a pipe, a redirect arrow - and none of it
+// should ever be re-interpreted as shell syntax, only the identical
+// character actually typed by the user should be. See expandAll() and
+// protectExpansionChars() in parser.js for where these get applied, and
+// restoreGlobChars() for where they (along with the two above) get
+// swapped back to the real character, right before a command actually
+// runs.
+const OPAQUE_DQUOTE_PLACEHOLDER = "\uE010";
+const OPAQUE_SQUOTE_PLACEHOLDER = "\uE011";
+const OPAQUE_BACKSLASH_PLACEHOLDER = "\uE012";
+const OPAQUE_DOLLAR_PLACEHOLDER = "\uE013";
+const OPAQUE_SEMICOLON_PLACEHOLDER = "\uE014";
+const OPAQUE_PIPE_PLACEHOLDER = "\uE015";
+const OPAQUE_AMP_PLACEHOLDER = "\uE016";
+const OPAQUE_GT_PLACEHOLDER = "\uE017";
+const OPAQUE_LT_PLACEHOLDER = "\uE018";

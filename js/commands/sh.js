@@ -367,7 +367,7 @@
     }
 
     async function evaluateCondition(terminal, conditionRaw) {
-        const condition = terminal.expandVariables(conditionRaw).trim();
+        const condition = (await terminal.expandAll(conditionRaw)).trim();
         if (!condition) return false;
 
         let negate = false;
@@ -388,16 +388,26 @@
         return negate ? !result : result;
     }
 
-    // Expands the "in ITEMS" clause of a for-loop: variable-expands the
-    // text, tokenizes it, then resolves any wildcard tokens against the
-    // filesystem (falling back to the literal token if nothing matches).
-    function expandForItems(terminal, itemsText) {
-        const expanded = terminal.expandVariables(itemsText);
+    // Expands the "in ITEMS" clause of a for-loop: fully expands the text
+    // ($VAR, $(...), $((...)), all of it - via expandAll(), same as any
+    // other command line), tokenizes it, then resolves any wildcard
+    // tokens against the filesystem (falling back to the literal token if
+    // nothing matches).
+    async function expandForItems(terminal, itemsText) {
+        const expanded = await terminal.expandAll(itemsText);
         const tokens = terminal.tokenize(expanded);
         const items = [];
         for (const token of tokens) {
             const globbed = terminal.fs.expandWildcards(token, terminal.cwd);
-            items.push(...(globbed.length > 0 ? globbed : [token]));
+            // restoreGlobChars() undoes tokenize()'s own quoted-glob-char
+            // protection AND expandAll()'s protection of any quote/
+            // operator character that came from a substituted value - the
+            // same restoration every other command's args already get
+            // right before use, needed here too since these tokens become
+            // real loop-variable values.
+            items.push(...(globbed.length > 0
+                ? globbed.map((g) => terminal.restoreGlobChars(g))
+                : [terminal.restoreGlobChars(token)]));
         }
         return items;
     }
@@ -473,7 +483,7 @@
             }
 
             case "for": {
-                const items = expandForItems(terminal, stmt.itemsText);
+                const items = await expandForItems(terminal, stmt.itemsText);
                 for (let i = 0; i < items.length; i++) {
                     if (i > MAX_LOOP_ITERATIONS) {
                         terminal.write(terminal.formatErrorLine("sh: for loop exceeded maximum iteration limit"));
