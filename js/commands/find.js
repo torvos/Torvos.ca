@@ -83,6 +83,34 @@ registerCommand("find", {
             };
         }
 
+        // Checks the type/name filters against a single node, the same
+        // logic walk() below applies to every child.
+        function matchesFilters(node, name) {
+            const isDir = terminal.fs.isDirectory(node);
+            const matches = namePattern ? regex.test(name) : true;
+            return typeFilter === "f" ? (terminal.fs.isFile(node) && matches)
+                : typeFilter === "d" ? (isDir && matches)
+                : matches;
+        }
+
+        // Real `find` always evaluates (and, if it matches, prints) the
+        // STARTING path itself first, before any of its descendants - e.g.
+        // `find /home/guest` begins its output with "/home/guest" itself,
+        // and `find somefile.txt` (a plain file, not a directory at all)
+        // prints just that one line if it matches, with nothing to walk
+        // into. This walked the tree without ever considering the root
+        // node itself, so both of those cases previously printed nothing.
+        const rootName = path === "/" ? "/" : path.slice(path.lastIndexOf("/") + 1);
+        const rootSegments = [];
+        let rootText = "";
+        if (matchesFilters(root, rootName)) {
+            rootText = `${path}\n`;
+            rootSegments.push({
+                text: path,
+                color: terminal.fs.isDirectory(root) ? COLOR_DIRECTORY : COLOR_STDOUT
+            });
+        }
+
         // Recursively walks `node`, appending a line for every child that
         // passes the type/name filters, then descending into subdirectories
         // (as long as maxDepth allows).
@@ -99,14 +127,8 @@ registerCommand("find", {
             keys.forEach((key, index) => {
                 const child = node.children[key];
                 const isDir = terminal.fs.isDirectory(child);
-                const matches = (namePattern ? regex.test(key) : true);
 
-                const shouldPrint =
-                    typeFilter === "f" ? (terminal.fs.isFile(child) && matches) :
-                    typeFilter === "d" ? (isDir && matches) :
-                    matches;
-
-                if (shouldPrint) {
+                if (matchesFilters(child, key)) {
                     const line = `${path}/${key}`;
                     output += `${line}\n`;
                     // Color directory paths distinctly from file paths,
@@ -127,10 +149,12 @@ registerCommand("find", {
         }
 
         const walked = walk(root, path);
+        const fullText = rootText + walked.text;
+        const fullSegments = rootSegments.concat(walked.segments);
 
         return {
-            stdout: walked.text.replace(/\r?\n$/, ""),
-            stdoutSegments: walked.segments.map(seg => [seg]),
+            stdout: fullText.replace(/\r?\n$/, ""),
+            stdoutSegments: fullSegments.map(seg => [seg]),
             stderr: "",
             exitCode: EXIT_SUCCESS
         };
