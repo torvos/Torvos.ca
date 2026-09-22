@@ -29,6 +29,32 @@ registerCommand("tail", {
             : 10;
         const targets = parsed.args;
 
+        // Array.prototype.slice(-N) is how this picks "the last N lines" -
+        // but JS treats slice(-0) exactly the same as slice(0) (there's no
+        // such thing as a distinct "negative zero" index), which returns
+        // the WHOLE array instead of an empty one. So does slice(NaN) (a
+        // non-numeric -n value), since ToIntegerOrInfinity converts NaN to
+        // 0 too. Both would make `tail -n 0` (or a bad -n value) print
+        // everything instead of nothing.
+        //
+        // Also drops one trailing empty string, if there is one - content
+        // ending in a newline (the normal case for a real text file, and
+        // for anything written by echo/printf's own trailing "\n") makes
+        // split(/\r?\n/) produce a phantom EXTRA "line" after the real
+        // last one (e.g. "a\nb\n".split(...) is ["a","b",""], not ["a","b"]).
+        // Left in, that phantom empty entry would count as the actual
+        // LAST line for `tail`'s purposes, silently pushing a real line
+        // out of the "last N" window (sort/uniq already guard against this
+        // same thing for their own purposes - see the matching check
+        // there). Route every last-N-lines slice through this instead of
+        // calling .slice(-maxDepth) directly.
+        function lastNLines(lines) {
+            if (lines.length && lines[lines.length - 1] === "") {
+                lines = lines.slice(0, -1);
+            }
+            return Number.isFinite(maxDepth) && maxDepth > 0 ? lines.slice(-maxDepth) : [];
+        }
+
         if (targets.length === 0) {
             // No file given - fall back to piped stdin. `stdin == null` means
             // nothing was piped at all - distinct from stdin being an empty
@@ -42,10 +68,7 @@ registerCommand("tail", {
                 };
             }
             return {
-                stdout: stdin
-                    .split(/\r?\n/)
-                    .slice(-maxDepth) // negative slice = last N lines
-                    .join("\n"),
+                stdout: lastNLines(stdin.split(/\r?\n/)).join("\n"),
                 stderr: "",
                 exitCode: EXIT_SUCCESS
             };
@@ -74,10 +97,7 @@ registerCommand("tail", {
             }
 
             node.accessed = Date.now();
-            const body = terminal.fs.readContent(node)
-                .split(/\r?\n/)
-                .slice(-maxDepth)
-                .join("\n");
+            const body = lastNLines(terminal.fs.readContent(node).split(/\r?\n/)).join("\n");
             chunks.push(targets.length > 1 ? `==> ${target} <==\n${body}` : body);
         }
 
