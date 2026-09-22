@@ -43,7 +43,6 @@ registerCommand("ln", {
             if(target && link){
                 
                 const targetPath = terminal.fs.getFullPath(target, terminal.cwd);        
-                const targetNode = terminal.fs.get(target, terminal.cwd);
 
                 const linkPath = terminal.fs.getFullPath(link, terminal.cwd);
                 const linkNode = terminal.fs.get(link, terminal.cwd);
@@ -63,13 +62,14 @@ registerCommand("ln", {
                     };
                 }
 
-                if (!targetNode) {
-                    return {
-                        stdout:"",
-                        stderr:`ln: ${target}: No such file or directory`,
-                        exitCode: EXIT_FAILURE
-                    };
-                }
+                // Unlike most of this shell's other file-creating commands,
+                // real `ln -s` does NOT require its target to already
+                // exist - a "dangling" symlink (pointing at something that
+                // doesn't exist yet, or not anymore) is perfectly
+                // legitimate, and is exactly what isValidNode() in
+                // fileapi.js already expects to see (see its own comment
+                // on this). So, unlike target, targetNode is intentionally
+                // never checked here.
 
                 if (linkNode) {
                     return {
