@@ -29,6 +29,24 @@ registerCommand("head", {
             : 10;
         const targets = parsed.args;
 
+        // Drops one trailing empty string, if there is one - content
+        // ending in a newline (the normal case for a real text file, and
+        // for anything written by echo/printf's own trailing "\n") makes
+        // split(/\r?\n/) produce a phantom EXTRA "line" after the real
+        // last one (e.g. "a\nb\n".split(...) is ["a","b",""], not
+        // ["a","b"]). Left in, whenever maxDepth is large enough to reach
+        // it (the default -n 10 covers any file of 10 lines or fewer),
+        // that phantom entry would get printed as an extra blank line
+        // that was never really "line 11" of the file (sort/uniq already
+        // guard against this same thing for their own purposes - see the
+        // matching check there).
+        function firstNLines(lines) {
+            if (lines.length && lines[lines.length - 1] === "") {
+                lines = lines.slice(0, -1);
+            }
+            return lines.slice(0, maxDepth);
+        }
+
         if (targets.length === 0) {
             // No file given - fall back to piped stdin. `stdin == null` means
             // nothing was piped at all - distinct from stdin being an empty
@@ -42,9 +60,7 @@ registerCommand("head", {
                 };
             }
             return {
-                stdout: stdin
-                    .split(/\r?\n/)
-                    .slice(0, maxDepth)
+                stdout: firstNLines(stdin.split(/\r?\n/))
                     .join("\n"),
                 stderr: "",
                 exitCode: EXIT_SUCCESS
@@ -72,10 +88,7 @@ registerCommand("head", {
                 continue;
             }
             node.accessed = Date.now();
-            const body = terminal.fs.readContent(node)
-                .split(/\r?\n/)
-                .slice(0, maxDepth)
-                .join("\n");
+            const body = firstNLines(terminal.fs.readContent(node).split(/\r?\n/)).join("\n");
             chunks.push(targets.length > 1 ? `==> ${target} <==\n${body}` : body);
         }
 
