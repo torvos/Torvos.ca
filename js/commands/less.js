@@ -78,8 +78,17 @@ registerCommand("less", {
         // naturally with capture ($()), pipes, and redirects, the same
         // as any other command. Real pagination (writing progressively
         // with pause-on-full-page) only kicks in when it's genuinely
-        // needed, for files longer than one screen.
-        if (terminal.pager.pageSize <= 0 || lines.length <= terminal.pager.pageSize) {
+        // needed, for files longer than one screen - AND only when a
+        // real person is actually watching it happen: if this command's
+        // own output is itself being consumed by something else (a later
+        // pipe stage, a redirect, or $(...) capturing it - see the
+        // comment on _pipeOutputConsumed in execute.js), pausing with
+        // "--More--" and awaiting a keypress that will never come would
+        // hang the WHOLE shell forever, since nothing is listening for
+        // one. Real less/more do the equivalent thing when their own
+        // output isn't a terminal - they just print everything straight
+        // through, same as cat, rather than trying to page a pipe.
+        if (terminal.pager.pageSize <= 0 || lines.length <= terminal.pager.pageSize || terminal._pipeOutputConsumed) {
             return {
                 stdout: lines.join("\n"),
                 stderr: "",
