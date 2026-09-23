@@ -20,7 +20,25 @@ registerCommand("login", {
             };                
         }
         // Switch the terminal into the username-prompt input mode; the rest
-        // of the (always-failing) login flow is handled in input.js's handleEnter.
+        // of the (always-failing) login flow is handled in input.js's
+        // handleEnter. Only do this when a real person is actually about
+        // to see the "user:" prompt and type into it - i.e. NOT when this
+        // command's own output is itself being consumed by something else
+        // (a pipe, a redirect, or $(...) capturing it - see the comment on
+        // _pipeOutputConsumed in execute.js). Switching input modes in
+        // that case would silently swallow whatever the person types NEXT
+        // (their real next command) as a fake username, then a fake
+        // password, ending in a confusing "Login incorrect" - even though
+        // they never asked to log in at all. Real login run non-
+        // interactively (e.g. from a script) just fails outright instead
+        // of trying to prompt anyone, which is what this falls back to.
+        if (terminal._pipeOutputConsumed) {
+            return {
+                stdout: "",
+                stderr: "login: no interactive terminal available",
+                exitCode: EXIT_FAILURE
+            };
+        }
         terminal.inputMode = INPUT_WAIT_FOR_USERNAME;
         terminal.promptEl.textContent = "user:";
         return {
