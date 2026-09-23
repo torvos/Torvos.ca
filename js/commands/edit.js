@@ -79,6 +79,26 @@ registerCommand("edit", {
             }
         }
 
+        // Only actually open the full-screen editor overlay when a real
+        // person is there to see and use it - NOT when this command's own
+        // output is itself being consumed by something else (a pipe, a
+        // redirect, or $(...) capturing it - see the comment on
+        // _pipeOutputConsumed in execute.js). openEditor() synchronously
+        // hides the normal terminal input/output and shows the editor
+        // overlay - it doesn't hang anything on its own, but if the
+        // command that triggered it is running in the background (e.g.
+        // `x=$(edit file.txt)`, or a line inside an `sh` script), the rest
+        // of that line/script would keep right on running UNDERNEATH an
+        // editor screen nobody meant to open, with no way to tell the
+        // editor and the shell's execution apart until the person
+        // eventually notices and presses Escape.
+        if (terminal._pipeOutputConsumed) {
+            return {
+                stdout: "",
+                stderr: "edit: no interactive terminal available",
+                exitCode: EXIT_FAILURE
+            };
+        }
         terminal.openEditor(node, path);
 
         return {
